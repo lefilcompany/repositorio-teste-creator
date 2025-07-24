@@ -1,9 +1,10 @@
-import ImageGenerator from '@/components/image-generator';
+// app/page.tsx
+import Creator from '@/components/creator';
 
 export default function HomePage() {
   return (
     <main>
-      <ImageGenerator />
+      <Creator />
     </main>
   );
 }
