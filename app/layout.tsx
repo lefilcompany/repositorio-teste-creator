@@ -6,7 +6,7 @@ import Sidebar from '@/components/sidebar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Creator AI',
+  title: 'Creator',
   description: 'Crie imagens e posts incríveis com inteligência artificial',
 }
 
