@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader, Image as ImageIcon, Sparkles, ArrowLeft } from 'lucide-react';
+// Adicionado o ícone de Download
+import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, Download } from 'lucide-react';
 
-// Tipagem para os dados do formulário
+// Interfaces (sem alteração)
 interface FormData {
   brandTheme: string;
   objective: string;
@@ -18,8 +19,6 @@ interface FormData {
   tone: string;
   additionalInfo: string;
 }
-
-// Tipagem para o conteúdo gerado
 interface GeneratedContent {
   title: string;
   body: string;
@@ -27,7 +26,6 @@ interface GeneratedContent {
 }
 
 export default function Creator() {
-  // CORREÇÃO APLICADA AQUI: Inicializando o estado com todos os campos.
   const [formData, setFormData] = useState<FormData>({
     brandTheme: '',
     objective: '',
@@ -37,12 +35,13 @@ export default function Creator() {
     tone: '',
     additionalInfo: '',
   });
-  
+
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false); // Novo estado para o download
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -61,7 +60,7 @@ export default function Creator() {
     setIsResultView(true);
 
     const imagePrompt = `Crie uma imagem profissional para um post na plataforma "${formData.platform}". - Marca/Tema: ${formData.brandTheme}. - Objetivo do post: ${formData.objective}. - Descrição visual da imagem: ${formData.description}. - Público-alvo: ${formData.audience}. - Tom de voz visual: ${formData.tone}. - Informações adicionais importantes: ${formData.additionalInfo}. A imagem deve ser de alta qualidade, atraente e seguir um estilo de arte digital moderna.`;
-    
+
     try {
       const response = await fetch('/api/generate-image', {
         method: 'POST',
@@ -95,7 +94,41 @@ export default function Creator() {
     setError(null);
   }
 
-  // Visualização do Formulário
+  // NOVA FUNÇÃO: Lógica para baixar a imagem
+  const handleDownloadImage = async () => {
+    if (!imageUrl) return;
+
+    setIsDownloading(true);
+    try {
+      // Faz o fetch da imagem a partir da URL
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+
+      // Cria uma URL de objeto temporária para o blob da imagem
+      const url = window.URL.createObjectURL(blob);
+
+      // Cria um link temporário, atribui a URL e o nome do arquivo
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'creator-ai-image.png'); // Nome do arquivo
+
+      // Adiciona, clica e remove o link do documento
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Limpa a URL do objeto da memória
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erro ao baixar a imagem:", error);
+      // Você pode adicionar um estado de erro de download aqui, se desejar
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+
+  // Visualização do Formulário (sem alteração)
   if (!isResultView) {
     return (
       <div className="w-full max-w-2xl h-full">
@@ -106,7 +139,7 @@ export default function Creator() {
             </h1>
             <p className="text-lg text-muted-foreground">Preencha os campos abaixo para gerar seu post.</p>
           </div>
-          
+
           <div className="overflow-y-auto flex-grow pr-4 -mr-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2 space-y-2">
@@ -147,7 +180,7 @@ export default function Creator() {
               </div>
             </div>
           </div>
-          
+
           <div className="mt-8 flex-shrink-0">
             <Button onClick={handleGenerateContent} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
               <Sparkles className="mr-2" />
@@ -162,9 +195,24 @@ export default function Creator() {
   // Visualização de Resultados
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
-      <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg self-center">
+      <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg self-center group">
         {loading && <div className="flex flex-col items-center text-center"><div className="animate-pulse"><ImageIcon size={64} className="text-primary" /></div><p className="mt-4 text-muted-foreground">Criando algo incrível...</p></div>}
-        {imageUrl && !loading && <img src={imageUrl} alt="Imagem gerada pela IA" className="rounded-2xl object-cover w-full h-full" />}
+        {imageUrl && !loading && (
+          <>
+            <img src={imageUrl} alt="Imagem gerada pela IA" className="rounded-2xl object-cover w-full h-full" />
+            {/* BOTÃO DE DOWNLOAD AQUI */}
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <Button onClick={handleDownloadImage} disabled={isDownloading} className="rounded-full text-lg px-8 py-6">
+                {isDownloading ? (
+                  <Loader className="animate-spin mr-2" />
+                ) : (
+                  <Download className="mr-2" />
+                )}
+                {isDownloading ? 'Baixando...' : 'Baixar Imagem'}
+              </Button>
+            </div>
+          </>
+        )}
         {error && !loading && <p className="text-destructive p-4">{error}</p>}
       </div>
 
