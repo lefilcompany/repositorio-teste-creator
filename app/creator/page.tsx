@@ -1,5 +1,5 @@
 // app/creator/page.tsx
-import Creator from '@/components/creator';
+import Creator from '@/components/content';
 
 export default function CreatorPage() {
   return (
