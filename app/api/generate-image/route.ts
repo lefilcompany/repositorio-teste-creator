@@ -114,7 +114,8 @@ export async function POST(req: NextRequest) {
 
   const textPrompt = `
     Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-    - Marca/Tema: ${formData.brandTheme}
+    - Marca: ${formData.brand}
+    - Tema: ${formData.theme}
     - Objetivo do Post: ${formData.objective}
     - Descrição da Ideia: ${formData.description}
     - Público-alvo: ${formData.audience}
