@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Home, Sparkles, CheckCircle, Tag } from 'lucide-react';
+import { Home, Sparkles, CheckCircle, Tag, Target, Palette, Users } from 'lucide-react';
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 flex-shrink-0 bg-card p-6 border-r-2 border-primary/10 flex-col hidden lg:flex">
+    <aside className="w-64 flex-shrink-0 shadow-sm shadow-primary/20 bg-card p-6 flex-col hidden lg:flex">
       <Link href="/" className="mb-10">
         <Image
           src="/assets/logoCreatorPreta.png"
@@ -22,6 +22,14 @@ export default function Sidebar() {
         <Link href="/marcas" className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
           <Tag className="h-5 w-5 text-accent" />
           <span className="font-medium">Marcas</span>
+        </Link>
+        <Link href="/temas" className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
+          <Palette className="h-5 w-5 text-accent" />
+          <span className="font-medium">Temas Estratégicos</span>
+        </Link>
+        <Link href="/personas" className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
+          <Users className="h-5 w-5 text-accent" />
+          <span className="font-medium">Personas</span>
         </Link>
         <Link href="/creator" className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors">
           <Sparkles className="h-5 w-5 text-accent" />
