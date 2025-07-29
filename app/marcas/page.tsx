@@ -87,7 +87,7 @@ export default function MarcasPage() {
             </p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="mt-4 md:mt-0 rounded-full px-6 py-5 text-base">
+        <Button onClick={() => handleOpenDialog()} className="mt-4 md:mt-0 rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
           <Plus className="mr-2 h-5 w-5" />
           Nova marca
         </Button>
