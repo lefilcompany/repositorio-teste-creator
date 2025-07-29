@@ -11,7 +11,8 @@ import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, Download } from 'lucid
 
 // Interfaces (sem alteração)
 interface FormData {
-  brandTheme: string;
+  brand: string;
+  theme: string;
   objective: string;
   platform: string;
   description: string;
@@ -27,7 +28,8 @@ interface GeneratedContent {
 
 export default function Creator() {
   const [formData, setFormData] = useState<FormData>({
-    brandTheme: '',
+    brand: '',
+    theme: '',
     objective: '',
     platform: '',
     description: '',
@@ -59,7 +61,7 @@ export default function Creator() {
     setGeneratedContent(null);
     setIsResultView(true);
 
-    const imagePrompt = `Crie uma imagem profissional para um post na plataforma "${formData.platform}". - Marca/Tema: ${formData.brandTheme}. - Objetivo do post: ${formData.objective}. - Descrição visual da imagem: ${formData.description}. - Público-alvo: ${formData.audience}. - Tom de voz visual: ${formData.tone}. - Informações adicionais importantes: ${formData.additionalInfo}. A imagem deve ser de alta qualidade, atraente e seguir um estilo de arte digital moderna.`;
+    const imagePrompt = `Crie uma imagem profissional para um post na plataforma "${formData.platform}". - Marca: ${formData.brand}. - Tema: ${formData.theme}. - Objetivo do post: ${formData.objective}. - Descrição visual da imagem: ${formData.description}. - Público-alvo: ${formData.audience}. - Tom de voz visual: ${formData.tone}. - Informações adicionais importantes: ${formData.additionalInfo}. A imagem deve ser de alta qualidade, atraente e seguir um estilo de arte digital moderna.`;
 
     try {
       const response = await fetch('/api/generate-image', {
@@ -147,9 +149,15 @@ export default function Creator() {
         {/* Corpo do Formulário */}
         <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="brandTheme">Marca e Tema Estratégico</Label>
-              <Input id="brandTheme" placeholder="Ex: Nike, campanha de superação" value={formData.brandTheme} onChange={handleInputChange} />
+            <div className='flex justify-between items-center md:col-span-2 gap-8'>
+              <div className="w-full md:col-span-2 space-y-2">
+                <Label htmlFor="brand">Marca</Label>
+                <Input id="brand" placeholder="Ex: Nike, campanha de superação" value={formData.brand} onChange={handleInputChange} />
+              </div>
+              <div className="w-full md:col-span-2 space-y-2">
+                <Label htmlFor="theme">Tema Estratégico</Label>
+                <Input id="theme" placeholder="Ex: Campanha de superação" value={formData.theme} onChange={handleInputChange} />
+              </div>
             </div>
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="objective">Objetivo da Imagem</Label>
@@ -192,11 +200,10 @@ export default function Creator() {
           </Button>
           {error && <p className="text-destructive mt-4 text-center">{error}</p>}
         </div>
-      </div>
+      </div >
     );
   }
 
-  // Visualização de Resultados
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
       <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg self-center group">

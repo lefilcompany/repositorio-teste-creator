@@ -1,3 +1,4 @@
+// components/review.tsx
 'use client';
 
 import { useState, ChangeEvent } from 'react';
@@ -5,14 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, UploadCloud, CheckCircle } from 'lucide-react';
+import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote } from 'lucide-react';
 
 export default function Revisar() {
   const [brandTheme, setBrandTheme] = useState('');
   const [adjustmentsPrompt, setAdjustmentsPrompt] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [revisedImageUrl, setRevisedImageUrl] = useState<string | null>(null);
+  // Estado para armazenar o texto de feedback
+  const [revisedText, setRevisedText] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
@@ -37,6 +39,7 @@ export default function Revisar() {
     }
     setLoading(true);
     setError(null);
+    setRevisedText(null);
     setIsResultView(true);
 
     const formData = new FormData();
@@ -56,8 +59,9 @@ export default function Revisar() {
       }
 
       const data = await response.json();
-      setRevisedImageUrl(data.imageUrl);
-    } catch (err: any)      {
+      // Armazena o feedback recebido
+      setRevisedText(data.feedback);
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -68,7 +72,7 @@ export default function Revisar() {
     setIsResultView(false);
     setImageFile(null);
     setPreviewUrl(null);
-    setRevisedImageUrl(null);
+    setRevisedText(null);
     setError(null);
   };
 
@@ -80,11 +84,9 @@ export default function Revisar() {
             <CheckCircle className="h-8 w-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">
-              Revisar Conteúdo
-            </h1>
+            <h1 className="text-2xl font-bold">Revisar Conteúdo</h1>
             <p className="text-muted-foreground">
-              Refine uma imagem existente com a ajuda da IA para um resultado perfeito.
+              Receba sugestões da IA para aprimorar sua imagem.
             </p>
           </div>
         </div>
@@ -97,7 +99,7 @@ export default function Revisar() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-2 flex flex-col">
-              <Label htmlFor="file-upload">Arquivo</Label>
+              <Label htmlFor="file-upload">Sua Imagem</Label>
               <div className="relative mt-2 flex flex-grow justify-center rounded-lg border border-dashed border-border p-6 h-full items-center">
                 <div className="text-center">
                   {previewUrl ? (
@@ -112,22 +114,21 @@ export default function Revisar() {
                 </div>
               </div>
             </div>
-
             <div className="space-y-2 flex flex-col">
-              <Label htmlFor="adjustmentsPrompt">Texto (Ajustes Desejados)</Label>
+              <Label htmlFor="adjustmentsPrompt">O que você gostaria de ajustar?</Label>
               <Textarea
                 id="adjustmentsPrompt"
-                placeholder="Escreva mais informações relevantes para a revisão do conteúdo. Ex: 'Remova o logo no canto inferior', 'deixe o fundo mais vibrante'..."
+                placeholder="Descreva o objetivo e o que você espera da imagem. Ex: 'Quero que a imagem transmita mais energia e seja mais vibrante'"
                 value={adjustmentsPrompt}
                 onChange={(e) => setAdjustmentsPrompt(e.target.value)}
-                className="flex-grow min-h-[220px] resize-none" // Altura mínima garantida
+                className="flex-grow min-h-[220px] resize-none"
               />
             </div>
           </div>
         </div>
         <div className="mt-8 flex-shrink-0">
           <Button onClick={handleGenerateReview} disabled={loading || !imageFile || !adjustmentsPrompt} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-            {loading ? <><Loader className="animate-spin mr-2" /> Revisando...</> : <><Sparkles className="mr-2" />Revisar Conteúdo</>}
+            {loading ? <><Loader className="animate-spin mr-2" /> Analisando...</> : <><Sparkles className="mr-2" />Analisar Imagem</>}
           </Button>
           {error && <p className="text-destructive mt-4 text-center">{error}</p>}
         </div>
@@ -135,28 +136,42 @@ export default function Revisar() {
     );
   }
 
+  // Tela de Resultados com o Feedback em Texto
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full items-center">
-      <div className="space-y-4">
-        <h3 className="text-center text-lg font-semibold text-muted-foreground">Original</h3>
-        <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
-            {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
+        {/* Coluna da Imagem Original */}
+        <div className="space-y-4 flex flex-col h-full">
+            <h3 className="text-center text-lg font-semibold text-muted-foreground">Sua Imagem</h3>
+            <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
+                {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
+            </div>
         </div>
-      </div>
-      <div className="space-y-4">
-        <h3 className="text-center text-lg font-semibold text-primary">Imagem Revisada</h3>
-        <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-primary relative overflow-hidden shadow-lg">
-          {loading && <div className="flex flex-col items-center text-center"><div className="animate-pulse"><ImageIcon size={64} className="text-primary" /></div><p className="mt-4 text-muted-foreground">Refinando sua imagem...</p></div>}
-          {revisedImageUrl && !loading && <img src={revisedImageUrl} alt="Imagem revisada pela IA" className="rounded-2xl object-cover w-full h-full" />}
-          {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
+        {/* Coluna do Feedback da IA */}
+        <div className="space-y-4 flex flex-col h-full">
+            <h3 className="text-center text-lg font-semibold text-primary">Sugestões da IA</h3>
+            <div className="w-full h-full bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col">
+                {loading && (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
+                        <p className="mt-4 text-muted-foreground">Analisando sua imagem...</p>
+                    </div>
+                )}
+                {revisedText && !loading && (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto h-full">
+                      {/* Usamos 'whitespace-pre-line' para respeitar as quebras de linha (\n) */}
+                      <p className="whitespace-pre-line">{revisedText}</p>
+                    </div>
+                )}
+                {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
+            </div>
         </div>
-      </div>
-      <div className="col-span-1 md:col-span-2">
-         <Button onClick={handleGoBackToForm} variant="outline" className="w-full rounded-full text-lg px-8 py-6">
-            <ArrowLeft className="mr-2" />
-            Revisar Outro Post
-          </Button>
-      </div>
+        {/* Botão de Voltar */}
+        <div className="col-span-1 lg:col-span-2">
+            <Button onClick={handleGoBackToForm} variant="outline" className="w-full rounded-full text-lg px-8 py-6">
+                <ArrowLeft className="mr-2" />
+                Analisar Outra Imagem
+            </Button>
+        </div>
     </div>
   );
 }
