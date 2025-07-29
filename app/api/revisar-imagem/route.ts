@@ -17,13 +17,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Imagem e prompt de ajuste são obrigatórios.' }, { status: 400 });
     }
 
-    // Converte a imagem para base64, que é o formato que a API da OpenAI espera.
     const imageBuffer = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageFile.type;
     const dataURI = `data:${mimeType};base64,${base64Image}`;
 
-    // Monta o prompt para a IA, instruindo-a a atuar como uma especialista.
     const analysisPrompt = `
       Você é um diretor de arte especialista em mídias sociais. Sua tarefa é analisar a imagem fornecida e dar um feedback construtivo para o usuário.
       O usuário deseja os seguintes ajustes: "${prompt}".
@@ -39,7 +37,6 @@ export async function POST(req: NextRequest) {
       }
     `;
 
-    // Chamada para a API do GPT-4 com capacidade de visão
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -47,7 +44,7 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // Modelo com capacidade de processar imagens
+        model: 'gpt-4o',
         messages: [
           {
             role: 'user',
@@ -62,7 +59,7 @@ export async function POST(req: NextRequest) {
             ],
           },
         ],
-        response_format: { type: "json_object" }, // Garantir que a resposta seja um JSON
+        response_format: { type: "json_object" }, 
         max_tokens: 500,
       }),
     });
@@ -76,7 +73,6 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const analysisContent = JSON.parse(data.choices[0].message.content);
 
-    // Retorna o feedback em texto
     return NextResponse.json({ feedback: analysisContent.feedback });
 
   } catch (error) {

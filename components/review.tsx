@@ -1,3 +1,4 @@
+// components/review.tsx
 'use client';
 
 import { useState, ChangeEvent } from 'react';
@@ -12,6 +13,7 @@ export default function Revisar() {
   const [adjustmentsPrompt, setAdjustmentsPrompt] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Estado para armazenar o texto de feedback
   const [revisedText, setRevisedText] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function Revisar() {
       }
 
       const data = await response.json();
+      // Armazena o feedback recebido
       setRevisedText(data.feedback);
     } catch (err: any) {
       setError(err.message);
@@ -88,6 +91,7 @@ export default function Revisar() {
           </div>
         </div>
 
+        {/* Corpo do Formulário */}
         <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
           <div className="space-y-2">
             <Label htmlFor="brandTheme">Marca e Tema Estratégico</Label>
@@ -132,15 +136,17 @@ export default function Revisar() {
     );
   }
 
+  // Tela de Resultados com o Feedback em Texto
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
+        {/* Coluna da Imagem Original */}
         <div className="space-y-4 flex flex-col h-full">
             <h3 className="text-center text-lg font-semibold text-muted-foreground">Sua Imagem</h3>
             <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
                 {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
-
             </div>
         </div>
+        {/* Coluna do Feedback da IA */}
         <div className="space-y-4 flex flex-col h-full">
             <h3 className="text-center text-lg font-semibold text-primary">Sugestões da IA</h3>
             <div className="w-full h-full bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col">
@@ -152,11 +158,19 @@ export default function Revisar() {
                 )}
                 {revisedText && !loading && (
                     <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto h-full">
+                      {/* Usamos 'whitespace-pre-line' para respeitar as quebras de linha (\n) */}
                       <p className="whitespace-pre-line">{revisedText}</p>
                     </div>
                 )}
                 {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
             </div>
+        </div>
+        {/* Botão de Voltar */}
+        <div className="col-span-1 lg:col-span-2">
+            <Button onClick={handleGoBackToForm} variant="outline" className="w-full rounded-full text-lg px-8 py-6">
+                <ArrowLeft className="mr-2" />
+                Analisar Outra Imagem
+            </Button>
         </div>
     </div>
   );
