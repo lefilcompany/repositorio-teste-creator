@@ -127,66 +127,70 @@ export default function Creator() {
     }
   };
 
-
-  // Visualização do Formulário (sem alteração)
   if (!isResultView) {
     return (
-      <div className="w-full max-w-2xl h-full">
-        <div className="w-full h-full text-left p-6 md:p-8 rounded-2xl shadow-2xl bg-card border-2 border-primary/20 flex flex-col">
-          <div className="mb-8 flex-shrink-0">
-            <h1 className="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+      <div className="w-full max-w-4xl h-full mx-auto p-4 sm:p-6 md:p-8 rounded-2xl shadow-2xl bg-card border-2 border-primary/20 flex flex-col">
+        <div className="flex items-start gap-4 mb-8">
+          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">
               Criar Conteúdo
             </h1>
-            <p className="text-lg text-muted-foreground">Preencha os campos abaixo para gerar seu post.</p>
+            <p className="text-muted-foreground">
+              Preencha os campos abaixo para gerar seu post.
+            </p>
           </div>
+        </div>
 
-          <div className="overflow-y-auto flex-grow pr-4 -mr-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="brandTheme">Marca e Tema Estratégico</Label>
-                <Input id="brandTheme" placeholder="Ex: Nike, campanha de superação" value={formData.brandTheme} onChange={handleInputChange} />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="objective">Objetivo da Imagem</Label>
-                <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto..." value={formData.objective} onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="platform">Plataforma Digital</Label>
-                <Select onValueChange={handlePlatformChange} value={formData.platform}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a plataforma" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="linkedin">LinkedIn</SelectItem>
-                    <SelectItem value="twitter">Twitter (X)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="audience">Público Alvo</Label>
-                <Input id="audience" placeholder="Ex: Jovens atletas, 18-25 anos" value={formData.audience} onChange={handleInputChange} />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="description">Descrição do Post (O que deve conter?)</Label>
-                <Textarea id="description" placeholder="Ex: Mencionar a importância da hidratação..." value={formData.description} onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tone">Tom de Voz</Label>
-                <Input id="tone" placeholder="Ex: Inspirador, motivacional" value={formData.tone} onChange={handleInputChange} />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="additionalInfo">Informações Adicionais para a imagem</Label>
-                <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista..." value={formData.additionalInfo} onChange={handleInputChange} />
-              </div>
+        {/* Corpo do Formulário */}
+        <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="brandTheme">Marca e Tema Estratégico</Label>
+              <Input id="brandTheme" placeholder="Ex: Nike, campanha de superação" value={formData.brandTheme} onChange={handleInputChange} />
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="objective">Objetivo da Imagem</Label>
+              <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto..." value={formData.objective} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="platform">Plataforma Digital</Label>
+              <Select onValueChange={handlePlatformChange} value={formData.platform}>
+                <SelectTrigger><SelectValue placeholder="Selecione a plataforma" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="instagram">Instagram</SelectItem>
+                  <SelectItem value="facebook">Facebook</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                  <SelectItem value="twitter">Twitter (X)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="audience">Público Alvo</Label>
+              <Input id="audience" placeholder="Ex: Jovens atletas, 18-25 anos" value={formData.audience} onChange={handleInputChange} />
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="description">Descrição do Post (O que deve conter?)</Label>
+              <Textarea id="description" placeholder="Ex: Mencionar a importância da hidratação..." value={formData.description} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tone">Tom de Voz</Label>
+              <Input id="tone" placeholder="Ex: Inspirador, motivacional" value={formData.tone} onChange={handleInputChange} />
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="additionalInfo">Informações Adicionais para a imagem</Label>
+              <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista..." value={formData.additionalInfo} onChange={handleInputChange} />
             </div>
           </div>
+        </div>
 
-          <div className="mt-8 flex-shrink-0">
-            <Button onClick={handleGenerateContent} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-              <Sparkles className="mr-2" />
-              Gerar Conteúdo
-            </Button>
-          </div>
+        <div className="mt-8 flex-shrink-0">
+          <Button onClick={handleGenerateContent} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
+            {loading ? <><Loader className="animate-spin mr-2" /> Gerando...</> : <><Sparkles className="mr-2" />Gerar Conteúdo</>}
+          </Button>
+          {error && <p className="text-destructive mt-4 text-center">{error}</p>}
         </div>
       </div>
     );

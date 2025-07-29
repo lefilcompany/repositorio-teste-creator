@@ -4,7 +4,7 @@ import { Home, Sparkles, CheckCircle, Tag } from 'lucide-react';
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 flex-shrink-0 bg-card p-6 border-r-2 border-primary/10 flex-col hidden lg:flex">
+    <aside className="w-64 flex-shrink-0 shadow-sm shadow-primary/20 bg-card p-6 flex-col hidden lg:flex">
       <Link href="/" className="mb-10">
         <Image
           src="/assets/logoCreatorPreta.png"
