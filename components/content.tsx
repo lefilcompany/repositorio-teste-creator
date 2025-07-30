@@ -1,15 +1,16 @@
+// components/content.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// Adicionado o ícone de Download
 import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, Download } from 'lucide-react';
+import type { Brand } from '@/types/brand';
+import type { StrategicTheme } from '@/types/theme';
 
-// Interfaces (sem alteração)
 interface FormData {
   brand: string;
   theme: string;
@@ -26,6 +27,17 @@ interface GeneratedContent {
   hashtags: string[];
 }
 
+const saveActionToHistory = (actionData: any) => {
+    const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
+    const newAction = {
+      id: new Date().toISOString() + Math.random(),
+      createdAt: new Date().toISOString(),
+      ...actionData,
+    };
+    history.unshift(newAction);
+    localStorage.setItem('creator-action-history', JSON.stringify(history));
+  };
+
 export default function Creator() {
   const [formData, setFormData] = useState<FormData>({
     brand: '',
@@ -38,16 +50,42 @@ export default function Creator() {
     additionalInfo: '',
   });
 
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [themes, setThemes] = useState<StrategicTheme[]>([]);
+
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false); // Novo estado para o download
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const storedBrands = localStorage.getItem('creator-brands');
+      if (storedBrands) {
+        setBrands(JSON.parse(storedBrands));
+      }
+      const storedThemes = localStorage.getItem('creator-themes');
+      if (storedThemes) {
+        setThemes(JSON.parse(storedThemes));
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleBrandChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, brand: value }));
+  };
+
+  const handleThemeChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, theme: value }));
   };
 
   const handlePlatformChange = (value: string) => {
@@ -82,6 +120,25 @@ export default function Creator() {
         body: data.body,
         hashtags: data.hashtags,
       });
+
+      saveActionToHistory({
+        type: 'Criar conteúdo',
+        brand: formData.brand,
+        details: {
+          theme: formData.theme,
+          objective: formData.objective,
+          platform: formData.platform,
+          description: formData.description,
+          audience: formData.audience,
+          tone: formData.tone,
+        },
+        result: {
+          imageUrl: data.imageUrl,
+          title: data.title,
+          body: data.body,
+          hashtags: data.hashtags,
+        },
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -96,34 +153,23 @@ export default function Creator() {
     setError(null);
   }
 
-  // NOVA FUNÇÃO: Lógica para baixar a imagem
   const handleDownloadImage = async () => {
     if (!imageUrl) return;
 
     setIsDownloading(true);
     try {
-      // Faz o fetch da imagem a partir da URL
       const response = await fetch(imageUrl);
       const blob = await response.blob();
-
-      // Cria uma URL de objeto temporária para o blob da imagem
       const url = window.URL.createObjectURL(blob);
-
-      // Cria um link temporário, atribui a URL e o nome do arquivo
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'creator-ai-image.png'); // Nome do arquivo
-
-      // Adiciona, clica e remove o link do documento
+      link.setAttribute('download', 'creator-ai-image.png');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // Limpa a URL do objeto da memória
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erro ao baixar a imagem:", error);
-      // Você pode adicionar um estado de erro de download aqui, se desejar
     } finally {
       setIsDownloading(false);
     }
@@ -146,17 +192,30 @@ export default function Creator() {
           </div>
         </div>
 
-        {/* Corpo do Formulário */}
         <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className='flex justify-between items-center md:col-span-2 gap-8'>
               <div className="w-full md:col-span-2 space-y-2">
                 <Label htmlFor="brand">Marca</Label>
-                <Input id="brand" placeholder="Ex: Nike, campanha de superação" value={formData.brand} onChange={handleInputChange} />
+                <Select onValueChange={handleBrandChange} value={formData.brand}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
+                  <SelectContent>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.name}>{brand.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="w-full md:col-span-2 space-y-2">
                 <Label htmlFor="theme">Tema Estratégico</Label>
-                <Input id="theme" placeholder="Ex: Campanha de superação" value={formData.theme} onChange={handleInputChange} />
+                <Select onValueChange={handleThemeChange} value={formData.theme}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
+                  <SelectContent>
+                    {themes.map((theme) => (
+                      <SelectItem key={theme.id} value={theme.name}>{theme.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="md:col-span-2 space-y-2">
@@ -211,15 +270,13 @@ export default function Creator() {
         {imageUrl && !loading && (
           <>
             <img src={imageUrl} alt="Imagem gerada pela IA" className="rounded-2xl object-cover w-full h-full" />
-            {/* BOTÃO DE DOWNLOAD AQUI */}
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <Button onClick={handleDownloadImage} disabled={isDownloading} className="rounded-full text-lg px-8 py-6">
                 {isDownloading ? (
-                  <Loader className="animate-spin mr-2" />
+                  <><Loader className="animate-spin mr-2" /> Baixando...</>
                 ) : (
-                  <Download className="mr-2" />
+                  <><Download className="mr-2" /> Baixar Imagem</>
                 )}
-                {isDownloading ? 'Baixando...' : 'Baixar Imagem'}
               </Button>
             </div>
           </>

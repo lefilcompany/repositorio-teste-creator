@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, CheckCircle, Tag, Palette, Users, Calendar, Rocket } from 'lucide-react';
+import { Home, Sparkles, CheckCircle, Tag, Palette, Users, Calendar, Rocket, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -11,10 +11,11 @@ const navLinks = [
   { href: '/marcas', icon: Tag, label: 'Marcas' },
   { href: '/temas', icon: Palette, label: 'Temas Estratégicos' },
   { href: '/personas', icon: Users, label: 'Personas' },
+  { href: '/historico', icon: History, label: 'Histórico' },
 ];
 
 const contentAction = {
-  href: '/creator',
+  href: '/content',
   icon: Sparkles,
   label: 'Criar Conteúdo',
 }
@@ -26,7 +27,7 @@ const reviewAction = {
 }
 
 const planAction = {
-  href: '/plan',
+  href: '/planejamento',
   icon: Calendar,
   label: 'Planejar Conteúdo',
 }

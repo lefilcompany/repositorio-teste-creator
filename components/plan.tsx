@@ -1,13 +1,15 @@
 // components/plan.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader, Calendar, ArrowLeft, MessageSquareQuote } from 'lucide-react';
+import type { Brand } from '@/types/brand';
+import type { StrategicTheme } from '@/types/theme';
 
 interface FormData {
   brand: string;
@@ -28,14 +30,39 @@ export default function Plan() {
     additionalInfo: '',
   });
 
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [themes, setThemes] = useState<StrategicTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
 
+  useEffect(() => {
+    try {
+      const storedBrands = localStorage.getItem('creator-brands');
+      if (storedBrands) {
+        setBrands(JSON.parse(storedBrands));
+      }
+      const storedThemes = localStorage.getItem('creator-themes');
+      if (storedThemes) {
+        setThemes(JSON.parse(storedThemes));
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+    }
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleBrandChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, brand: value }));
+  };
+
+  const handleThemeChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, theme: value }));
   };
 
   const handlePlatformChange = (value: string) => {
@@ -102,11 +129,25 @@ export default function Plan() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="w-full md:col-span-1 space-y-2">
               <Label htmlFor="brand">Marca</Label>
-              <Input id="brand" placeholder="Ex: Nike" value={formData.brand} onChange={handleInputChange} />
+              <Select onValueChange={handleBrandChange} value={formData.brand}>
+                <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
+                <SelectContent>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.name}>{brand.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="w-full md:col-span-1 space-y-2">
               <Label htmlFor="theme">Tema Estratégico</Label>
-              <Input id="theme" placeholder="Ex: Campanha de superação" value={formData.theme} onChange={handleInputChange} />
+              <Select onValueChange={handleThemeChange} value={formData.theme}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
+                <SelectContent>
+                  {themes.map((theme) => (
+                    <SelectItem key={theme.id} value={theme.name}>{theme.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="platform">Plataforma Digital</Label>
