@@ -128,7 +128,7 @@ export default function Sidebar() {
           priority
         />
       </Link>
-      <nav className="flex flex-col gap-16">
+      <nav className="flex flex-col gap-8">
         <div className='flex flex-col gap-4'>
           {navLinks.map((link) => (
             <NavItem key={link.href} {...link} />
