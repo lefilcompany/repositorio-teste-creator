@@ -72,7 +72,7 @@ export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsPr
         <div className="flex flex-col md:flex-row gap-3 mt-6">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full flex-1 rounded-full py-5">
+              <Button variant="outline" className="w-full flex-1 rounded-full hover:bg-destructive/80 hover:border-destructive/80 py-5">
                 <Trash2 className="mr-2 h-4 w-4" /> Deletar
               </Button>
             </AlertDialogTrigger>

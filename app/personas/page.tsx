@@ -1,8 +1,9 @@
+// app/personas/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Users } from 'lucide-react'; // Ícone alterado para User
+import { Plus, Users } from 'lucide-react';
 import PersonaList from '@/components/personas/personaList';
 import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
@@ -10,64 +11,74 @@ import type { Persona } from '@/types/persona';
 
 export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
+  // **NOVO ESTADO:** Controla se os dados já foram carregados do localStorage
+  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
 
-  // Carrega personas do localStorage na renderização inicial
+  // Efeito para carregar os dados do localStorage APENAS UMA VEZ
   useEffect(() => {
     try {
-      const storedPersonas = localStorage.getItem('creator-personas'); // Chave atualizada
+      const storedPersonas = localStorage.getItem('creator-personas');
       if (storedPersonas) {
         setPersonas(JSON.parse(storedPersonas));
       }
     } catch (error) {
       console.error("Failed to load personas from localStorage", error);
+    } finally {
+      // **NOVO:** Marca que o carregamento inicial foi concluído
+      setIsLoaded(true);
     }
-  }, []);
+  }, []); // Array de dependências vazio para rodar apenas na montagem
 
-  // Salva personas no localStorage sempre que o estado mudar
+  // Efeito para SALVAR os dados, agora com uma guarda
   useEffect(() => {
-    try {
-      localStorage.setItem('creator-personas', JSON.stringify(personas)); // Chave atualizada
-    } catch (error) {
-      console.error("Failed to save personas to localStorage", error);
+    // **CORREÇÃO CRÍTICA:** Só salva no localStorage se o carregamento inicial já ocorreu.
+    if (isLoaded) {
+      try {
+        localStorage.setItem('creator-personas', JSON.stringify(personas));
+      } catch (error) {
+        console.error("Failed to save personas to localStorage", error);
+      }
     }
-  }, [personas]);
+  }, [personas, isLoaded]); // Roda sempre que 'personas' ou 'isLoaded' mudar
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
   }, []);
 
+  // Funções de salvar e deletar atualizadas para usar a forma funcional de 'setPersonas'
   const handleSavePersona = useCallback((formData: { name: string; role: string }) => {
     const now = new Date().toISOString();
-
-    if (personaToEdit) {
-      const updatedPersonas = personas.map(p =>
-        p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
-      );
-      setPersonas(updatedPersonas);
-      if (selectedPersona?.id === personaToEdit.id) {
-        setSelectedPersona(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+    setPersonas(prevPersonas => {
+      if (personaToEdit) {
+        const updatedPersonas = prevPersonas.map(p =>
+          p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
+        );
+        if (selectedPersona?.id === personaToEdit.id) {
+          setSelectedPersona(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+        }
+        return updatedPersonas;
+      } else {
+        const newPersona: Persona = {
+          id: now,
+          name: formData.name,
+          role: formData.role,
+          createdAt: now,
+          updatedAt: now,
+        };
+        return [...prevPersonas, newPersona];
       }
-    } else {
-      const newPersona: Persona = {
-        id: now,
-        name: formData.name,
-        role: formData.role,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setPersonas(prevPersonas => [...prevPersonas, newPersona]);
-    }
-  }, [personaToEdit, personas, selectedPersona?.id]);
+    });
+  }, [personaToEdit, selectedPersona?.id]);
 
   const handleDeletePersona = useCallback(() => {
     if (!selectedPersona) return;
-    setPersonas(personas.filter(p => p.id !== selectedPersona.id));
+    setPersonas(prevPersonas => prevPersonas.filter(p => p.id !== selectedPersona.id));
     setSelectedPersona(null);
-  }, [selectedPersona, personas]);
+  }, [selectedPersona]);
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">

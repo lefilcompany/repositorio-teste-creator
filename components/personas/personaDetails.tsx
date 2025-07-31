@@ -70,7 +70,7 @@ export default function PersonaDetails({ persona, onEdit, onDelete }: PersonaDet
         <div className="flex flex-col md:flex-row gap-3 mt-6">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full flex-1 rounded-full py-5">
+              <Button variant="outline" className="w-full flex-1 hover:bg-destructive/90 hover:border-destructive/90 rounded-full py-5">
                 <Trash2 className="mr-2 h-4 w-4" /> Deletar
               </Button>
             </AlertDialogTrigger>

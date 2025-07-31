@@ -227,10 +227,10 @@ export default function Creator() {
               <Select onValueChange={handlePlatformChange} value={formData.platform}>
                 <SelectTrigger><SelectValue placeholder="Selecione a plataforma" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="twitter">Twitter (X)</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="Facebook">Facebook</SelectItem>
+                  <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                  <SelectItem value="Twitter">Twitter (X)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

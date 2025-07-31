@@ -4,19 +4,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Tag } from 'lucide-react';
-import BrandList from '@/components/marcas/brandList'; // Caminho ajustado
-import BrandDetails from '@/components/marcas/brandDetails'; // Caminho ajustado
-import BrandDialog from '@/components/marcas/brandDialog'; // Caminho ajustado
+import BrandList from '@/components/marcas/brandList';
+import BrandDetails from '@/components/marcas/brandDetails';
+import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 
 export default function MarcasPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
+  // **NOVO ESTADO:** Controla se os dados já foram carregados do localStorage
+  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
 
-  // ... (toda a lógica de useState e useEffect permanece a mesma) ...
-
+  // Efeito para carregar os dados do localStorage APENAS UMA VEZ
   useEffect(() => {
     try {
       const storedBrands = localStorage.getItem('creator-brands');
@@ -24,52 +25,62 @@ export default function MarcasPage() {
         setBrands(JSON.parse(storedBrands));
       }
     } catch (error) {
-      console.error("Failed to load brands from localStorage", error);
+      console.error("Falha ao carregar as marcas do localStorage", error);
+    } finally {
+      // **NOVO:** Marca que o carregamento inicial foi concluído
+      setIsLoaded(true);
     }
-  }, []);
+  }, []); // Array de dependências vazio para rodar apenas na montagem
 
+  // Efeito para SALVAR os dados, agora com uma guarda
   useEffect(() => {
-    try {
-      localStorage.setItem('creator-brands', JSON.stringify(brands));
-    } catch (error) {
-      console.error("Failed to save brands to localStorage", error);
+    // **CORREÇÃO CRÍTICA:** Só salva no localStorage se o carregamento inicial já ocorreu.
+    // Isso evita que o estado inicial vazio `[]` sobrescreva os dados salvos.
+    if (isLoaded) {
+      try {
+        localStorage.setItem('creator-brands', JSON.stringify(brands));
+      } catch (error) {
+        console.error("Falha ao salvar as marcas no localStorage", error);
+      }
     }
-  }, [brands]);
+  }, [brands, isLoaded]); // Roda sempre que 'brands' ou 'isLoaded' mudar
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
     setBrandToEdit(brand);
     setIsDialogOpen(true);
   }, []);
 
+  // As funções de salvar e deletar agora usam a forma funcional de 'setBrands'
+  // para garantir que estão sempre trabalhando com o estado mais atual.
   const handleSaveBrand = useCallback((formData: { name: string; responsible: string }) => {
     const now = new Date().toISOString();
-
-    if (brandToEdit) {
-      const updatedBrands = brands.map(b =>
-        b.id === brandToEdit.id ? { ...b, ...formData, updatedAt: now } : b
-      );
-      setBrands(updatedBrands);
-      if (selectedBrand?.id === brandToEdit.id) {
-        setSelectedBrand(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+    setBrands(prevBrands => {
+      if (brandToEdit) {
+        const updatedBrands = prevBrands.map(b =>
+          b.id === brandToEdit.id ? { ...b, ...formData, updatedAt: now } : b
+        );
+        if (selectedBrand?.id === brandToEdit.id) {
+          setSelectedBrand(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+        }
+        return updatedBrands;
+      } else {
+        const newBrand: Brand = {
+          id: now,
+          name: formData.name,
+          responsible: formData.responsible,
+          createdAt: now,
+          updatedAt: now,
+        };
+        return [...prevBrands, newBrand];
       }
-    } else {
-      const newBrand: Brand = {
-        id: now,
-        name: formData.name,
-        responsible: formData.responsible,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setBrands(prevBrands => [...prevBrands, newBrand]);
-    }
-  }, [brandToEdit, brands, selectedBrand?.id]);
+    });
+  }, [brandToEdit, selectedBrand?.id]);
 
   const handleDeleteBrand = useCallback(() => {
     if (!selectedBrand) return;
-    setBrands(brands.filter(b => b.id !== selectedBrand.id));
+    setBrands(prevBrands => prevBrands.filter(b => b.id !== selectedBrand.id));
     setSelectedBrand(null);
-  }, [selectedBrand, brands]);
-
+  }, [selectedBrand]);
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">
