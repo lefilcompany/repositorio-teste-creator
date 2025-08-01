@@ -1,3 +1,4 @@
+// components/personas/personaDetails.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -12,22 +13,34 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, User } from 'lucide-react'; // Ícone alterado para User
+import { Edit, Trash2, User } from 'lucide-react';
 import type { Persona } from '@/types/persona';
+import type { Brand } from '@/types/brand';
 
 interface PersonaDetailsProps {
   persona: Persona | null;
   onEdit: (persona: Persona) => void;
   onDelete: () => void;
+  brands: Brand[];
 }
 
 const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-export default function PersonaDetails({ persona, onEdit, onDelete }: PersonaDetailsProps) {
+const DetailField = ({ label, value }: { label: string, value?: string }) => {
+  if (!value) return null;
+  return (
+    <div className="p-3 bg-muted/50 rounded-lg break-words">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="font-semibold text-foreground whitespace-pre-wrap">{value}</p>
+    </div>
+  );
+};
+
+export default function PersonaDetails({ persona, onEdit, onDelete, brands }: PersonaDetailsProps) {
   if (!persona) {
     return (
       <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">
@@ -39,58 +52,60 @@ export default function PersonaDetails({ persona, onEdit, onDelete }: PersonaDet
   }
 
   const wasUpdated = persona.createdAt !== persona.updatedAt;
+  const brandName = brands.find(b => b.id === persona.brandId)?.name || 'Marca não encontrada';
 
   return (
-    <div className="lg:col-span-1 h-full">
-      <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border-2 border-secondary/20 h-full flex flex-col justify-between">
+    <div className="lg:col-span-1 h-full bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border-2 border-secondary/20 flex flex-col overflow-hidden">
+      <div className="flex items-center mb-6 flex-shrink-0">
+        <div className="bg-gradient-to-br from-secondary to-primary text-white rounded-xl w-16 h-16 flex items-center justify-center font-bold text-3xl mr-4 flex-shrink-0">
+          {persona.name.charAt(0).toUpperCase()}
+        </div>
         <div>
-          <div className="flex items-center mb-6">
-            <div className="bg-gradient-to-br from-secondary to-primary text-white rounded-xl w-16 h-16 flex items-center justify-center font-bold text-3xl mr-4">
-              {persona.name.charAt(0).toUpperCase()}
-            </div>
-            <h2 className="text-2xl font-bold text-foreground break-words">{persona.name}</h2>
-          </div>
-          <div className="space-y-4 text-left">
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Papel</p>
-              <p className="font-semibold text-foreground">{persona.role}</p>
-            </div>
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Data de Criação</p>
-              <p className="font-semibold text-foreground">{formatDate(persona.createdAt)}</p>
-            </div>
-            {wasUpdated && (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Última Atualização</p>
-                <p className="font-semibold text-foreground">{formatDate(persona.updatedAt)}</p>
-              </div>
-            )}
-          </div>
+          <h2 className="text-2xl font-bold text-foreground break-words">{persona.name}</h2>
+          <p className="text-md text-muted-foreground">Marca: {brandName}</p>
         </div>
-        <div className="flex flex-col md:flex-row gap-3 mt-6">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="w-full flex-1 rounded-full py-5">
-                <Trash2 className="mr-2 h-4 w-4" /> Deletar
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Essa ação não pode ser desfeita. Isso irá deletar permanentemente a persona "{persona.name}".
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">Deletar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button onClick={() => onEdit(persona)} className="w-full flex-1 rounded-full py-5">
-            <Edit className="mr-2 h-4 w-4" /> Editar persona
-          </Button>
+      </div>
+
+      <div className="overflow-y-auto pr-2 flex-grow">
+        <div className="space-y-4 text-left">
+          <DetailField label="Cargo e Formação" value={persona.role} />
+          <DetailField label="Idade" value={persona.age} />
+          <DetailField label="Gênero" value={persona.gender} />
+          <DetailField label="Localização" value={persona.location} />
+          <DetailField label="Hobbies e Interesses" value={persona.hobbies} />
+          <DetailField label="Hábitos de Consumo" value={persona.consumptionHabits} />
+          <DetailField label="Metas e Objetivos" value={persona.goals} />
+          <DetailField label="Desafios" value={persona.challenges} />
+          <DetailField label="Data de Criação" value={formatDate(persona.createdAt)} />
+          {wasUpdated && (
+            <DetailField label="Última Atualização" value={formatDate(persona.updatedAt)} />
+          )}
         </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-3 mt-6 flex-shrink-0">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="w-full flex-1 rounded-full py-5">
+              <Trash2 className="mr-2 h-4 w-4" /> Deletar
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Essa ação não pode ser desfeita. Isso irá deletar permanentemente a persona "{persona.name}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90">Deletar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Button onClick={() => onEdit(persona)} className="w-full flex-1 rounded-full py-5">
+          <Edit className="mr-2 h-4 w-4" /> Editar persona
+        </Button>
       </div>
     </div>
   );

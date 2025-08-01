@@ -1,10 +1,11 @@
 // components/marcas/BrandDialog.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -14,64 +15,186 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import type { Brand } from '@/types/brand';
+import type { Brand, MoodboardFile } from '@/types/brand';
+
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>;
 
 interface BrandDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: { name: string; responsible: string }) => void;
+  onSave: (data: BrandFormData) => void;
   brandToEdit: Brand | null;
 }
 
+const initialFormData: BrandFormData = {
+  name: '',
+  responsible: '',
+  segment: '',
+  values: '',
+  keywords: '',
+  goals: '',
+  inspirations: '',
+  successMetrics: '',
+  references: '',
+  specialDates: '',
+  sectorRestrictions: '',
+  promise: '',
+  crisisInfo: '',
+  milestones: '',
+  collaborations: '',
+  restrictions: '',
+  moodboard: null, // O valor inicial agora é nulo
+};
+
 export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit }: BrandDialogProps) {
-  const [formData, setFormData] = useState({ name: '', responsible: '' });
+  const [formData, setFormData] = useState<BrandFormData>(initialFormData);
 
   useEffect(() => {
-    if (brandToEdit) {
-      setFormData({ name: brandToEdit.name, responsible: brandToEdit.responsible });
+    if (isOpen && brandToEdit) {
+      setFormData({
+        name: brandToEdit.name,
+        responsible: brandToEdit.responsible,
+        segment: brandToEdit.segment || '',
+        values: brandToEdit.values || '',
+        keywords: brandToEdit.keywords || '',
+        goals: brandToEdit.goals || '',
+        inspirations: brandToEdit.inspirations || '',
+        successMetrics: brandToEdit.successMetrics || '',
+        references: brandToEdit.references || '',
+        specialDates: brandToEdit.specialDates || '',
+        sectorRestrictions: brandToEdit.sectorRestrictions || '',
+        promise: brandToEdit.promise || '',
+        crisisInfo: brandToEdit.crisisInfo || '',
+        milestones: brandToEdit.milestones || '',
+        collaborations: brandToEdit.collaborations || '',
+        restrictions: brandToEdit.restrictions || '',
+        moodboard: brandToEdit.moodboard || null,
+      });
     } else {
-      setFormData({ name: '', responsible: '' });
+      setFormData(initialFormData);
     }
   }, [brandToEdit, isOpen]);
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  // **ATUALIZADO:** Lê o arquivo e armazena um objeto com nome, tipo e conteúdo
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newFile: MoodboardFile = {
+          name: file.name,
+          type: file.type,
+          content: reader.result as string,
+        };
+        setFormData(prev => ({ ...prev, moodboard: newFile }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFormData(prev => ({ ...prev, moodboard: null }));
+    }
+  }
 
   const handleSaveClick = () => {
     onSave(formData);
     onOpenChange(false);
   };
-  
+
   const isFormValid = formData.name.trim() !== '' && formData.responsible.trim() !== '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{brandToEdit ? 'Editar Marca' : 'Criar Nova Marca'}</DialogTitle>
           <DialogDescription>
             {brandToEdit ? 'Altere as informações da sua marca.' : 'Preencha os campos abaixo para adicionar uma nova marca.'}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nome</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="col-span-3"
-              placeholder="Ex: TecNova Soluções"
-            />
+
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4">
+          {/* Coluna 1 */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input id="name" value={formData.name} onChange={handleInputChange} placeholder="Escreva o nome da sua Marca" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="values">Valores</Label>
+              <Textarea id="values" value={formData.values} onChange={handleInputChange} placeholder="Escreva os valores da sua marca" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="goals">Quais as metas do negócio?</Label>
+              <Textarea id="goals" value={formData.goals} onChange={handleInputChange} placeholder="Ex: Vendas diretas, geração de leads" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="successMetrics">Quais indicadores de sucesso?</Label>
+              <Textarea id="successMetrics" value={formData.successMetrics} onChange={handleInputChange} placeholder="Ex: engajamento, conversões" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="specialDates">Quais datas especiais no ano?</Label>
+              <Textarea id="specialDates" value={formData.specialDates} onChange={handleInputChange} placeholder="Ex: natal, black friday" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="promise">Qual promessa você faz e ninguém entrega igual?</Label>
+              <Textarea id="promise" value={formData.promise} onChange={handleInputChange} placeholder="Escreva a sua promessa" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestones">Descreva marcos ou cases que reforçam autoridade e autenticidade da marca</Label>
+              <Textarea id="milestones" value={formData.milestones} onChange={handleInputChange} placeholder="Escreva seus marcos e cases" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="restrictions">Restrições</Label>
+              <Textarea id="restrictions" value={formData.restrictions} onChange={handleInputChange} placeholder="Escreva as restrições necessárias para a sua marca" />
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="responsible" className="text-right">Responsável</Label>
-            <Input
-              id="responsible"
-              value={formData.responsible}
-              onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
-              className="col-span-3"
-              placeholder="Ex: Paulo"
-            />
+
+          {/* Coluna 2 */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="responsible">Responsável da Marca</Label>
+              <Input id="responsible" value={formData.responsible} onChange={handleInputChange} placeholder="Defina um responsável" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segment">Segmento</Label>
+              <Input id="segment" value={formData.segment} onChange={handleInputChange} placeholder="Escreva o segmento da sua marca" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="keywords">Palavras-Chave</Label>
+              <Input id="keywords" value={formData.keywords} onChange={handleInputChange} placeholder="Ex: Tecnologia, Inovação, Eco-Friendly" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="inspirations">Quais perfis ou marcas inspiram a sua marca e por quê?</Label>
+              <Textarea id="inspirations" value={formData.inspirations} onChange={handleInputChange} placeholder="Escreva os perfis e marcas, explique" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="references">Quais conteúdos são referência para sua marca?</Label>
+              <Textarea id="references" value={formData.references} onChange={handleInputChange} placeholder="Cole o link do conteúdo. Ex: Youtube, Instagram" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sectorRestrictions">Restrições de setor</Label>
+              <Textarea id="sectorRestrictions" value={formData.sectorRestrictions} onChange={handleInputChange} placeholder="Escreva as restrições do setor" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="crisisInfo">Existe alguma crise de marca? Ou pode existir?</Label>
+              <Textarea id="crisisInfo" value={formData.crisisInfo} onChange={handleInputChange} placeholder="Se sim, explique" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="collaborations">Existem ações com influenciadores, comunidades ou colaboradores?</Label>
+              <Textarea id="collaborations" value={formData.collaborations} onChange={handleInputChange} placeholder="Se sim, cite-as" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="moodboard">Existem moodboard, referências visuais e identidade visual?</Label>
+              {/* **ATUALIZADO:** Aceita imagens e PDF */}
+              <Input id="moodboard" type="file" onChange={handleFileChange} accept="image/*,application/pdf" className="pt-2" />
+            </div>
           </div>
         </div>
+
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancelar</Button>

@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const imageFile = formData.get('image') as File | null;
     const prompt = formData.get('prompt') as string | null;
-    const brandTheme = formData.get('brandTheme') as string | null;
+    const brand = formData.get('brand') as string | null;
+    const theme = formData.get('theme') as string | null;
 
     if (!imageFile || !prompt) {
       return NextResponse.json({ error: 'Imagem e prompt de ajuste são obrigatórios.' }, { status: 400 });
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     const analysisPrompt = `
       Você é um diretor de arte especialista em mídias sociais. Sua tarefa é analisar a imagem fornecida e dar um feedback construtivo para o usuário.
       O usuário deseja os seguintes ajustes: "${prompt}".
-      A imagem é para a marca ou tema estratégico: "${brandTheme || 'não especificado'}".
+      A imagem é para a marca: "${brand || 'não especificada'}" e para o tema estratégico: "${theme || 'não especificado'}".
 
       Com base nisso, analise a imagem e forneça uma lista de sugestões de melhoria em formato de tópicos (bullet points).
       Seja claro, objetivo e ofereça sugestões práticas que o usuário possa aplicar.
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
       Exemplo de resposta:
       {
-        "feedback": "Analisando sua imagem, aqui estão alguns pontos de melhoria para alinhá-la melhor com o tema de '${brandTheme}':\\n\\n• **Composição:** O enquadramento pode ser melhorado...\\n• **Cores:** As cores estão um pouco opacas. Tente aumentar a saturação...\\n• **Iluminação:** A luz parece vir de apenas uma direção..."
+        "feedback": "Analisando sua imagem para a marca '${brand || 'N/A'}' com o tema '${theme || 'N/A'}', aqui estão alguns pontos de melhoria:\\n\\n• **Composição:** O enquadramento pode ser melhorado...\\n• **Cores:** As cores estão um pouco opacas. Tente aumentar a saturação...\\n• **Iluminação:** A luz parece vir de apenas uma direção..."
       }
     `;
 

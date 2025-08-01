@@ -4,9 +4,11 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { StrategicTheme } from '@/types/theme';
+import type { Brand } from '@/types/brand';
 
 interface ThemeListProps {
   themes: StrategicTheme[];
+  brands: Brand[]; // Recebe a lista de marcas
   selectedTheme: StrategicTheme | null;
   onSelectTheme: (theme: StrategicTheme) => void;
 }
@@ -17,10 +19,12 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString('pt-BR');
 };
 
-export default function ThemeList({ themes, selectedTheme, onSelectTheme }: ThemeListProps) {
+export default function ThemeList({ themes, brands, selectedTheme, onSelectTheme }: ThemeListProps) {
   const sortedThemes = useMemo(() => {
-    return [...themes].sort((a, b) => a.name.localeCompare(b.name));
+    return [...themes].sort((a, b) => a.title.localeCompare(b.title));
   }, [themes]);
+
+  const brandMap = useMemo(() => new Map(brands.map(b => [b.id, b.name])), [brands]);
 
   return (
     <div className="lg:col-span-2 bg-card p-4 md:p-6 rounded-2xl border-2 border-primary/10 flex flex-col h-full overflow-hidden">
@@ -40,11 +44,12 @@ export default function ThemeList({ themes, selectedTheme, onSelectTheme }: Them
               >
                 <div className="flex items-center">
                   <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-lg w-10 h-10 flex items-center justify-center font-bold text-xl mr-4">
-                    {theme.name.charAt(0).toUpperCase()}
+                    {theme.title.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-lg text-foreground">{theme.name}</p>
-                    <p className="text-sm text-muted-foreground">Responsável: {theme.responsible}</p>
+                    <p className="font-semibold text-lg text-foreground">{theme.title}</p>
+                    {/* Exibe o nome da marca associada */}
+                    <p className="text-sm text-muted-foreground">Marca: {brandMap.get(theme.brandId) || 'Não definida'}</p>
                   </div>
                 </div>
                 <span className="text-sm text-muted-foreground hidden md:block">

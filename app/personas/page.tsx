@@ -1,73 +1,85 @@
+// app/personas/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Users } from 'lucide-react'; // Ícone alterado para User
+import { Plus, Users } from 'lucide-react';
 import PersonaList from '@/components/personas/personaList';
 import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
+import type { Brand } from '@/types/brand';
+
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
 
 export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
 
-  // Carrega personas do localStorage na renderização inicial
   useEffect(() => {
     try {
-      const storedPersonas = localStorage.getItem('creator-personas'); // Chave atualizada
+      const storedPersonas = localStorage.getItem('creator-personas');
+      const storedBrands = localStorage.getItem('creator-brands');
       if (storedPersonas) {
         setPersonas(JSON.parse(storedPersonas));
       }
+      if (storedBrands) {
+        setBrands(JSON.parse(storedBrands));
+      }
     } catch (error) {
-      console.error("Failed to load personas from localStorage", error);
+      console.error("Falha ao carregar dados do localStorage", error);
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
 
-  // Salva personas no localStorage sempre que o estado mudar
   useEffect(() => {
-    try {
-      localStorage.setItem('creator-personas', JSON.stringify(personas)); // Chave atualizada
-    } catch (error) {
-      console.error("Failed to save personas to localStorage", error);
+    if (isLoaded) {
+      try {
+        localStorage.setItem('creator-personas', JSON.stringify(personas));
+      } catch (error) {
+        console.error("Falha ao salvar as personas no localStorage", error);
+      }
     }
-  }, [personas]);
+  }, [personas, isLoaded]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
   }, []);
 
-  const handleSavePersona = useCallback((formData: { name: string; role: string }) => {
+  const handleSavePersona = useCallback((formData: PersonaFormData) => {
     const now = new Date().toISOString();
-
-    if (personaToEdit) {
-      const updatedPersonas = personas.map(p =>
-        p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
-      );
-      setPersonas(updatedPersonas);
-      if (selectedPersona?.id === personaToEdit.id) {
-        setSelectedPersona(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+    setPersonas(prevPersonas => {
+      if (personaToEdit) {
+        const updatedPersonas = prevPersonas.map(p =>
+          p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
+        );
+        if (selectedPersona?.id === personaToEdit.id) {
+          setSelectedPersona(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+        }
+        return updatedPersonas;
+      } else {
+        const newPersona: Persona = {
+          id: now,
+          ...formData,
+          createdAt: now,
+          updatedAt: now,
+        };
+        return [...prevPersonas, newPersona];
       }
-    } else {
-      const newPersona: Persona = {
-        id: now,
-        name: formData.name,
-        role: formData.role,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setPersonas(prevPersonas => [...prevPersonas, newPersona]);
-    }
-  }, [personaToEdit, personas, selectedPersona?.id]);
+    });
+  }, [personaToEdit, selectedPersona?.id]);
 
   const handleDeletePersona = useCallback(() => {
     if (!selectedPersona) return;
-    setPersonas(personas.filter(p => p.id !== selectedPersona.id));
+    setPersonas(prevPersonas => prevPersonas.filter(p => p.id !== selectedPersona.id));
     setSelectedPersona(null);
-  }, [selectedPersona, personas]);
+  }, [selectedPersona]);
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">
@@ -94,11 +106,13 @@ export default function PersonasPage() {
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
         <PersonaList
           personas={personas}
+          brands={brands}
           selectedPersona={selectedPersona}
           onSelectPersona={setSelectedPersona}
         />
         <PersonaDetails
           persona={selectedPersona}
+          brands={brands}
           onEdit={handleOpenDialog}
           onDelete={handleDeletePersona}
         />
@@ -109,6 +123,7 @@ export default function PersonasPage() {
         onOpenChange={setIsDialogOpen}
         onSave={handleSavePersona}
         personaToEdit={personaToEdit}
+        brands={brands}
       />
     </div>
   );

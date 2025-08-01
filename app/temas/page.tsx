@@ -1,73 +1,85 @@
+// app/temas/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Palette, Plus } from 'lucide-react';
-import ThemeList from '@/components/temas/themeList';       // CORRECTED: PascalCase path
-import ThemeDetails from '@/components/temas/themeDetails'; // CORRECTED: PascalCase path
-import ThemeDialog from '@/components/temas/themeDialog';     // CORRECTED: PascalCase path
+import ThemeList from '@/components/temas/themeList';
+import ThemeDetails from '@/components/temas/themeDetails';
+import ThemeDialog from '@/components/temas/themeDialog';
 import type { StrategicTheme } from '@/types/theme';
+import type { Brand } from '@/types/brand';
+
+type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt'>;
 
 export default function TemasPage() {
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]); // Estado para armazenar as marcas
+  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
 
-  // Load themes from localStorage on initial render
   useEffect(() => {
     try {
       const storedThemes = localStorage.getItem('creator-themes');
+      const storedBrands = localStorage.getItem('creator-brands'); // Carrega as marcas
       if (storedThemes) {
         setThemes(JSON.parse(storedThemes));
       }
+      if (storedBrands) {
+        setBrands(JSON.parse(storedBrands));
+      }
     } catch (error) {
-      console.error("Failed to load themes from localStorage", error);
+      console.error("Falha ao carregar dados do localStorage", error);
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
 
-  // Save themes to localStorage whenever they change
   useEffect(() => {
-    try {
-      localStorage.setItem('creator-themes', JSON.stringify(themes));
-    } catch (error) { // CORRECTED: Added missing opening brace {
-      console.error("Failed to save themes to localStorage", error);
+    if (isLoaded) {
+      try {
+        localStorage.setItem('creator-themes', JSON.stringify(themes));
+      } catch (error) {
+        console.error("Falha ao salvar os temas no localStorage", error);
+      }
     }
-  }, [themes]);
+  }, [themes, isLoaded]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
     setThemeToEdit(theme);
     setIsDialogOpen(true);
   }, []);
 
-  const handleSaveTheme = useCallback((formData: { name: string; responsible: string }) => {
+  const handleSaveTheme = useCallback((formData: ThemeFormData) => {
     const now = new Date().toISOString();
-
-    if (themeToEdit) {
-      const updatedThemes = themes.map(t =>
-        t.id === themeToEdit.id ? { ...t, ...formData, updatedAt: now } : t
-      );
-      setThemes(updatedThemes);
-      if (selectedTheme?.id === themeToEdit.id) {
-        setSelectedTheme(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+    setThemes(prevThemes => {
+      if (themeToEdit) {
+        const updatedThemes = prevThemes.map(t =>
+          t.id === themeToEdit.id ? { ...t, ...formData, updatedAt: now } : t
+        );
+        if (selectedTheme?.id === themeToEdit.id) {
+          setSelectedTheme(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+        }
+        return updatedThemes;
+      } else {
+        const newTheme: StrategicTheme = {
+          id: now,
+          ...formData,
+          createdAt: now,
+          updatedAt: now,
+        };
+        return [...prevThemes, newTheme];
       }
-    } else {
-      const newTheme: StrategicTheme = {
-        id: now,
-        name: formData.name,
-        responsible: formData.responsible,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setThemes(prevThemes => [...prevThemes, newTheme]);
-    }
-  }, [themeToEdit, themes, selectedTheme?.id]);
+    });
+  }, [themeToEdit, selectedTheme?.id]);
 
   const handleDeleteTheme = useCallback(() => {
     if (!selectedTheme) return;
-    setThemes(themes.filter(t => t.id !== selectedTheme.id));
+    setThemes(prevThemes => prevThemes.filter(t => t.id !== selectedTheme.id));
     setSelectedTheme(null);
-  }, [selectedTheme, themes]);
+  }, [selectedTheme]);
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">
@@ -94,11 +106,13 @@ export default function TemasPage() {
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
         <ThemeList
           themes={themes}
+          brands={brands} // Passa as marcas para a lista
           selectedTheme={selectedTheme}
           onSelectTheme={setSelectedTheme}
         />
         <ThemeDetails
           theme={selectedTheme}
+          brands={brands} // Passa as marcas para os detalhes
           onEdit={handleOpenDialog}
           onDelete={handleDeleteTheme}
         />
@@ -109,6 +123,7 @@ export default function TemasPage() {
         onOpenChange={setIsDialogOpen}
         onSave={handleSaveTheme}
         themeToEdit={themeToEdit}
+        brands={brands} // Passa as marcas para o diálogo
       />
     </div>
   );

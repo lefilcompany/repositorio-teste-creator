@@ -1,9 +1,12 @@
+// components/personas/personaDialog.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -14,69 +17,142 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Persona } from '@/types/persona';
+import type { Brand } from '@/types/brand';
+
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
 
 interface PersonaDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: { name: string; role: string }) => void;
+  onSave: (data: PersonaFormData) => void;
   personaToEdit: Persona | null;
+  brands: Brand[];
 }
 
-export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToEdit }: PersonaDialogProps) {
-  const [formData, setFormData] = useState({ name: '', role: '' });
+const initialFormData: PersonaFormData = {
+  brandId: '',
+  name: '',
+  gender: '',
+  age: '',
+  location: '',
+  role: '',
+  hobbies: '',
+  consumptionHabits: '',
+  goals: '',
+  challenges: '',
+};
+
+export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToEdit, brands }: PersonaDialogProps) {
+  const [formData, setFormData] = useState<PersonaFormData>(initialFormData);
 
   useEffect(() => {
-    if (personaToEdit) {
-      setFormData({ name: personaToEdit.name, role: personaToEdit.role });
+    if (isOpen && personaToEdit) {
+      setFormData({
+        brandId: personaToEdit.brandId || '',
+        name: personaToEdit.name || '',
+        gender: personaToEdit.gender || '',
+        age: personaToEdit.age || '',
+        location: personaToEdit.location || '',
+        role: personaToEdit.role || '',
+        hobbies: personaToEdit.hobbies || '',
+        consumptionHabits: personaToEdit.consumptionHabits || '',
+        goals: personaToEdit.goals || '',
+        challenges: personaToEdit.challenges || '',
+      });
     } else {
-      setFormData({ name: '', role: '' });
+      setFormData(initialFormData);
     }
   }, [personaToEdit, isOpen]);
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({ ...prev, brandId: value }));
+  };
 
   const handleSaveClick = () => {
     onSave(formData);
     onOpenChange(false);
   };
-  
-  const isFormValid = formData.name.trim() !== '' && formData.role.trim() !== '';
+
+  const isFormValid = formData.name.trim() !== '' && formData.brandId.trim() !== '';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{personaToEdit ? 'Editar Persona' : 'Criar Nova Persona'}</DialogTitle>
+          <DialogTitle>{personaToEdit ? 'Editar Persona' : 'Nova Persona'}</DialogTitle>
           <DialogDescription>
-            {personaToEdit ? 'Altere as informações da sua persona.' : 'Preencha os campos abaixo para adicionar uma nova persona.'}
+            Defina o Perfil do(s) seu(s) consumidores.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nome</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="col-span-3"
-              placeholder="Ex: Ana Silva"
-            />
+
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4">
+          {/* Coluna 1 */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="brandId">Marca</Label>
+              <Select onValueChange={handleSelectChange} value={formData.brandId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
+                <SelectContent>
+                  {brands.map(brand => (
+                    <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input id="name" value={formData.name} onChange={handleInputChange} placeholder="Escreva o nome do persona" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="age">Idade</Label>
+              <Input id="age" value={formData.age} onChange={handleInputChange} placeholder="Escreva a idade do persona" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Cargo e Formação</Label>
+              <Input id="role" value={formData.role} onChange={handleInputChange} placeholder="Ex: Jornalista com formação em..." />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="consumptionHabits">Hábitos de Consumo</Label>
+              <Textarea id="consumptionHabits" value={formData.consumptionHabits} onChange={handleInputChange} placeholder="Ex: ainda não conhece o nosso produto/serviço" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="challenges">Desafios</Label>
+              <Textarea id="challenges" value={formData.challenges} onChange={handleInputChange} placeholder="Escreva os maiores desafios que o persona enfrenta" />
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="role" className="text-right">Papel</Label>
-            <Input
-              id="role"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="col-span-3"
-              placeholder="Ex: Gerente de Produto"
-            />
+
+          {/* Coluna 2 */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gênero</Label>
+              <Input id="gender" value={formData.gender} onChange={handleInputChange} placeholder="Ex: Masculino, Feminino" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Localização</Label>
+              <Input id="location" value={formData.location} onChange={handleInputChange} placeholder="Ex: Recife-PE" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hobbies">Hobbies e Interesses</Label>
+              <Textarea id="hobbies" value={formData.hobbies} onChange={handleInputChange} placeholder="Escreva os interesses do persona. Ex: Passeios ao ar livre, yoga" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="goals">Metas e Objetivos</Label>
+              <Textarea id="goals" value={formData.goals} onChange={handleInputChange} placeholder="Escreva as metas e objetivos do persona" />
+            </div>
           </div>
         </div>
+
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancelar</Button>
           </DialogClose>
           <Button type="submit" onClick={handleSaveClick} disabled={!isFormValid}>
-            Salvar
+            {personaToEdit ? 'Salvar Alterações' : 'Criar Persona'}
           </Button>
         </DialogFooter>
       </DialogContent>
