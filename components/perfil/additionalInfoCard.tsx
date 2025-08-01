@@ -37,7 +37,7 @@ export default function AdditionalInfoCard({ teamData }: AdditionalInfoCardProps
           </div>
           <div className="pt-4 border-t border-white/20 space-y-3">
              <ActionDetail icon={Sparkles} label="Criar conteúdo:" value={teamData.actionsRemaining.createContent} />
-             <ActionDetail icon={Calendar} label="Calendário:" value={teamData.actionsRemaining.planContent} />
+             <ActionDetail icon={Calendar} label="Planejar conteúdo:" value={teamData.actionsRemaining.planContent} />
              <ActionDetail icon={CheckCircle} label="Revisar conteúdo:" value={teamData.actionsRemaining.reviewContent} />
           </div>
           <div className="pt-6">

@@ -108,7 +108,7 @@ export default function HomePage() {
             Bem-vindo(a) de volta ao seu painel de criação.
           </p>
         </div>
-        <Link href="/creator">
+        <Link href="/content">
           <Button size="lg" className="mt-4 md:mt-0 rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
             <PlusCircle className="mr-2 h-5 w-5" />
             Criar Novo Conteúdo
@@ -166,7 +166,7 @@ export default function HomePage() {
         {/* Ações Rápidas */}
         <div className="lg:col-span-1 space-y-4">
           <h3 className="text-xl font-semibold">Ações Rápidas</h3>
-          <Link href="/creator" className="block">
+          <Link href="/content" className="block">
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardContent className="p-4 flex items-center gap-4">
                 <Sparkles className="h-6 w-6 text-accent" />

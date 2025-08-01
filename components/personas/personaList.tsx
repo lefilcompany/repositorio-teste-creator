@@ -1,11 +1,14 @@
+// components/personas/personaList.tsx
 'use client';
 
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { Persona } from '@/types/persona';
+import type { Brand } from '@/types/brand';
 
 interface PersonaListProps {
   personas: Persona[];
+  brands: Brand[];
   selectedPersona: Persona | null;
   onSelectPersona: (persona: Persona) => void;
 }
@@ -16,10 +19,13 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString('pt-BR');
 };
 
-export default function PersonaList({ personas, selectedPersona, onSelectPersona }: PersonaListProps) {
+export default function PersonaList({ personas, brands, selectedPersona, onSelectPersona }: PersonaListProps) {
   const sortedPersonas = useMemo(() => {
-    return [...personas].sort((a, b) => a.name.localeCompare(b.name));
+    // Adiciona uma verificação para garantir que persona.name existe antes de ordenar
+    return [...personas].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [personas]);
+
+  const brandMap = useMemo(() => new Map(brands.map(b => [b.id, b.name])), [brands]);
 
   return (
     <div className="lg:col-span-2 bg-card p-4 md:p-6 rounded-2xl border-2 border-primary/10 flex flex-col h-full overflow-hidden">
@@ -39,11 +45,12 @@ export default function PersonaList({ personas, selectedPersona, onSelectPersona
               >
                 <div className="flex items-center">
                   <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-lg w-10 h-10 flex items-center justify-center font-bold text-xl mr-4">
-                    {persona.name.charAt(0).toUpperCase()}
+                    {/* Adiciona uma verificação para evitar erro se o nome for nulo */}
+                    {(persona.name || ' ').charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <p className="font-semibold text-lg text-foreground">{persona.name}</p>
-                    <p className="text-sm text-muted-foreground">Papel: {persona.role}</p>
+                    <p className="text-sm text-muted-foreground">Marca: {brandMap.get(persona.brandId) || 'Não definida'}</p>
                   </div>
                 </div>
                 <span className="text-sm text-muted-foreground hidden md:block">

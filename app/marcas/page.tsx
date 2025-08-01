@@ -1,4 +1,3 @@
-// app/marcas/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,15 +8,16 @@ import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 
+// Definindo o tipo para os dados do formulário, que é um Brand parcial
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>;
+
 export default function MarcasPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
-  // **NOVO ESTADO:** Controla se os dados já foram carregados do localStorage
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
 
-  // Efeito para carregar os dados do localStorage APENAS UMA VEZ
   useEffect(() => {
     try {
       const storedBrands = localStorage.getItem('creator-brands');
@@ -27,15 +27,11 @@ export default function MarcasPage() {
     } catch (error) {
       console.error("Falha ao carregar as marcas do localStorage", error);
     } finally {
-      // **NOVO:** Marca que o carregamento inicial foi concluído
       setIsLoaded(true);
     }
-  }, []); // Array de dependências vazio para rodar apenas na montagem
+  }, []);
 
-  // Efeito para SALVAR os dados, agora com uma guarda
   useEffect(() => {
-    // **CORREÇÃO CRÍTICA:** Só salva no localStorage se o carregamento inicial já ocorreu.
-    // Isso evita que o estado inicial vazio `[]` sobrescreva os dados salvos.
     if (isLoaded) {
       try {
         localStorage.setItem('creator-brands', JSON.stringify(brands));
@@ -43,17 +39,16 @@ export default function MarcasPage() {
         console.error("Falha ao salvar as marcas no localStorage", error);
       }
     }
-  }, [brands, isLoaded]); // Roda sempre que 'brands' ou 'isLoaded' mudar
+  }, [brands, isLoaded]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
     setBrandToEdit(brand);
     setIsDialogOpen(true);
   }, []);
 
-  // As funções de salvar e deletar agora usam a forma funcional de 'setBrands'
-  // para garantir que estão sempre trabalhando com o estado mais atual.
-  const handleSaveBrand = useCallback((formData: { name: string; responsible: string }) => {
+  const handleSaveBrand = useCallback((formData: BrandFormData) => {
     const now = new Date().toISOString();
+
     setBrands(prevBrands => {
       if (brandToEdit) {
         const updatedBrands = prevBrands.map(b =>
@@ -66,8 +61,7 @@ export default function MarcasPage() {
       } else {
         const newBrand: Brand = {
           id: now,
-          name: formData.name,
-          responsible: formData.responsible,
+          ...formData, // Adiciona todos os campos do formulário
           createdAt: now,
           updatedAt: now,
         };

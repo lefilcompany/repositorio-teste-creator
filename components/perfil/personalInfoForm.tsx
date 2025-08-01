@@ -74,7 +74,6 @@ export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps)
 
   const handleSave = () => {
     setIsSaving(true);
-    // Simula uma chamada de API
     setTimeout(() => {
       console.log('Dados salvos:', formData);
       setIsSaving(false);

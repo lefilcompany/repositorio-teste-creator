@@ -8,49 +8,51 @@ import PersonaList from '@/components/personas/personaList';
 import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
+import type { Brand } from '@/types/brand';
+
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
 
 export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
-  // **NOVO ESTADO:** Controla se os dados já foram carregados do localStorage
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
 
-  // Efeito para carregar os dados do localStorage APENAS UMA VEZ
   useEffect(() => {
     try {
       const storedPersonas = localStorage.getItem('creator-personas');
+      const storedBrands = localStorage.getItem('creator-brands');
       if (storedPersonas) {
         setPersonas(JSON.parse(storedPersonas));
       }
+      if (storedBrands) {
+        setBrands(JSON.parse(storedBrands));
+      }
     } catch (error) {
-      console.error("Failed to load personas from localStorage", error);
+      console.error("Falha ao carregar dados do localStorage", error);
     } finally {
-      // **NOVO:** Marca que o carregamento inicial foi concluído
       setIsLoaded(true);
     }
-  }, []); // Array de dependências vazio para rodar apenas na montagem
+  }, []);
 
-  // Efeito para SALVAR os dados, agora com uma guarda
   useEffect(() => {
-    // **CORREÇÃO CRÍTICA:** Só salva no localStorage se o carregamento inicial já ocorreu.
     if (isLoaded) {
       try {
         localStorage.setItem('creator-personas', JSON.stringify(personas));
       } catch (error) {
-        console.error("Failed to save personas to localStorage", error);
+        console.error("Falha ao salvar as personas no localStorage", error);
       }
     }
-  }, [personas, isLoaded]); // Roda sempre que 'personas' ou 'isLoaded' mudar
+  }, [personas, isLoaded]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
   }, []);
 
-  // Funções de salvar e deletar atualizadas para usar a forma funcional de 'setPersonas'
-  const handleSavePersona = useCallback((formData: { name: string; role: string }) => {
+  const handleSavePersona = useCallback((formData: PersonaFormData) => {
     const now = new Date().toISOString();
     setPersonas(prevPersonas => {
       if (personaToEdit) {
@@ -64,8 +66,7 @@ export default function PersonasPage() {
       } else {
         const newPersona: Persona = {
           id: now,
-          name: formData.name,
-          role: formData.role,
+          ...formData,
           createdAt: now,
           updatedAt: now,
         };
@@ -105,11 +106,13 @@ export default function PersonasPage() {
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
         <PersonaList
           personas={personas}
+          brands={brands}
           selectedPersona={selectedPersona}
           onSelectPersona={setSelectedPersona}
         />
         <PersonaDetails
           persona={selectedPersona}
+          brands={brands}
           onEdit={handleOpenDialog}
           onDelete={handleDeletePersona}
         />
@@ -120,6 +123,7 @@ export default function PersonasPage() {
         onOpenChange={setIsDialogOpen}
         onSave={handleSavePersona}
         personaToEdit={personaToEdit}
+        brands={brands}
       />
     </div>
   );
