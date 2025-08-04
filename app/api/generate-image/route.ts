@@ -1,89 +1,90 @@
-// import { NextRequest, NextResponse } from 'next/server';
+// app/api/generate-image/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 
-// export async function POST(req: NextRequest) {
-//   const apiKey = process.env.OPENAI_API_KEY;
+export async function POST(req: NextRequest) {
+  const apiKey = process.env.OPENAI_API_KEY;
 
-//   // Extrai o prompt já construído e os outros dados do corpo da requisição
-//   const { prompt: imagePrompt, ...formData } = await req.json();
+  // Extrai o prompt e os outros dados do corpo da requisição
+  const { prompt: imagePrompt, ...formData } = await req.json();
 
-//   if (!apiKey) {
+  if (!apiKey) {
+    return NextResponse.json({ error: 'A chave da API da OpenAI não foi configurada.' }, { status: 500 });
+  }
 
-//     return NextResponse.json({ error: 'A chave da API da OpenAI não foi configurada.' }, { status: 500 });
-//   }
+  if (!imagePrompt) {
+    return NextResponse.json({ error: 'O prompt da imagem é obrigatório.' }, { status: 400 });
+  }
 
-//   if (!imagePrompt) {
-//     return NextResponse.json({ error: 'O prompt da imagem é obrigatório.' }, { status: 400 });
-//   }
+  // ** CORREÇÃO AQUI **
+  // Usamos formData.brand e formData.theme que agora são recebidos corretamente do frontend
+  const textPrompt = `
+    Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
+    - Marca: ${formData.brand}
+    - Tema: ${formData.theme}
+    - Objetivo do Post: ${formData.objective}
+    - Descrição da Ideia: ${formData.description}
+    - Público-alvo: ${formData.audience}
+    - Tom de Voz: ${formData.tone}
 
-//   // Constrói um prompt para a geração de texto (post)
-//   const textPrompt = `
-//     Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-//     - Marca/Tema: ${formData.brandTheme}
-//     - Objetivo do Post: ${formData.objective}
-//     - Descrição da Ideia: ${formData.description}
-//     - Público-alvo: ${formData.audience}
-//     - Tom de Voz: ${formData.tone}
+    Responda em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').
+  `;
 
-//     Responda em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').
-//   `;
+  try {
+    // Geração da Imagem (código sem alterações)
+    const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt: imagePrompt,
+        n: 1,
+        size: '1024x1024',
+        quality: 'hd',
+      }),
+    });
 
-//   try {
-//     // Geração da Imagem
-//     const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-//       body: JSON.stringify({
-//         model: 'dall-e-3',
-//         prompt: imagePrompt,
-//         n: 1,
-//         size: '1024x1024',
-//         quality: 'hd',
-//       }),
-//     });
+    if (!imageResponse.ok) {
+      const errorData = await imageResponse.json();
+      console.error('Erro da API de Imagem da OpenAI:', errorData);
+      return NextResponse.json({ error: 'Falha ao gerar a imagem.', details: errorData }, { status: imageResponse.status });
+    }
 
-//     if (!imageResponse.ok) {
-//       const errorData = await imageResponse.json();
-//       console.error('Erro da API de Imagem da OpenAI:', errorData);
-//       return NextResponse.json({ error: 'Falha ao gerar a imagem.', details: errorData }, { status: imageResponse.status });
-//     }
+    const imageData = await imageResponse.json();
+    const imageUrl = imageData.data[0].url;
 
-//     const imageData = await imageResponse.json();
-//     const imageUrl = imageData.data[0].url;
+    // Geração do Texto (código sem alterações)
+    const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+            model: 'gpt-4-turbo',
+            messages: [{ role: 'user', content: textPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+        }),
+    });
 
-//     // Geração do Texto
-//     const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-//         body: JSON.stringify({
-//             model: 'gpt-4-turbo',
-//             messages: [{ role: 'user', content: textPrompt }],
-//             response_format: { type: "json_object" },
-//             temperature: 0.7,
-//         }),
-//     });
+    if (!textResponse.ok) {
+        const errorData = await textResponse.json();
+        console.error('Erro da API de Texto da OpenAI:', errorData);
+        return NextResponse.json({ imageUrl, title: "Erro ao gerar legenda", body: "Não foi possível gerar o conteúdo do post, mas sua imagem está pronta!", hashtags: [] });
+    }
 
-//     if (!textResponse.ok) {
-//         const errorData = await textResponse.json();
-//         console.error('Erro da API de Texto da OpenAI:', errorData);
-//         // Mesmo que o texto falhe, vamos retornar a imagem para o usuário
-//         return NextResponse.json({ imageUrl, title: "Erro ao gerar legenda", body: "Não foi possível gerar o conteúdo do post, mas sua imagem está pronta!", hashtags: [] });
-//     }
+    const textData = await textResponse.json();
+    const postContent = JSON.parse(textData.choices[0].message.content);
 
-//     const textData = await textResponse.json();
-//     const postContent = JSON.parse(textData.choices[0].message.content);
+    return NextResponse.json({
+      imageUrl,
+      title: postContent.title,
+      body: postContent.body,
+      hashtags: postContent.hashtags,
+    });
 
-//     return NextResponse.json({
-//       imageUrl,
-//       title: postContent.title,
-//       body: postContent.body,
-//       hashtags: postContent.hashtags,
-//     });
-
-//   } catch (error) {
-//     console.error('Erro ao chamar a API da OpenAI:', error);
-//     return NextResponse.json({ error: 'Ocorreu um erro interno no servidor.' }, { status: 500 });
-//   }
-// }
+  } catch (error) {
+    console.error('Erro ao chamar a API da OpenAI:', error);
+    return NextResponse.json({ error: 'Ocorreu um erro interno no servidor.' }, { status: 500 });
+  }
+}
 
 // app/api/generate-image/route.ts
 
@@ -296,323 +297,323 @@
 //   }
 // }
 
-import { NextRequest, NextResponse } from 'next/server';
+// import { NextRequest, NextResponse } from 'next/server';
 
-interface GeminiTextResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{
-        text: string;
-      }>;
-    };
-    finishReason: string;
-  }>;
-}
+// interface GeminiTextResponse {
+//   candidates: Array<{
+//     content: {
+//       parts: Array<{
+//         text: string;
+//       }>;
+//     };
+//     finishReason: string;
+//   }>;
+// }
 
-interface GeminiImageResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{
-        inlineData: {
-          mimeType: string;
-          data: string;
-        };
-      }>;
-    };
-  }>;
-}
+// interface GeminiImageResponse {
+//   candidates: Array<{
+//     content: {
+//       parts: Array<{
+//         inlineData: {
+//           mimeType: string;
+//           data: string;
+//         };
+//       }>;
+//     };
+//   }>;
+// }
 
-// Função para fazer requisições com retry melhorada
-async function fetchWithRetry(
-  url: string, 
-  options: RequestInit, 
-  maxRetries = 5,
-  initialDelay = 2000
-): Promise<Response> {
-  let lastError;
+// // Função para fazer requisições com retry melhorada
+// async function fetchWithRetry(
+//   url: string, 
+//   options: RequestInit, 
+//   maxRetries = 5,
+//   initialDelay = 2000
+// ): Promise<Response> {
+//   let lastError;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Tentativa ${attempt}/${maxRetries} para ${url.includes('imagegeneration') ? 'Imagen' : 'Gemini Text'}...`);
+//   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+//     try {
+//       console.log(`Tentativa ${attempt}/${maxRetries} para ${url.includes('imagegeneration') ? 'Imagen' : 'Gemini Text'}...`);
       
-      const response = await fetch(url, {
-        ...options,
-        signal: AbortSignal.timeout(45000) // Timeout de 45 segundos para imagem
-      });
+//       const response = await fetch(url, {
+//         ...options,
+//         signal: AbortSignal.timeout(45000) // Timeout de 45 segundos para imagem
+//       });
 
-      if (response.ok) {
-        console.log(`✅ Sucesso na tentativa ${attempt}`);
-        return response;
-      }
+//       if (response.ok) {
+//         console.log(`✅ Sucesso na tentativa ${attempt}`);
+//         return response;
+//       }
 
-      // Status codes que indicam sobrecarga ou erro temporário
-      const retryableStatuses = [503, 429, 500, 502, 504];
-      const errorData = await response.json().catch(() => ({ 
-        error: { message: `HTTP ${response.status}` } 
-      }));
+//       // Status codes que indicam sobrecarga ou erro temporário
+//       const retryableStatuses = [503, 429, 500, 502, 504];
+//       const errorData = await response.json().catch(() => ({ 
+//         error: { message: `HTTP ${response.status}` } 
+//       }));
 
-      lastError = new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+//       lastError = new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
 
-      if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
-        // Backoff exponencial com jitter
-        const baseDelay = initialDelay * Math.pow(1.5, attempt - 1);
-        const jitter = Math.random() * 1000;
-        const delay = Math.min(baseDelay + jitter, 30000);
+//       if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
+//         // Backoff exponencial com jitter
+//         const baseDelay = initialDelay * Math.pow(1.5, attempt - 1);
+//         const jitter = Math.random() * 1000;
+//         const delay = Math.min(baseDelay + jitter, 30000);
         
-        console.log(`⚠️ Status ${response.status}. Aguardando ${Math.round(delay)}ms antes da próxima tentativa...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
+//         console.log(`⚠️ Status ${response.status}. Aguardando ${Math.round(delay)}ms antes da próxima tentativa...`);
+//         await new Promise(resolve => setTimeout(resolve, delay));
+//         continue;
+//       }
 
-      if (!retryableStatuses.includes(response.status)) {
-        throw lastError;
-      }
+//       if (!retryableStatuses.includes(response.status)) {
+//         throw lastError;
+//       }
 
-    } catch (error: any) {
-      lastError = error;
+//     } catch (error: any) {
+//       lastError = error;
       
-      if (attempt < maxRetries && (
-        error.name === 'TimeoutError' || 
-        error.name === 'AbortError' ||
-        error.code === 'ECONNRESET' ||
-        error.code === 'ENOTFOUND'
-      )) {
-        const delay = initialDelay * Math.pow(1.5, attempt - 1) + Math.random() * 1000;
-        console.log(`🔄 Erro de conexão. Tentando novamente em ${Math.round(delay)}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
+//       if (attempt < maxRetries && (
+//         error.name === 'TimeoutError' || 
+//         error.name === 'AbortError' ||
+//         error.code === 'ECONNRESET' ||
+//         error.code === 'ENOTFOUND'
+//       )) {
+//         const delay = initialDelay * Math.pow(1.5, attempt - 1) + Math.random() * 1000;
+//         console.log(`🔄 Erro de conexão. Tentando novamente em ${Math.round(delay)}ms...`);
+//         await new Promise(resolve => setTimeout(resolve, delay));
+//         continue;
+//       }
 
-      if (attempt === maxRetries) {
-        break;
-      }
-    }
-  }
+//       if (attempt === maxRetries) {
+//         break;
+//       }
+//     }
+//   }
 
-  throw lastError || new Error('Falhou em obter resposta após todas as tentativas');
-}
+//   throw lastError || new Error('Falhou em obter resposta após todas as tentativas');
+// }
 
-// Função para gerar conteúdo de fallback
-function generateFallbackContent(formData: any) {
-  return {
-    title: `Post para ${formData.brand || 'sua marca'}`,
-    body: `Conteúdo criativo para ${formData.platform || 'redes sociais'}!\n\n${formData.description || 'Confira nossa novidade!'}\n\n#${formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca'}`,
-    hashtags: [
-      formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca',
-      formData.theme?.toLowerCase().replace(/\s+/g, '') || 'conteudo',
-      formData.platform?.toLowerCase() || 'social',
-      'marketing',
-      'digital'
-    ].filter(Boolean).slice(0, 5)
-  };
-}
+// // Função para gerar conteúdo de fallback
+// function generateFallbackContent(formData: any) {
+//   return {
+//     title: `Post para ${formData.brand || 'sua marca'}`,
+//     body: `Conteúdo criativo para ${formData.platform || 'redes sociais'}!\n\n${formData.description || 'Confira nossa novidade!'}\n\n#${formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca'}`,
+//     hashtags: [
+//       formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca',
+//       formData.theme?.toLowerCase().replace(/\s+/g, '') || 'conteudo',
+//       formData.platform?.toLowerCase() || 'social',
+//       'marketing',
+//       'digital'
+//     ].filter(Boolean).slice(0, 5)
+//   };
+// }
 
-export async function POST(req: NextRequest) {
-  const geminiApiKey = process.env.GEMINI_API_KEY;
+// export async function POST(req: NextRequest) {
+//   const geminiApiKey = process.env.GEMINI_API_KEY;
 
-  if (!geminiApiKey) {
-    return NextResponse.json({
-      error: 'A chave da API do Gemini não foi configurada.'
-    }, { status: 500 });
-  }
+//   if (!geminiApiKey) {
+//     return NextResponse.json({
+//       error: 'A chave da API do Gemini não foi configurada.'
+//     }, { status: 500 });
+//   }
 
-  try {
-    const { prompt: imagePrompt, ...formData } = await req.json();
+//   try {
+//     const { prompt: imagePrompt, ...formData } = await req.json();
 
-    if (!imagePrompt) {
-      return NextResponse.json({
-        error: 'O prompt da imagem é obrigatório.'
-      }, { status: 400 });
-    }
+//     if (!imagePrompt) {
+//       return NextResponse.json({
+//         error: 'O prompt da imagem é obrigatório.'
+//       }, { status: 400 });
+//     }
 
-    console.log('🚀 Iniciando geração de conteúdo...');
+//     console.log('🚀 Iniciando geração de conteúdo...');
 
-    // Prompt para geração de texto baseado no padrão OpenAI que funcionava
-    const textPrompt = `
-Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-- Marca: ${formData.brand}
-- Tema: ${formData.theme}
-- Objetivo do Post: ${formData.objective}
-- Descrição da Ideia: ${formData.description}
-- Público-alvo: ${formData.audience}
-- Tom de Voz: ${formData.tone}
-- Informações adicionais: ${formData.additionalInfo}
+//     // Prompt para geração de texto baseado no padrão OpenAI que funcionava
+//     const textPrompt = `
+// Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
+// - Marca: ${formData.brand}
+// - Tema: ${formData.theme}
+// - Objetivo do Post: ${formData.objective}
+// - Descrição da Ideia: ${formData.description}
+// - Público-alvo: ${formData.audience}
+// - Tom de Voz: ${formData.tone}
+// - Informações adicionais: ${formData.additionalInfo}
 
-Responda EXCLUSIVAMENTE em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').`;
+// Responda EXCLUSIVAMENTE em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').`;
 
-    // Geração do Texto usando Gemini
-    let postContent = generateFallbackContent(formData);
-    let textWarning: string | null = null;
+//     // Geração do Texto usando Gemini
+//     let postContent = generateFallbackContent(formData);
+//     let textWarning: string | null = null;
 
-    try {
-      console.log('📝 Gerando texto...');
-      const textResponse = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: textPrompt
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-              responseMimeType: "application/json"
-            }
-          })
-        },
-        4, // 4 tentativas para texto
-        1500
-      );
+//     try {
+//       console.log('📝 Gerando texto...');
+//       const textResponse = await fetchWithRetry(
+//         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+//         {
+//           method: 'POST',
+//           headers: {
+//             'Content-Type': 'application/json',
+//           },
+//           body: JSON.stringify({
+//             contents: [{
+//               parts: [{
+//                 text: textPrompt
+//               }]
+//             }],
+//             generationConfig: {
+//               temperature: 0.7,
+//               topK: 40,
+//               topP: 0.95,
+//               maxOutputTokens: 1024,
+//               responseMimeType: "application/json"
+//             }
+//           })
+//         },
+//         4, // 4 tentativas para texto
+//         1500
+//       );
 
-      const textData: GeminiTextResponse = await textResponse.json();
+//       const textData: GeminiTextResponse = await textResponse.json();
 
-      if (textData.candidates && textData.candidates[0]?.content?.parts?.[0]?.text) {
-        try {
-          const generatedText = textData.candidates[0].content.parts[0].text.trim();
+//       if (textData.candidates && textData.candidates[0]?.content?.parts?.[0]?.text) {
+//         try {
+//           const generatedText = textData.candidates[0].content.parts[0].text.trim();
           
-          // Parse do JSON - similar ao padrão OpenAI
-          let parsedContent;
-          try {
-            parsedContent = JSON.parse(generatedText);
-          } catch {
-            const jsonMatch = generatedText.match(/\{[\s\S]*?\}/);
-            if (jsonMatch) {
-              parsedContent = JSON.parse(jsonMatch[0]);
-            } else {
-              const cleanJson = generatedText.replace(/```json|```/g, '').trim();
-              parsedContent = JSON.parse(cleanJson);
-            }
-          }
+//           // Parse do JSON - similar ao padrão OpenAI
+//           let parsedContent;
+//           try {
+//             parsedContent = JSON.parse(generatedText);
+//           } catch {
+//             const jsonMatch = generatedText.match(/\{[\s\S]*?\}/);
+//             if (jsonMatch) {
+//               parsedContent = JSON.parse(jsonMatch[0]);
+//             } else {
+//               const cleanJson = generatedText.replace(/```json|```/g, '').trim();
+//               parsedContent = JSON.parse(cleanJson);
+//             }
+//           }
 
-          if (parsedContent.title && parsedContent.body && Array.isArray(parsedContent.hashtags)) {
-            postContent = parsedContent;
-            console.log('✅ Texto gerado com sucesso via IA');
-          } else {
-            throw new Error('Estrutura JSON inválida');
-          }
+//           if (parsedContent.title && parsedContent.body && Array.isArray(parsedContent.hashtags)) {
+//             postContent = parsedContent;
+//             console.log('✅ Texto gerado com sucesso via IA');
+//           } else {
+//             throw new Error('Estrutura JSON inválida');
+//           }
 
-        } catch (parseError: any) {
-          console.error('❌ Erro ao processar resposta do texto:', parseError.message);
-          textWarning = "Falha ao processar resposta da IA para texto. Usando conteúdo padrão.";
-        }
-      }
-    } catch (textError: any) {
-      console.error('❌ Erro na geração de texto:', textError.message);
-      textWarning = `Não foi possível gerar texto via IA: ${textError.message}. Usando conteúdo padrão.`;
-    }
+//         } catch (parseError: any) {
+//           console.error('❌ Erro ao processar resposta do texto:', parseError.message);
+//           textWarning = "Falha ao processar resposta da IA para texto. Usando conteúdo padrão.";
+//         }
+//       }
+//     } catch (textError: any) {
+//       console.error('❌ Erro na geração de texto:', textError.message);
+//       textWarning = `Não foi possível gerar texto via IA: ${textError.message}. Usando conteúdo padrão.`;
+//     }
 
-    // Geração da Imagem usando a API REST correta do Gemini
-    let imageUrl: string | null = null;
-    let imageWarning: string | null = null;
+//     // Geração da Imagem usando a API REST correta do Gemini
+//     let imageUrl: string | null = null;
+//     let imageWarning: string | null = null;
 
-    console.log('🎨 Iniciando geração de imagem...');
+//     console.log('🎨 Iniciando geração de imagem...');
 
-    try {
-      // Prompt otimizado para Imagen
-      const optimizedImagePrompt = `Create a professional, high-quality image for social media post about "${formData.theme}" for brand "${formData.brand}". 
-Platform: ${formData.platform}
-Objective: ${formData.objective}
-Visual description: ${imagePrompt}
-Target audience: ${formData.audience}
-Visual tone: ${formData.tone}
-Additional context: ${formData.additionalInfo}
+//     try {
+//       // Prompt otimizado para Imagen
+//       const optimizedImagePrompt = `Create a professional, high-quality image for social media post about "${formData.theme}" for brand "${formData.brand}". 
+// Platform: ${formData.platform}
+// Objective: ${formData.objective}
+// Visual description: ${imagePrompt}
+// Target audience: ${formData.audience}
+// Visual tone: ${formData.tone}
+// Additional context: ${formData.additionalInfo}
 
-Style requirements: Modern digital art, professional quality, vibrant colors, engaging composition, social media optimized, high resolution, visually appealing, brand-appropriate.`;
+// Style requirements: Modern digital art, professional quality, vibrant colors, engaging composition, social media optimized, high resolution, visually appealing, brand-appropriate.`;
 
-      // Usando a API REST correta para geração de imagens
-      const imageResponse = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-generate-001:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: optimizedImagePrompt
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.4,
-              topK: 32,
-              topP: 0.95,
-              maxOutputTokens: 4096,
-            }
-          })
-        },
-        3, // 3 tentativas para imagem
-        3000
-      );
+//       // Usando a API REST correta para geração de imagens
+//       const imageResponse = await fetchWithRetry(
+//         `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-generate-001:generateContent?key=${geminiApiKey}`,
+//         {
+//           method: 'POST',
+//           headers: {
+//             'Content-Type': 'application/json',
+//           },
+//           body: JSON.stringify({
+//             contents: [{
+//               parts: [{
+//                 text: optimizedImagePrompt
+//               }]
+//             }],
+//             generationConfig: {
+//               temperature: 0.4,
+//               topK: 32,
+//               topP: 0.95,
+//               maxOutputTokens: 4096,
+//             }
+//           })
+//         },
+//         3, // 3 tentativas para imagem
+//         3000
+//       );
 
-      const imageData: GeminiImageResponse = await imageResponse.json();
+//       const imageData: GeminiImageResponse = await imageResponse.json();
 
-      if (imageData.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-        const imageBase64 = imageData.candidates[0].content.parts[0].inlineData.data;
-        const mimeType = imageData.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
-        imageUrl = `data:${mimeType};base64,${imageBase64}`;
-        console.log('✅ Imagem gerada com sucesso');
-      } else {
-        console.log('⚠️ Resposta inesperada da API Imagen:', imageData);
-        imageWarning = "A API do Imagen retornou uma resposta inesperada.";
-      }
-    } catch (imageError: any) {
-      console.error('❌ Erro na geração de imagem:', imageError.message);
-      imageWarning = `Não foi possível gerar a imagem: ${imageError.message}`;
+//       if (imageData.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+//         const imageBase64 = imageData.candidates[0].content.parts[0].inlineData.data;
+//         const mimeType = imageData.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+//         imageUrl = `data:${mimeType};base64,${imageBase64}`;
+//         console.log('✅ Imagem gerada com sucesso');
+//       } else {
+//         console.log('⚠️ Resposta inesperada da API Imagen:', imageData);
+//         imageWarning = "A API do Imagen retornou uma resposta inesperada.";
+//       }
+//     } catch (imageError: any) {
+//       console.error('❌ Erro na geração de imagem:', imageError.message);
+//       imageWarning = `Não foi possível gerar a imagem: ${imageError.message}`;
       
-      // Se a imagem falhou, pelo menos retornamos o texto - similar ao padrão OpenAI
-      if (!textWarning) {
-        console.log('📝 Retornando apenas o conteúdo de texto gerado');
-      }
-    }
+//       // Se a imagem falhou, pelo menos retornamos o texto - similar ao padrão OpenAI
+//       if (!textWarning) {
+//         console.log('📝 Retornando apenas o conteúdo de texto gerado');
+//       }
+//     }
 
-    // Preparar resposta - mesmo padrão da OpenAI
-    const warnings = [textWarning, imageWarning].filter(Boolean);
-    const warningMessage = warnings.length > 0 ? warnings.join(' ') : undefined;
+//     // Preparar resposta - mesmo padrão da OpenAI
+//     const warnings = [textWarning, imageWarning].filter(Boolean);
+//     const warningMessage = warnings.length > 0 ? warnings.join(' ') : undefined;
 
-    const response = {
-      imageUrl,
-      title: postContent.title,
-      body: postContent.body,
-      hashtags: postContent.hashtags,
-      ...(warningMessage && { warning: warningMessage })
-    };
+//     const response = {
+//       imageUrl,
+//       title: postContent.title,
+//       body: postContent.body,
+//       hashtags: postContent.hashtags,
+//       ...(warningMessage && { warning: warningMessage })
+//     };
 
-    console.log('🎉 Processamento concluído:', {
-      textoGerado: !textWarning,
-      imagemGerada: Boolean(imageUrl),
-      warnings: warnings.length
-    });
+//     console.log('🎉 Processamento concluído:', {
+//       textoGerado: !textWarning,
+//       imagemGerada: Boolean(imageUrl),
+//       warnings: warnings.length
+//     });
 
-    return NextResponse.json(response);
+//     return NextResponse.json(response);
 
-  } catch (error: any) {
-    console.error('💥 Erro crítico na rota /api/generate-image:', error);
+//   } catch (error: any) {
+//     console.error('💥 Erro crítico na rota /api/generate-image:', error);
 
-    // Fallback final - mesmo padrão da OpenAI
-    try {
-      const { ...formData } = await req.json().catch(() => ({}));
-      const fallbackContent = generateFallbackContent(formData);
+//     // Fallback final - mesmo padrão da OpenAI
+//     try {
+//       const { ...formData } = await req.json().catch(() => ({}));
+//       const fallbackContent = generateFallbackContent(formData);
       
-      return NextResponse.json({
-        imageUrl: null,
-        title: fallbackContent.title,
-        body: fallbackContent.body,
-        hashtags: fallbackContent.hashtags,
-        warning: 'Houve um problema com as APIs. Conteúdo gerado como fallback.'
-      });
-    } catch {
-      return NextResponse.json({
-        error: error.message || 'Ocorreu um erro interno no servidor.'
-      }, { status: 500 });
-    }
-  }
-}
+//       return NextResponse.json({
+//         imageUrl: null,
+//         title: fallbackContent.title,
+//         body: fallbackContent.body,
+//         hashtags: fallbackContent.hashtags,
+//         warning: 'Houve um problema com as APIs. Conteúdo gerado como fallback.'
+//       });
+//     } catch {
+//       return NextResponse.json({
+//         error: error.message || 'Ocorreu um erro interno no servidor.'
+//       }, { status: 500 });
+//     }
+//   }
+// }

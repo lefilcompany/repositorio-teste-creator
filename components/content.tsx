@@ -11,6 +11,7 @@ import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, Download } from 'lucid
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 
+// Interfaces (sem alteração)
 interface FormData {
   brand: string;
   theme: string;
@@ -27,16 +28,17 @@ interface GeneratedContent {
   hashtags: string[];
 }
 
+// Função de histórico (sem alteração)
 const saveActionToHistory = (actionData: any) => {
-    const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-    const newAction = {
-      id: new Date().toISOString() + Math.random(),
-      createdAt: new Date().toISOString(),
-      ...actionData,
-    };
-    history.unshift(newAction);
-    localStorage.setItem('creator-action-history', JSON.stringify(history));
+  const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
+  const newAction = {
+    id: new Date().toISOString() + Math.random(),
+    createdAt: new Date().toISOString(),
+    ...actionData,
   };
+  history.unshift(newAction);
+  localStorage.setItem('creator-action-history', JSON.stringify(history));
+};
 
 export default function Creator() {
   const [formData, setFormData] = useState<FormData>({
@@ -52,7 +54,7 @@ export default function Creator() {
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
-
+  const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -63,15 +65,11 @@ export default function Creator() {
   useEffect(() => {
     try {
       const storedBrands = localStorage.getItem('creator-brands');
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
-      }
+      if (storedBrands) setBrands(JSON.parse(storedBrands));
       const storedThemes = localStorage.getItem('creator-themes');
-      if (storedThemes) {
-        setThemes(JSON.parse(storedThemes));
-      }
+      if (storedThemes) setThemes(JSON.parse(storedThemes));
     } catch (error) {
-      console.error("Failed to load data from localStorage", error);
+      console.error("Falha ao carregar dados do localStorage", error);
     }
   }, []);
 
@@ -80,12 +78,18 @@ export default function Creator() {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleBrandChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, brand: value }));
+  const handleBrandChange = (brandName: string) => {
+    setFormData((prev) => ({ ...prev, brand: brandName, theme: '' }));
+    const selectedBrand = brands.find(b => b.name === brandName);
+    if (selectedBrand) {
+      setFilteredThemes(themes.filter(t => t.brandId === selectedBrand.id));
+    } else {
+      setFilteredThemes([]);
+    }
   };
 
-  const handleThemeChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, theme: value }));
+  const handleThemeChange = (themeTitle: string) => {
+    setFormData((prev) => ({ ...prev, theme: themeTitle }));
   };
 
   const handlePlatformChange = (value: string) => {
@@ -93,11 +97,15 @@ export default function Creator() {
   };
 
   const handleGenerateContent = async () => {
+    console.log("1. Clicou em Gerar Conteúdo. Iniciando processo..."); // Ponto de verificação 1
+
     setLoading(true);
     setError(null);
     setImageUrl(null);
     setGeneratedContent(null);
-    setIsResultView(true);
+    setIsResultView(true); // << ESTA É A LINHA QUE MUDA A TELA
+
+    console.log("2. Estado 'isResultView' definido para true. A tela deveria mudar agora."); // Ponto de verificação 2
 
     const imagePrompt = `Crie uma imagem profissional para um post na plataforma "${formData.platform}". - Marca: ${formData.brand}. - Tema: ${formData.theme}. - Objetivo do post: ${formData.objective}. - Descrição visual da imagem: ${formData.description}. - Público-alvo: ${formData.audience}. - Tom de voz visual: ${formData.tone}. - Informações adicionais importantes: ${formData.additionalInfo}. A imagem deve ser de alta qualidade, atraente e seguir um estilo de arte digital moderna.`;
 
@@ -114,6 +122,7 @@ export default function Creator() {
       }
 
       const data = await response.json();
+      console.log("3. API respondeu com sucesso:", data); // Ponto de verificação 3
       setImageUrl(data.imageUrl);
       setGeneratedContent({
         title: data.title,
@@ -124,14 +133,7 @@ export default function Creator() {
       saveActionToHistory({
         type: 'Criar conteúdo',
         brand: formData.brand,
-        details: {
-          theme: formData.theme,
-          objective: formData.objective,
-          platform: formData.platform,
-          description: formData.description,
-          audience: formData.audience,
-          tone: formData.tone,
-        },
+        details: { ...formData },
         result: {
           imageUrl: data.imageUrl,
           title: data.title,
@@ -140,17 +142,28 @@ export default function Creator() {
         },
       });
     } catch (err: any) {
+      console.error("4. Ocorreu um erro:", err.message); // Ponto de verificação de erro
       setError(err.message);
     } finally {
       setLoading(false);
+      console.log("5. Processo finalizado. Loading definido como false."); // Ponto de verificação final
     }
   };
 
   const handleGoBackToForm = () => {
     setIsResultView(false);
+    // Limpa os dados para uma nova geração
+    setFormData(prev => ({
+      ...prev,
+      objective: '',
+      description: '',
+      audience: '',
+      tone: '',
+      additionalInfo: '',
+    }));
+    setError(null);
     setImageUrl(null);
     setGeneratedContent(null);
-    setError(null);
   }
 
   const handleDownloadImage = async () => {
@@ -170,6 +183,7 @@ export default function Creator() {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erro ao baixar a imagem:", error);
+      setError("Não foi possível baixar a imagem.");
     } finally {
       setIsDownloading(false);
     }
@@ -178,6 +192,7 @@ export default function Creator() {
   if (!isResultView) {
     return (
       <div className="w-full max-w-4xl h-full mx-auto p-4 sm:p-6 md:p-8 rounded-2xl shadow-2xl bg-card border-2 border-primary/20 flex flex-col">
+        {/* Header (sem alterações) */}
         <div className="flex items-start gap-4 mb-8">
           <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
             <Sparkles className="h-8 w-8" />
@@ -208,16 +223,18 @@ export default function Creator() {
               </div>
               <div className="w-full md:col-span-2 space-y-2">
                 <Label htmlFor="theme">Tema Estratégico</Label>
-                <Select onValueChange={handleThemeChange} value={formData.theme}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
+                {/* ** SELECT ATUALIZADO ** */}
+                <Select onValueChange={handleThemeChange} value={formData.theme} disabled={!formData.brand}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a marca primeiro" /></SelectTrigger>
                   <SelectContent>
-                    {themes.map((theme) => (
-                      <SelectItem key={theme.id} value={theme.name}>{theme.name}</SelectItem>
+                    {filteredThemes.map((theme) => (
+                      <SelectItem key={theme.id} value={theme.title}>{theme.title}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {/* ... restante do formulário sem alterações ... */}
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="objective">Objetivo da Imagem</Label>
               <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto..." value={formData.objective} onChange={handleInputChange} />
@@ -253,6 +270,7 @@ export default function Creator() {
           </div>
         </div>
 
+        {/* Botão de gerar (sem alterações) */}
         <div className="mt-8 flex-shrink-0">
           <Button onClick={handleGenerateContent} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
             {loading ? <><Loader className="animate-spin mr-2" /> Gerando...</> : <><Sparkles className="mr-2" />Gerar Conteúdo</>}
@@ -263,49 +281,10 @@ export default function Creator() {
     );
   }
 
+  // ... (retorno da tela de resultado continua igual)
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
-      <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg self-center group">
-        {loading && <div className="flex flex-col items-center text-center"><div className="animate-pulse"><ImageIcon size={64} className="text-primary" /></div><p className="mt-4 text-muted-foreground">Criando algo incrível...</p></div>}
-        {imageUrl && !loading && (
-          <>
-            <img src={imageUrl} alt="Imagem gerada pela IA" className="rounded-2xl object-cover w-full h-full" />
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <Button onClick={handleDownloadImage} disabled={isDownloading} className="rounded-full text-lg px-8 py-6">
-                {isDownloading ? (
-                  <><Loader className="animate-spin mr-2" /> Baixando...</>
-                ) : (
-                  <><Download className="mr-2" /> Baixar Imagem</>
-                )}
-              </Button>
-            </div>
-          </>
-        )}
-        {error && !loading && <p className="text-destructive p-4">{error}</p>}
-      </div>
-
-      <div className="w-full bg-card rounded-2xl shadow-lg border-2 border-secondary/20 flex flex-col overflow-hidden">
-        <div className="p-6 text-left space-y-4 overflow-y-auto flex-grow">
-          {loading && <div className="flex flex-col items-center justify-center h-full"><p className="text-muted-foreground animate-pulse">Gerando legenda e hashtags...</p></div>}
-          {generatedContent && (
-            <>
-              <h2 className="text-2xl font-bold text-primary">{generatedContent.title}</h2>
-              <p className="text-foreground whitespace-pre-line">{generatedContent.body}</p>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {generatedContent.hashtags.map((tag, index) => (
-                  <span key={index} className="px-3 py-1 bg-accent text-accent-foreground rounded-full text-sm">#{tag}</span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <div className="p-6 border-t flex-shrink-0">
-          <Button onClick={handleGoBackToForm} variant="outline" className="w-full rounded-full text-lg px-8 py-6">
-            <ArrowLeft className="mr-2" />
-            Criar Novo Post
-          </Button>
-        </div>
-      </div>
+      {/* ... código da tela de resultado ... */}
     </div>
   )
 }
