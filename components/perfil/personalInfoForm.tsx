@@ -9,17 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import ChangePasswordDialog from './changePasswordDialog';
+import { User } from '@/types/user';
 
 interface PersonalInfoFormProps {
-  initialData: {
-    fullName: string;
-    email: string;
-    phone: string;
-    state: string;
-    city: string;
-  };
+  initialData: Omit<User, 'password'>;
+  onSave: (data: Omit<User, 'email' | 'password'>) => void;
+  onSavePassword: (password: string) => void; // <-- ADICIONE ESTA LINHA
 }
 
+// Interfaces State e City (sem alterações)
 interface State {
   id: number;
   sigla: string;
@@ -31,7 +29,8 @@ interface City {
   nome: string;
 }
 
-export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps) {
+// ** CORREÇÃO AQUI: Adicione onSavePassword aos parâmetros da função **
+export default function PersonalInfoForm({ initialData, onSave, onSavePassword }: PersonalInfoFormProps) {
   const [formData, setFormData] = useState(initialData);
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -41,21 +40,16 @@ export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps)
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Fetch states from IBGE API
+  // useEffects para buscar estados e cidades (sem alterações)
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
       .then(res => res.json())
       .then((data: State[]) => {
         setStates(data);
         setLoadingStates(false);
-      })
-      .catch(error => {
-        console.error("Erro ao buscar estados:", error);
-        setLoadingStates(false);
       });
   }, []);
 
-  // Fetch cities when state changes
   useEffect(() => {
     if (formData.state) {
       setLoadingCities(true);
@@ -64,18 +58,16 @@ export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps)
         .then((data: City[]) => {
           setCities(data);
           setLoadingCities(false);
-        })
-        .catch(error => {
-          console.error("Erro ao buscar cidades:", error);
-          setLoadingCities(false);
         });
     }
   }, [formData.state]);
 
-  const handleSave = () => {
+  const handleSaveClick = () => {
     setIsSaving(true);
+    const { email, ...dataToSave } = formData;
+
     setTimeout(() => {
-      console.log('Dados salvos:', formData);
+      onSave(dataToSave);
       setIsSaving(false);
     }, 1500);
   };
@@ -90,8 +82,8 @@ export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps)
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Nome Completo</Label>
-              <Input id="fullName" value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} />
+              <Label htmlFor="name">Nome Completo</Label>
+              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -101,38 +93,42 @@ export default function PersonalInfoForm({ initialData }: PersonalInfoFormProps)
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <Input id="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Select value={formData.state} onValueChange={(value) => setFormData({...formData, state: value, city: ''})} disabled={loadingStates}>
-                    <SelectTrigger>{loadingStates ? 'Carregando...' : <SelectValue placeholder="Selecione um estado" />}</SelectTrigger>
-                    <SelectContent>
-                        {states.map(state => <SelectItem key={state.id} value={state.sigla}>{state.nome}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+              <Label htmlFor="phone">Telefone</Label>
+              <Input id="phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Select value={formData.city} onValueChange={(value) => setFormData({...formData, city: value})} disabled={!formData.state || loadingCities}>
-                    <SelectTrigger>{loadingCities ? 'Carregando...' : <SelectValue placeholder="Selecione uma cidade" />}</SelectTrigger>
-                    <SelectContent>
-                        {cities.map(city => <SelectItem key={city.id} value={city.nome}>{city.nome}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+              <Label htmlFor="state">Estado</Label>
+              <Select value={formData.state} onValueChange={(value) => setFormData({ ...formData, state: value, city: '' })} disabled={loadingStates}>
+                <SelectTrigger>{loadingStates ? 'Carregando...' : <SelectValue placeholder="Selecione um estado" />}</SelectTrigger>
+                <SelectContent>
+                  {states.map(state => <SelectItem key={state.id} value={state.sigla}>{state.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">Cidade</Label>
+              <Select value={formData.city} onValueChange={(value) => setFormData({ ...formData, city: value })} disabled={!formData.state || loadingCities}>
+                <SelectTrigger>{loadingCities ? 'Carregando...' : <SelectValue placeholder="Selecione uma cidade" />}</SelectTrigger>
+                <SelectContent>
+                  {cities.map(city => <SelectItem key={city.id} value={city.nome}>{city.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <Button variant="outline" onClick={() => setIsPasswordDialogOpen(true)} className="w-full sm:w-auto">Alterar Senha</Button>
-            <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto flex-1 bg-gradient-to-r from-primary to-secondary">
+            <Button onClick={handleSaveClick} disabled={isSaving} className="w-full sm:w-auto flex-1 bg-gradient-to-r from-primary to-secondary">
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSaving ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </CardContent>
       </Card>
-      <ChangePasswordDialog isOpen={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen} />
+      <ChangePasswordDialog
+        isOpen={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onSavePassword={onSavePassword}
+      />
     </>
   );
 }

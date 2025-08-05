@@ -11,9 +11,10 @@ import { Eye, EyeOff } from 'lucide-react';
 interface ChangePasswordDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onSavePassword: (password: string) => void; // <-- Adicionamos esta propriedade
 }
 
-export default function ChangePasswordDialog({ isOpen, onOpenChange }: ChangePasswordDialogProps) {
+export default function ChangePasswordDialog({ isOpen, onOpenChange, onSavePassword }: ChangePasswordDialogProps) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,8 +28,12 @@ export default function ChangePasswordDialog({ isOpen, onOpenChange }: ChangePas
         setError('As senhas devem ter no mínimo 6 caracteres e ser iguais.');
         return;
     }
-    console.log("Nova senha salva (simulação):", newPassword);
+    
+    // ** CORREÇÃO AQUI **
+    // Em vez de 'console.log', chamamos a função que recebemos por props
+    onSavePassword(newPassword);
     onOpenChange(false);
+
     // Limpa os campos ao fechar
     setTimeout(() => {
         setNewPassword('');

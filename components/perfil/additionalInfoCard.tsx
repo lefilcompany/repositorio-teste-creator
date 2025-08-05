@@ -8,6 +8,7 @@ import { Users, Star, Zap, Sparkles, CheckCircle, Calendar } from 'lucide-react'
 import LeaveTeamDialog from './leaveTeamDialog';
 
 interface AdditionalInfoCardProps {
+  userName: string; // <-- ADICIONAR ESTA LINHA
   teamData: {
     teamName: string;
     plan: string;
@@ -20,14 +21,15 @@ interface AdditionalInfoCardProps {
   };
 }
 
-export default function AdditionalInfoCard({ teamData }: AdditionalInfoCardProps) {
+export default function AdditionalInfoCard({ userName, teamData }: AdditionalInfoCardProps) { // <-- RECEBER userName AQUI
   const [isLeaveTeamDialogOpen, setIsLeaveTeamDialogOpen] = useState(false);
 
   return (
     <>
       <Card className="h-full shadow-lg bg-gradient-to-br from-secondary to-primary text-secondary-foreground">
         <CardHeader>
-          <CardTitle className="text-2xl text-white">Informações Adicionais</CardTitle>
+          {/* USAR a prop userName AQUI */}
+          <CardTitle className="text-2xl text-white">Olá, {userName}!</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
