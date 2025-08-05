@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { Team } from '@/types/team';
 import {
   Home,
   Sparkles,
@@ -127,27 +130,50 @@ function PlanAction({ href, icon: Icon, label }: { href: string; icon: React.Ele
   );
 }
 
-function TeamPlanSection({ item }: { item: { href: string; icon: React.ElementType; label: string } }) {
+function TeamPlanSection({ item, teamName, isAdmin }: { item: { href: string; icon: React.ElementType; label: string }; teamName: string; isAdmin: boolean }) {
   const { href, icon: Icon } = item;
 
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105",
-        "bg-gradient-to-tr from-primary to-fuchsia-600 text-primary-foreground shadow-lg"
-      )}
-    >
+  const content = (
+    <>
       <Icon className="h-6 w-6 flex-shrink-0" />
       <div className="flex flex-col items-start leading-tight">
-        <span className="font-bold text-sm">Equipe: Mídia Paga</span>
+        <span className="font-bold text-sm">Equipe: {teamName || 'Sem equipe'}</span>
         <span className="text-xs text-primary-foreground/80">Plano Pro</span>
       </div>
-    </Link>
+    </>
   );
+
+  const classes = cn(
+    "flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105",
+    "bg-gradient-to-tr from-primary to-fuchsia-600 text-primary-foreground shadow-lg"
+  );
+
+  if (isAdmin) {
+    return (
+      <Link href={href} className={classes}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={classes}>{content}</div>;
 }
 
 export default function Sidebar() {
+  const { user } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
+
+  useEffect(() => {
+    if (user?.teamId) {
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const t = teams.find((team) => team.id === user.teamId);
+      if (t) setTeam(t);
+    }
+  }, [user]);
+
+  const teamName = team?.name || '';
+  const isAdmin = user && team ? user.email === team.admin : false;
+
   return (
     <aside className="w-64 flex-shrink-0 shadow-sm shadow-primary/20 bg-card p-4 flex-col hidden lg:flex">
       <div className='p-2 mb-6'>
@@ -174,7 +200,7 @@ export default function Sidebar() {
           <PlanAction {...planAction} />
         </div>
         <div className="">
-          <TeamPlanSection item={navFooter[0]} />
+          <TeamPlanSection item={navFooter[0]} teamName={teamName} isAdmin={!!isAdmin} />
         </div>
       </nav>
     </aside>

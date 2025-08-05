@@ -1,25 +1,25 @@
 'use client';
 
 import { User as UserIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import PersonalInfoForm from '@/components/perfil/personalInfoForm';
 import AdditionalInfoCard from '@/components/perfil/additionalInfoCard';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/user';
+import { Team } from '@/types/team';
 import { Loader2 } from 'lucide-react';
-
-const teamInfoMock = {
-  teamName: 'Mídia Paga',
-  plan: 'Free Trial',
-  actionsRemaining: {
-    total: 253,
-    createContent: 50,
-    reviewContent: 50,
-    planContent: 153,
-  },
-};
 
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
+  const [teamName, setTeamName] = useState('');
+
+  useEffect(() => {
+    if (user?.teamId) {
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const t = teams.find((team) => team.id === user.teamId);
+      if (t) setTeamName(t.name);
+    }
+  }, [user]);
 
   if (isLoading || !user) {
     return (
@@ -48,6 +48,17 @@ export default function PerfilPage() {
     alert("Senha alterada com sucesso!");
   };
 
+  const teamInfo = {
+    teamName: teamName || 'Sem equipe',
+    plan: 'Free Trial',
+    actionsRemaining: {
+      total: 253,
+      createContent: 50,
+      reviewContent: 50,
+      planContent: 153,
+    },
+  };
+
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">
       <header>
@@ -74,7 +85,7 @@ export default function PerfilPage() {
           />
         </div>
         <div className="lg:col-span-1">
-          <AdditionalInfoCard teamData={teamInfoMock} userName={user.name} />
+          <AdditionalInfoCard teamData={teamInfo} userName={user.name} />
         </div>
       </main>
     </div>
