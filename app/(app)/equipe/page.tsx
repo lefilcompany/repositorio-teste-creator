@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Team } from '@/types/team';
 import { User } from '@/types/user';
@@ -8,15 +9,23 @@ import { Button } from '@/components/ui/button';
 
 export default function EquipePage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
 
   useEffect(() => {
     if (user?.teamId) {
       const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const t = teams.find(team => team.id === user.teamId);
-      if (t) setTeam(t);
+      const t = teams.find((team) => team.id === user.teamId);
+      if (t) {
+        setTeam(t);
+        if (user.email !== t.admin) {
+          router.replace('/home');
+        }
+      }
+    } else if (user) {
+      router.replace('/home');
     }
-  }, [user]);
+  }, [user, router]);
 
   const handleApprove = (email: string) => {
     if (!team) return;
@@ -42,6 +51,10 @@ export default function EquipePage() {
         <p className="text-muted-foreground">Nenhuma equipe encontrada.</p>
       </div>
     );
+  }
+
+  if (user && user.email !== team.admin) {
+    return null;
   }
 
   return (
