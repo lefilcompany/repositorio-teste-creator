@@ -8,7 +8,7 @@ import { User } from '@/types/user';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (data: Omit<User, 'name'>) => boolean;
+  login: (data: Omit<User, 'name'>) => 'success' | 'pending' | 'invalid';
   logout: () => void;
   updateUser: (updatedData: Partial<User>) => void; // <-- NOVA FUNÇÃO
   isLoading: boolean;
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (data: Omit<User, 'name'>): boolean => {
+  const login = (data: Omit<User, 'name'>): 'success' | 'pending' | 'invalid' => {
     try {
       const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
       const foundUser = storedUsers.find(
@@ -50,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (foundUser) {
+        if (foundUser.status === 'pending') {
+          return 'pending';
+        }
         const userToAuth = { ...foundUser };
         delete userToAuth.password; // Não guardamos a senha no authUser
 
@@ -57,12 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('authToken', FAKE_TOKEN);
         localStorage.setItem('authUser', JSON.stringify(userToAuth));
         router.push('/home');
-        return true;
+        return 'success';
       }
-      return false;
+      return 'invalid';
     } catch (error) {
       console.error("Login failed", error);
-      return false;
+      return 'invalid';
     }
   };
 

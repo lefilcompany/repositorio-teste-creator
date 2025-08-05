@@ -49,9 +49,11 @@ export default function LoginPage() {
     setError('');
 
     setTimeout(() => {
-      const success = login({ email, password });
-      if (!success) {
+      const result = login({ email, password });
+      if (result === 'invalid') {
         setError('E-mail ou senha inválidos.');
+      } else if (result === 'pending') {
+        setError('Aguardando aprovação do administrador da equipe.');
       }
       setIsLoading(false);
     }, 1000);
