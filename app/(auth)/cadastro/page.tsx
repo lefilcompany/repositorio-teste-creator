@@ -10,7 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from '@/types/user';
+import { Team } from '@/types/team';
 import { Loader2, User as UserIcon, Mail, Lock, Phone } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 // Interfaces para os dados do IBGE
 interface State {
@@ -41,6 +52,13 @@ export default function CadastroPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
+
+  const [teamStep, setTeamStep] = useState<'none' | 'choice' | 'create' | 'join' | 'pending'>('none');
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+  const [teamName, setTeamName] = useState('');
+  const [teamCode, setTeamCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [teamError, setTeamError] = useState('');
 
   // Busca os estados do Brasil na API do IBGE
   useEffect(() => {
@@ -103,18 +121,69 @@ export default function CadastroPage() {
           return;
         }
 
-        storedUsers.push(formData as User);
-        localStorage.setItem('creator-users', JSON.stringify(storedUsers));
-
-        router.push('/login');
+        setPendingUser(formData as User);
+        setTeamStep('choice');
       } catch (err) {
         setError('Ocorreu um erro ao tentar se cadastrar.');
+      } finally {
         setIsLoading(false);
       }
     }, 1000);
   };
 
+  const saveUser = (user: User) => {
+    const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
+    storedUsers.push(user);
+    localStorage.setItem('creator-users', JSON.stringify(storedUsers));
+  };
+
+  const handleCreateTeam = () => {
+    if (!pendingUser) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const newTeam: Team = {
+      id: crypto.randomUUID(),
+      name: teamName,
+      code: teamCode,
+      admin: pendingUser.email!,
+      members: [pendingUser.email!],
+      pending: [],
+    };
+    teams.push(newTeam);
+    localStorage.setItem('creator-teams', JSON.stringify(teams));
+    const userWithTeam: User = {
+      ...pendingUser,
+      teamId: newTeam.id,
+      role: 'admin',
+      status: 'active',
+    };
+    saveUser(userWithTeam);
+    router.push('/login');
+  };
+
+  const handleJoinTeam = () => {
+    if (!pendingUser) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const team = teams.find(t => t.code === joinCode);
+    if (!team) {
+      setTeamError('Equipe não encontrada.');
+      return;
+    }
+    if (!team.pending.includes(pendingUser.email!)) {
+      team.pending.push(pendingUser.email!);
+      localStorage.setItem('creator-teams', JSON.stringify(teams));
+    }
+    const userWithTeam: User = {
+      ...pendingUser,
+      teamId: team.id,
+      role: 'member',
+      status: 'pending',
+    };
+    saveUser(userWithTeam);
+    setTeamStep('pending');
+  };
+
   return (
+    <>
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       {/* Coluna Esquerda: Formulário de Cadastro */}
       <div className="flex items-center justify-center p-8 bg-background">
@@ -197,5 +266,70 @@ export default function CadastroPage() {
         </div>
       </div>
     </div>
+
+    <AlertDialog open={teamStep === 'choice'} onOpenChange={() => {}}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Participar de uma equipe</AlertDialogTitle>
+          <AlertDialogDescription>
+            Você deseja criar uma nova equipe ou entrar em uma existente?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => setTeamStep('create')}>Criar equipe</AlertDialogAction>
+          <AlertDialogAction onClick={() => setTeamStep('join')}>Entrar em equipe</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={teamStep === 'create'} onOpenChange={() => {}}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Nova equipe</AlertDialogTitle>
+          <AlertDialogDescription>Informe o nome e código de acesso.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <Input placeholder="Nome da equipe" value={teamName} onChange={e => setTeamName(e.target.value)} />
+          <Input placeholder="Código de acesso" value={teamCode} onChange={e => setTeamCode(e.target.value)} />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setTeamStep('choice')}>Voltar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleCreateTeam}>Criar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={teamStep === 'join'} onOpenChange={() => {}}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Entrar em equipe</AlertDialogTitle>
+          <AlertDialogDescription>Insira o código da equipe.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <Input placeholder="Código da equipe" value={joinCode} onChange={e => setJoinCode(e.target.value)} />
+          {teamError && <p className="text-sm text-destructive">{teamError}</p>}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setTeamStep('choice')}>Voltar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleJoinTeam}>Enviar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={teamStep === 'pending'} onOpenChange={() => {}}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Solicitação enviada</AlertDialogTitle>
+          <AlertDialogDescription>
+            Aguarde o administrador aprovar sua entrada na equipe.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction onClick={() => router.push('/login')}>OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    </>
   );
 }
