@@ -9,10 +9,13 @@ import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
 
-type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 export default function PersonasPage() {
+  const { user } = useAuth();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -22,30 +25,30 @@ export default function PersonasPage() {
 
   useEffect(() => {
     try {
-      const storedPersonas = localStorage.getItem('creator-personas');
-      const storedBrands = localStorage.getItem('creator-brands');
-      if (storedPersonas) {
-        setPersonas(JSON.parse(storedPersonas));
-      }
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
+      const storedPersonas = JSON.parse(localStorage.getItem('creator-personas') || '[]') as Persona[];
+      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+      if (user?.teamId) {
+        setPersonas(storedPersonas.filter(p => p.teamId === user.teamId));
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
       }
     } catch (error) {
-      console.error("Falha ao carregar dados do localStorage", error);
+      console.error('Falha ao carregar dados do localStorage', error);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem('creator-personas', JSON.stringify(personas));
+        const all = JSON.parse(localStorage.getItem('creator-personas') || '[]') as Persona[];
+        const others = all.filter(p => p.teamId !== user?.teamId);
+        localStorage.setItem('creator-personas', JSON.stringify([...others, ...personas]));
       } catch (error) {
-        console.error("Falha ao salvar as personas no localStorage", error);
+        console.error('Falha ao salvar as personas no localStorage', error);
       }
     }
-  }, [personas, isLoaded]);
+  }, [personas, isLoaded, user?.teamId]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     setPersonaToEdit(persona);
@@ -53,19 +56,29 @@ export default function PersonasPage() {
   }, []);
 
   const handleSavePersona = useCallback((formData: PersonaFormData) => {
+    if (!user) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const team = teams.find(t => t.id === user.teamId);
+    if (!team) return;
     const now = new Date().toISOString();
+    if (!personaToEdit && personas.length >= team.plan.limits.personas) {
+      alert('Limite de personas do plano atingido.');
+      return;
+    }
     setPersonas(prevPersonas => {
       if (personaToEdit) {
         const updatedPersonas = prevPersonas.map(p =>
           p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
         );
         if (selectedPersona?.id === personaToEdit.id) {
-          setSelectedPersona(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+          setSelectedPersona(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
         }
         return updatedPersonas;
       } else {
         const newPersona: Persona = {
           id: now,
+          teamId: user.teamId!,
+          userEmail: user.email,
           ...formData,
           createdAt: now,
           updatedAt: now,
@@ -73,7 +86,7 @@ export default function PersonasPage() {
         return [...prevPersonas, newPersona];
       }
     });
-  }, [personaToEdit, selectedPersona?.id]);
+  }, [personaToEdit, personas.length, selectedPersona?.id, user]);
 
   const handleDeletePersona = useCallback(() => {
     if (!selectedPersona) return;

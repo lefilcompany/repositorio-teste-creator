@@ -4,6 +4,9 @@
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { Team } from '@/types/team';
+import { User } from '@/types/user';
 
 interface LeaveTeamDialogProps {
   isOpen: boolean;
@@ -11,9 +14,21 @@ interface LeaveTeamDialogProps {
 }
 
 export default function LeaveTeamDialog({ isOpen, onOpenChange }: LeaveTeamDialogProps) {
+  const { user, logout } = useAuth();
+
   const handleLeaveTeam = () => {
-    console.log("Usuário saiu da equipe (simulação).");
+    if (!user) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const teamIndex = teams.findIndex(t => t.id === user.teamId);
+    if (teamIndex > -1) {
+      teams[teamIndex].members = teams[teamIndex].members.filter(m => m !== user.email);
+      localStorage.setItem('creator-teams', JSON.stringify(teams));
+    }
+    const users = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
+    const updatedUsers = users.filter(u => u.email !== user.email);
+    localStorage.setItem('creator-users', JSON.stringify(updatedUsers));
     onOpenChange(false);
+    logout();
   };
 
   return (

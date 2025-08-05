@@ -11,13 +11,28 @@ import { Loader2 } from 'lucide-react';
 
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
-  const [teamName, setTeamName] = useState('');
+  const [teamInfo, setTeamInfo] = useState({
+    teamName: 'Sem equipe',
+    plan: '-',
+    actionsRemaining: { total: 0, createContent: 0, reviewContent: 0, planContent: 0 },
+  });
 
   useEffect(() => {
     if (user?.teamId) {
       const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
       const t = teams.find((team) => team.id === user.teamId);
-      if (t) setTeamName(t.name);
+      if (t) {
+        setTeamInfo({
+          teamName: t.name,
+          plan: t.plan.name,
+          actionsRemaining: {
+            total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
+            createContent: t.credits.contentSuggestions,
+            reviewContent: t.credits.contentReviews,
+            planContent: t.credits.contentPlans,
+          },
+        });
+      }
     }
   }, [user]);
 
@@ -46,17 +61,6 @@ export default function PerfilPage() {
   const handleSavePassword = (newPassword: string) => {
     updateUser({ password: newPassword });
     alert("Senha alterada com sucesso!");
-  };
-
-  const teamInfo = {
-    teamName: teamName || 'Sem equipe',
-    plan: 'Free Trial',
-    actionsRemaining: {
-      total: 253,
-      createContent: 50,
-      reviewContent: 50,
-      planContent: 153,
-    },
   };
 
   return (

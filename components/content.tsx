@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, Download } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
 
 // Interfaces (sem alteração)
 interface FormData {
@@ -29,11 +31,13 @@ interface GeneratedContent {
 }
 
 // Função de histórico (sem alteração)
-const saveActionToHistory = (actionData: any) => {
+const saveActionToHistory = (actionData: any, teamId: string, userEmail: string) => {
   const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
   const newAction = {
     id: new Date().toISOString() + Math.random(),
     createdAt: new Date().toISOString(),
+    teamId,
+    userEmail,
     ...actionData,
   };
   history.unshift(newAction);
@@ -52,6 +56,8 @@ export default function Creator() {
     additionalInfo: '',
   });
 
+  const { user } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
@@ -64,14 +70,19 @@ export default function Creator() {
 
   useEffect(() => {
     try {
-      const storedBrands = localStorage.getItem('creator-brands');
-      if (storedBrands) setBrands(JSON.parse(storedBrands));
-      const storedThemes = localStorage.getItem('creator-themes');
-      if (storedThemes) setThemes(JSON.parse(storedThemes));
+      if (user?.teamId) {
+        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
+        const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
+        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
+        const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+        const t = teams.find(tm => tm.id === user.teamId);
+        if (t) setTeam(t);
+      }
     } catch (error) {
-      console.error("Falha ao carregar dados do localStorage", error);
+      console.error('Falha ao carregar dados do localStorage', error);
     }
-  }, []);
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -99,6 +110,12 @@ export default function Creator() {
   const handleGenerateContent = async () => {
     console.log("1. Clicou em Gerar Conteúdo. Iniciando processo..."); // Ponto de verificação 1
 
+    if (!team) return;
+    if (team.credits.contentSuggestions <= 0) {
+      setError('Seus créditos para sugestões de conteúdo acabaram.');
+      setIsResultView(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     setImageUrl(null);
@@ -140,7 +157,15 @@ export default function Creator() {
           body: data.body,
           hashtags: data.hashtags,
         },
-      });
+      }, team.id, user?.email || '');
+
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const idx = teams.findIndex(t => t.id === team.id);
+      if (idx > -1) {
+        teams[idx].credits.contentSuggestions -= 1;
+        localStorage.setItem('creator-teams', JSON.stringify(teams));
+        setTeam(teams[idx]);
+      }
     } catch (err: any) {
       console.error("4. Ocorreu um erro:", err.message); // Ponto de verificação de erro
       setError(err.message);
@@ -164,7 +189,7 @@ export default function Creator() {
     setError(null);
     setImageUrl(null);
     setGeneratedContent(null);
-  }
+  };
 
   const handleDownloadImage = async () => {
     if (!imageUrl) return;

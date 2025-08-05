@@ -18,7 +18,7 @@ import {
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 
-type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt'>;
+type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 interface ThemeDialogProps {
   isOpen: boolean;

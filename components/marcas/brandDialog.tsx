@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +17,11 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Brand, MoodboardFile } from '@/types/brand';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
+import type { User } from '@/types/user';
 
-type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>;
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 interface BrandDialogProps {
   isOpen: boolean;
@@ -48,6 +52,8 @@ const initialFormData: BrandFormData = {
 
 export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit }: BrandDialogProps) {
   const [formData, setFormData] = useState<BrandFormData>(initialFormData);
+  const { user } = useAuth();
+  const [members, setMembers] = useState<{ email: string; name: string }[]>([]);
 
   useEffect(() => {
     if (isOpen && brandToEdit) {
@@ -74,6 +80,21 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
       setFormData(initialFormData);
     }
   }, [brandToEdit, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && user?.teamId) {
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const users = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
+      const team = teams.find(t => t.id === user.teamId);
+      if (team) {
+        const data = team.members.map(email => {
+          const u = users.find(us => us.email === email);
+          return { email, name: u?.name || email };
+        });
+        setMembers(data);
+      }
+    }
+  }, [isOpen, user]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -157,7 +178,14 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="responsible">Responsável da Marca</Label>
-              <Input id="responsible" value={formData.responsible} onChange={handleInputChange} placeholder="Defina um responsável" />
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, responsible: value }))} value={formData.responsible}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {members.map(m => (
+                    <SelectItem key={m.email} value={m.email}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="segment">Segmento</Label>

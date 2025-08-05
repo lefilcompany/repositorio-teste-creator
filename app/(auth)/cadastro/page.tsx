@@ -140,6 +140,18 @@ export default function CadastroPage() {
   const handleCreateTeam = () => {
     if (!pendingUser) return;
     const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const freePlan = {
+      name: 'Free',
+      limits: {
+        members: 5,
+        brands: 1,
+        themes: 3,
+        personas: 2,
+        calendars: 1,
+        contentSuggestions: 20,
+        contentReviews: 20,
+      },
+    };
     const newTeam: Team = {
       id: crypto.randomUUID(),
       name: teamName,
@@ -147,6 +159,12 @@ export default function CadastroPage() {
       admin: pendingUser.email!,
       members: [pendingUser.email!],
       pending: [],
+      plan: freePlan,
+      credits: {
+        contentSuggestions: freePlan.limits.contentSuggestions,
+        contentReviews: freePlan.limits.contentReviews,
+        contentPlans: freePlan.limits.calendars,
+      },
     };
     teams.push(newTeam);
     localStorage.setItem('creator-teams', JSON.stringify(teams));
@@ -166,6 +184,10 @@ export default function CadastroPage() {
     const team = teams.find(t => t.code === joinCode);
     if (!team) {
       setTeamError('Equipe não encontrada.');
+      return;
+    }
+    if (team.members.length + team.pending.length >= team.plan.limits.members) {
+      setTeamError('Limite de membros do plano atingido.');
       return;
     }
     if (!team.pending.includes(pendingUser.email!)) {

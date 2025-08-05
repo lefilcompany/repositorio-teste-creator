@@ -18,74 +18,60 @@ import {
   Home
 } from 'lucide-react';
 
-// Interfaces para tipagem dos dados do localStorage
-interface Brand {
-  id: string;
-  name: string;
-  responsible: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Action {
-  id: string;
-  type: string;
-  brand: string;
-  // Adicione outros campos que possam existir no seu histórico
-  createdAt: string;
-}
+import { useAuth } from '@/hooks/useAuth';
+import type { Brand } from '@/types/brand';
+import type { Action } from '@/types/action';
+import type { Team } from '@/types/team';
 
 
 export default function HomePage() {
-  // Estado para armazenar os dados dinâmicos do dashboard
+  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState({
-    userName: "Usuário",
-    stats: {
-      conteudosGerados: 0,
-      marcasGerenciadas: 0,
-    },
-    creditos: {
-      restantes: 75,
-      total: 100,
-    },
+    userName: 'Usuário',
+    stats: { conteudosGerados: 0, marcasGerenciadas: 0 },
+    creditos: { restantes: 0, total: 0 },
     atividadesRecentes: [] as { id: string; tipo: string; titulo: string; data: string }[],
   });
 
   useEffect(() => {
+    if (!user?.teamId) return;
     try {
-      const storedBrands = localStorage.getItem('creator-brands');
-      const brands: Brand[] = storedBrands ? JSON.parse(storedBrands) : [];
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const team = teams.find(t => t.id === user.teamId);
+      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+      const storedActions = JSON.parse(localStorage.getItem('creator-action-history') || '[]') as Action[];
 
-      // Buscar e processar o histórico de ações
-      const storedActions = localStorage.getItem('creator-action-history');
-      const actions: Action[] = storedActions ? JSON.parse(storedActions) : [];
+      const teamBrands = storedBrands.filter(b => b.teamId === user.teamId);
+      const teamActions = storedActions.filter(a => a.teamId === user.teamId);
 
-      // Ordenar ações da mais recente para a mais antiga e pegar as 3 últimas
-      const atividadesRecentes = actions
+      const atividadesRecentes = teamActions
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 3)
         .map(action => ({
           id: action.id,
           tipo: action.type,
-          titulo: action.brand, // Usando a marca como título, ajuste se tiver outro campo
+          titulo: action.brand,
           data: new Date(action.createdAt).toLocaleDateString('pt-BR'),
         }));
 
-      // Atualizar o estado com os dados do localStorage
-      setDashboardData(prevData => ({
-        ...prevData,
-        stats: {
-          ...prevData.stats,
-          marcasGerenciadas: brands.length,
-          conteudosGerados: actions.length,
-        },
-        atividadesRecentes: atividadesRecentes,
-      }));
+      const totalCreditos = team ?
+        team.plan.limits.contentSuggestions + team.plan.limits.contentReviews + team.plan.limits.calendars : 0;
+      const restantes = team ?
+        team.credits.contentSuggestions + team.credits.contentReviews + team.credits.contentPlans : 0;
 
+      setDashboardData({
+        userName: user.name || 'Usuário',
+        stats: {
+          conteudosGerados: teamActions.length,
+          marcasGerenciadas: teamBrands.length,
+        },
+        creditos: { restantes, total: totalCreditos },
+        atividadesRecentes,
+      });
     } catch (error) {
-      console.error("Falha ao carregar dados do dashboard do localStorage", error);
+      console.error('Falha ao carregar dados do dashboard do localStorage', error);
     }
-  }, []); // O array vazio assegura que o efeito rode apenas uma vez, no client-side
+  }, [user]);
 
   const creditosUsadosPercentual = (dashboardData.creditos.total > 0)
     ? ((dashboardData.creditos.total - dashboardData.creditos.restantes) / dashboardData.creditos.total) * 100

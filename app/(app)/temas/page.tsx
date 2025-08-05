@@ -9,10 +9,13 @@ import ThemeDetails from '@/components/temas/themeDetails';
 import ThemeDialog from '@/components/temas/themeDialog';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
 
-type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt'>;
+type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 export default function TemasPage() {
+  const { user } = useAuth();
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]); // Estado para armazenar as marcas
   const [isLoaded, setIsLoaded] = useState(false);
@@ -22,30 +25,30 @@ export default function TemasPage() {
 
   useEffect(() => {
     try {
-      const storedThemes = localStorage.getItem('creator-themes');
-      const storedBrands = localStorage.getItem('creator-brands'); // Carrega as marcas
-      if (storedThemes) {
-        setThemes(JSON.parse(storedThemes));
-      }
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
+      const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
+      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+      if (user?.teamId) {
+        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
       }
     } catch (error) {
-      console.error("Falha ao carregar dados do localStorage", error);
+      console.error('Falha ao carregar dados do localStorage', error);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem('creator-themes', JSON.stringify(themes));
+        const all = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
+        const others = all.filter(t => t.teamId !== user?.teamId);
+        localStorage.setItem('creator-themes', JSON.stringify([...others, ...themes]));
       } catch (error) {
-        console.error("Falha ao salvar os temas no localStorage", error);
+        console.error('Falha ao salvar os temas no localStorage', error);
       }
     }
-  }, [themes, isLoaded]);
+  }, [themes, isLoaded, user?.teamId]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
     setThemeToEdit(theme);
@@ -53,19 +56,29 @@ export default function TemasPage() {
   }, []);
 
   const handleSaveTheme = useCallback((formData: ThemeFormData) => {
+    if (!user) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const team = teams.find(t => t.id === user.teamId);
+    if (!team) return;
     const now = new Date().toISOString();
+    if (!themeToEdit && themes.length >= team.plan.limits.themes) {
+      alert('Limite de temas do plano atingido.');
+      return;
+    }
     setThemes(prevThemes => {
       if (themeToEdit) {
         const updatedThemes = prevThemes.map(t =>
           t.id === themeToEdit.id ? { ...t, ...formData, updatedAt: now } : t
         );
         if (selectedTheme?.id === themeToEdit.id) {
-          setSelectedTheme(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+          setSelectedTheme(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
         }
         return updatedThemes;
       } else {
         const newTheme: StrategicTheme = {
           id: now,
+          teamId: user.teamId!,
+          userEmail: user.email,
           ...formData,
           createdAt: now,
           updatedAt: now,
@@ -73,7 +86,7 @@ export default function TemasPage() {
         return [...prevThemes, newTheme];
       }
     });
-  }, [themeToEdit, selectedTheme?.id]);
+  }, [themeToEdit, themes.length, selectedTheme?.id, user]);
 
   const handleDeleteTheme = useCallback(() => {
     if (!selectedTheme) return;

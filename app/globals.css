@@ -5,52 +5,55 @@
 
 @layer base {
   :root {
-    --background: 288 80% 98%; /* background (#FCF7FD) */
-    --foreground: 228 21% 17%; /* dark blue (#232735) */
-    --card: 288 80% 98%; /* background (#FCF7FD) */
-    --card-foreground: 228 21% 17%; /* dark blue (#232735) */
-    --popover: 288 80% 98%; /* background (#FCF7FD) */
-    --popover-foreground: 228 21% 17%; /* dark blue (#232735) */
-    --primary: 330 100% 38%; /* Rosa (#C3005E) */
-    --primary-foreground: 0 0% 100%; /* branco (#ffffff) */
-    --secondary: 269 66% 48%; /* roxo claro (#812CC9) */
-    --secondary-foreground: 0 0% 100%; /* branco (#ffffff) */
+    --background: 288 80% 98%;
+    --foreground: 228 21% 17%;
+    --card: 288 80% 98%;
+    --card-foreground: 228 21% 17%;
+    --popover: 288 80% 98%;
+    --popover-foreground: 228 21% 17%;
+    --primary: 330 100% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 269 66% 48%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 48%; /* placeholder (#7A7A7A) */
-    --accent: 201 73% 40%; /* vibrant blue (#1D80B1) */
-    --accent-foreground: 0 0% 100%; /* branco (#ffffff) */
+    --muted-foreground: 0 0% 48%;
+    --accent: 201 73% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 269 66% 48%; /* roxo claro (#812CC9) */
-    --input: 228 21% 17%; /* dark blue (#232735) */
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 0 0% 100%;
     
-    /* **AJUSTE AQUI:** A cor do anel de foco agora usa a cor secundária (roxo) */
-    --ring: 269 66% 48%; /* roxo claro (#812CC9) */
-    
+    --border: 269 66% 48%;
+    --input: 228 21% 17%;
+    --ring: 269 66% 48%;
     --radius: 0.5rem
   }
 
   .dark {
-    --background: 227 18% 15%; /* midnight blue (#1A1C28) */
-    --foreground: 0 0% 100%; /* branco (#ffffff) */
-    --card: 227 18% 15%; /* midnight blue (#1A1C28) */
-    --card-foreground: 0 0% 100%; /* branco (#ffffff) */
-    --popover: 227 18% 15%; /* midnight blue (#1A1C28) */
-    --popover-foreground: 0 0% 100%; /* branco (#ffffff) */
-    --primary: 330 100% 38%; /* Rosa (#C3005E) */
-    --primary-foreground: 0 0% 100%; /* branco (#ffffff) */
-    --secondary: 271 72% 31%; /* roxo escuro (#591589) */
-    --secondary-foreground: 0 0% 100%; /* branco (#ffffff) */
-    --muted: 228 21% 17%; /* dark blue (#232735) */
-    --muted-foreground: 0 0% 48%; /* placeholder (#7A7A7A) */
-    --accent: 201 73% 40%; /* vibrant blue (#1D80B1) */
-    --accent-foreground: 0 0% 100%; /* branco (#ffffff) */
+     --background: 227 18% 15%;
+    --foreground: 0 0% 100%;
+    --card: 227 18% 15%;
+    --card-foreground: 0 0% 100%;
+    --popover: 227 18% 15%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 330 100% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 271 72% 31%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 228 21% 17%;
+    --muted-foreground: 0 0% 48%;
+    --accent: 201 73% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 271 72% 31%; /* roxo escuro (#591589) */
-    --input: 228 21% 17%; /* dark blue (#232735) */
+    /* ADICIONAR ESTAS CORES */
+    --success: 142.1 70.2% 41.3%;
+    --success-foreground: 0 0% 100%;
 
-    --ring: 330 100% 38%; /* Rosa (#C3005E) */
+    --border: 271 72% 31%;
+    --input: 228 21% 17%;
+    --ring: 330 100% 38%;
   }
 }
 

@@ -130,7 +130,7 @@ function PlanAction({ href, icon: Icon, label }: { href: string; icon: React.Ele
   );
 }
 
-function TeamPlanSection({ item, teamName, isAdmin }: { item: { href: string; icon: React.ElementType; label: string }; teamName: string; isAdmin: boolean }) {
+function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
   const { href, icon: Icon } = item;
 
   const content = (
@@ -138,7 +138,8 @@ function TeamPlanSection({ item, teamName, isAdmin }: { item: { href: string; ic
       <Icon className="h-6 w-6 flex-shrink-0" />
       <div className="flex flex-col items-start leading-tight">
         <span className="font-bold text-sm">Equipe: {teamName || 'Sem equipe'}</span>
-        <span className="text-xs text-primary-foreground/80">Plano Pro</span>
+        {/* ** CORREÇÃO AQUI: Exibe o nome do plano recebido via prop ** */}
+        <span className="text-xs text-primary-foreground/80">Plano: {planName || 'Nenhum'}</span>
       </div>
     </>
   );
@@ -173,6 +174,7 @@ export default function Sidebar() {
 
   const teamName = team?.name || '';
   const isAdmin = user && team ? user.email === team.admin : false;
+  const planName = team?.plan?.name || '';
 
   return (
     <aside className="w-64 flex-shrink-0 shadow-sm shadow-primary/20 bg-card p-4 flex-col hidden lg:flex">
@@ -200,7 +202,7 @@ export default function Sidebar() {
           <PlanAction {...planAction} />
         </div>
         <div className="">
-          <TeamPlanSection item={navFooter[0]} teamName={teamName} isAdmin={!!isAdmin} />
+          <TeamPlanSection item={navFooter[0]} teamName={teamName} planName={planName} isAdmin={!!isAdmin} />
         </div>
       </nav>
     </aside>

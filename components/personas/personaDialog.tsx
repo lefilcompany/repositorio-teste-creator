@@ -19,7 +19,7 @@ import {
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 
-type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 interface PersonaDialogProps {
   isOpen: boolean;

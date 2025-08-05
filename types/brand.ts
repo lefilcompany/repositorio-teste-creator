@@ -6,6 +6,8 @@ export interface MoodboardFile {
 
 export interface Brand {
   id: string;
+  teamId: string;
+  userEmail: string;
   name: string;
   responsible: string;
   segment: string;
