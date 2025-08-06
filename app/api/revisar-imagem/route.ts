@@ -24,12 +24,10 @@ export async function POST(req: NextRequest) {
     const dataURI = `data:${mimeType};base64,${base64Image}`;
 
     const analysisPrompt = `
-      Você é um diretor de arte especialista em mídias sociais. Sua tarefa é analisar a imagem fornecida e dar um feedback construtivo para o usuário.
-      O usuário deseja os seguintes ajustes: "${prompt}".
-      A imagem é para a marca: "${brand || 'não especificada'}" e para o tema estratégico: "${theme || 'não especificado'}".
+      Você é um diretor de arte especialista em mídias sociais. Analise a imagem fornecida considerando que ela pertence à marca "${brand || 'não especificada'}" e está relacionada ao tema estratégico "${theme || 'não especificado'}".
+      O usuário solicitou os seguintes ajustes ou tem as seguintes preocupações: "${prompt}".
 
-      Com base nisso, analise a imagem e forneça uma lista de sugestões de melhoria em formato de tópicos (bullet points).
-      Seja claro, objetivo e ofereça sugestões práticas que o usuário possa aplicar.
+      Com base nisso, descreva em tópicos os pontos de melhoria que o designer pode aplicar. Seja claro, objetivo e ofereça sugestões práticas.
       Estruture sua resposta em um JSON com a chave "feedback", contendo o texto formatado com quebras de linha (\\n) para cada novo parágrafo ou tópico.
 
       Exemplo de resposta:

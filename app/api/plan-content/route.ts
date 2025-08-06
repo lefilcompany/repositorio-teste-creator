@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
             content: planningPrompt,
           },
         ],
+        temperature: 0.7,
         max_tokens: 1500,
       }),
     });

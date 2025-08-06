@@ -8,15 +8,19 @@ export async function POST(req: NextRequest) {
   const { prompt: imagePrompt, ...formData } = await req.json();
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'A chave da API da OpenAI não foi configurada.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'A chave da API da OpenAI não foi configurada.' },
+      { status: 500 }
+    );
   }
 
   if (!imagePrompt) {
-    return NextResponse.json({ error: 'O prompt da imagem é obrigatório.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'O prompt da imagem é obrigatório.' },
+      { status: 400 }
+    );
   }
 
-  // ** CORREÇÃO AQUI **
-  // Usamos formData.brand e formData.theme que agora são recebidos corretamente do frontend
   const textPrompt = `
     Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
     - Marca: ${formData.brand}
@@ -29,45 +33,62 @@ export async function POST(req: NextRequest) {
     Responda em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').
   `;
 
+  // Garantir que a imagem esteja relacionada à marca e ao tema
+  const finalImagePrompt = `${imagePrompt}\nA imagem deve ter forte relação com a marca ${formData.brand} e o tema ${formData.theme}.`;
+
   try {
-    // Geração da Imagem (código sem alterações)
+    // Geração da imagem usando GPT-4o (via endpoint de imagens)
     const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: imagePrompt,
-        n: 1,
+        model: 'gpt-image-1',
+        prompt: finalImagePrompt,
         size: '1024x1024',
-        quality: 'hd',
+        response_format: 'b64_json',
       }),
     });
 
     if (!imageResponse.ok) {
       const errorData = await imageResponse.json();
       console.error('Erro da API de Imagem da OpenAI:', errorData);
-      return NextResponse.json({ error: 'Falha ao gerar a imagem.', details: errorData }, { status: imageResponse.status });
+      return NextResponse.json(
+        { error: 'Falha ao gerar a imagem.', details: errorData },
+        { status: imageResponse.status }
+      );
     }
 
     const imageData = await imageResponse.json();
-    const imageUrl = imageData.data[0].url;
+    const base64 = imageData.data[0].b64_json;
+    const imageUrl = `data:image/png;base64,${base64}`;
 
-    // Geração do Texto (código sem alterações)
+    // Geração do texto utilizando GPT-4o
     const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model: 'gpt-4-turbo',
-            messages: [{ role: 'user', content: textPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.7,
-        }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: textPrompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      }),
     });
 
     if (!textResponse.ok) {
-        const errorData = await textResponse.json();
-        console.error('Erro da API de Texto da OpenAI:', errorData);
-        return NextResponse.json({ imageUrl, title: "Erro ao gerar legenda", body: "Não foi possível gerar o conteúdo do post, mas sua imagem está pronta!", hashtags: [] });
+      const errorData = await textResponse.json();
+      console.error('Erro da API de Texto da OpenAI:', errorData);
+      return NextResponse.json({
+        imageUrl,
+        title: 'Erro ao gerar legenda',
+        body: 'Não foi possível gerar o conteúdo do post, mas sua imagem está pronta!',
+        hashtags: [],
+      });
     }
 
     const textData = await textResponse.json();
@@ -79,10 +100,12 @@ export async function POST(req: NextRequest) {
       body: postContent.body,
       hashtags: postContent.hashtags,
     });
-
   } catch (error) {
     console.error('Erro ao chamar a API da OpenAI:', error);
-    return NextResponse.json({ error: 'Ocorreu um erro interno no servidor.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Ocorreu um erro interno no servidor.' },
+      { status: 500 }
+    );
   }
 }
 

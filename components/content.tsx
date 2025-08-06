@@ -191,24 +191,20 @@ export default function Creator() {
     setGeneratedContent(null);
   };
 
-  const handleDownloadImage = async () => {
+  const handleDownloadImage = () => {
     if (!imageUrl) return;
 
     setIsDownloading(true);
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'creator-ai-image.png');
+      link.href = imageUrl;
+      link.download = 'creator-ai-image.png';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Erro ao baixar a imagem:", error);
-      setError("Não foi possível baixar a imagem.");
+      console.error('Erro ao baixar a imagem:', error);
+      setError('Não foi possível baixar a imagem.');
     } finally {
       setIsDownloading(false);
     }
