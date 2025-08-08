@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Inicializa o cliente da OpenAI com configurações específicas para GPT-Image-1
+// Inicializa o cliente da OpenAI com suas configurações.
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -10,167 +10,115 @@ const openai = new OpenAI({
 const MAX_PROMPT_LENGTH = 3950;
 
 /**
- * Lista de palavras que podem causar problemas com o sistema de segurança da OpenAI.
- * Priorizar substituições em vez de remoção, quando possível.
+ * Limpa o texto de entrada de forma mínima, removendo apenas caracteres
+ * que podem corromper a sintaxe do prompt e normalizando espaços em branco.
+ * NÃO remove palavras nem faz substituições, preservando a intenção original do usuário.
  */
-const RESTRICTED_WORDS = [
-  // Violência explícita
-  'sangue', 'morte', 'matar', 'ferimento', 'machucado',
-  // Conteúdo sexual explícito
-  'nude', 'nudez', 'sexual', 'sexo', 'erótico', 'provocante', 'sensual', 'íntimo',
-  // Drogas ilegais
-  'cocaína', 'heroína', 'maconha', 'cannabis',
-  // Armas específicas
-  'pistola', 'revólver', 'metralhadora', 'bomba', 'explosivo',
-  // Marcas protegidas específicas
-  'disney', 'marvel', 'coca-cola', 'nike', 'apple', 'google', 'microsoft',
-];
-
-/**
- * Mapa de substituições inteligentes para termos sensíveis.
- */
-const WORD_REPLACEMENTS: { [key: string]: string } = {
-  'criança': 'jovem pessoa',
-  'crianças': 'jovens pessoas',
-  'menor': 'jovem',
-  'menores': 'jovens',
-  'bebê': 'pequena pessoa',
-  'infantil': 'juvenil',
-  'álcool': 'bebida',
-  'cerveja': 'bebida gelada',
-  'vinho': 'bebida elegante',
-  'cigarro': 'produto para adultos',
-  'fumar': 'estilo de vida adulto',
-  'religião': 'espiritualidade',
-  'religioso': 'espiritual',
-  'deus': 'divindade',
-  'jesus': 'figura espiritual',
-  'allah': 'divindade',
-  'político': 'institucional',
-  'política': 'institucional',
-  'governo': 'institucional',
-  'presidente': 'líder',
-  'ministro': 'autoridade',
-  'droga': 'substância',
-  'armas': 'ferramentas',
-  'violência': 'conflito',
-  'agressivo': 'intenso',
-  'morte': 'fim de ciclo',
-  'matar': 'neutralizar',
-  'ferimento': 'dano',
-  'machucado': 'lesão',
-  'nudez': 'forma humana',
-  'sexual': 'romântico',
-  'sexo': 'intimidade',
-  'erótico': 'artístico',
-  'provocante': 'sugestivo',
-  'sensual': 'elegante',
-  'íntimo': 'pessoal',
-  'eleição': 'campanha',
-  'votação': 'escolha popular',
-  'partido político': 'grupo cívico',
-};
-
-/**
- * Sanitiza o texto de forma inteligente.
- */
-function sanitizeText(text: string): string {
+function cleanInput(text: string | undefined | null): string {
   if (!text) return '';
-  let sanitized = text.toLowerCase();
-
-  Object.entries(WORD_REPLACEMENTS).forEach(([word, replacement]) => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    sanitized = sanitized.replace(regex, replacement);
-  });
-
-  RESTRICTED_WORDS.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    sanitized = sanitized.replace(regex, '');
-  });
-
-  sanitized = sanitized.replace(/[<>{}[\]"'`]/g, '');
-  sanitized = sanitized.replace(/\s+/g, ' ').trim();
-  return sanitized;
+  // Remove apenas caracteres potencialmente perigosos para a sintaxe do prompt.
+  let cleanedText = text.replace(/[<>{}[\]"'`]/g, '');
+  // Normaliza múltiplos espaços para apenas um e remove espaços nas pontas.
+  cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+  return cleanedText;
 }
 
 /**
- * Constrói um prompt detalhado e otimizado para GPT-Image-1.
+ * Constrói um prompt detalhado e otimizado para GPT-Image-1 (VERSÃO MELHORADA).
+ * Esta versão utiliza o input do usuário de forma direta, sem sanitização de palavras.
  */
 function buildDetailedImagePrompt(formData: any): string {
-    const cleanDescription = sanitizeText(formData.prompt || '');
-    const cleanBrand = sanitizeText(formData.brand || '');
-    const cleanTheme = sanitizeText(formData.theme || '');
-    const cleanObjective = sanitizeText(formData.objective || '');
-    const cleanPlatform = sanitizeText(formData.platform || '');
-    const cleanAudience = sanitizeText(formData.audience || '');
-    const cleanTone = sanitizeText(formData.tone || '');
-    const cleanAdditionalInfo = sanitizeText(formData.additionalInfo || '');
-  
-    let prompt = "Ultra-photorealistic commercial photography, 8K resolution, cinematic lighting, sharp focus, intricate details, natural textures, professional studio setup, award-winning composition, realistic rendering";
-  
-    if (cleanDescription.length > 5) prompt += `, featuring a scene with: ${cleanDescription}`;
-    if (cleanBrand.length > 2) prompt += `, representing the ${cleanBrand} brand identity, showcasing its values and aesthetic`;
-    if (cleanTheme.length > 3) prompt += `, aligned with the ${cleanTheme} strategic theme, conveying its core message`;
-    if (cleanObjective.length > 5) prompt += `, designed to ${cleanObjective}, aiming for strong visual impact`;
-  
-    const platformStyles: { [key: string]: string } = {
-      'instagram': 'square format 1:1, vibrant colors, social media optimized, engaging composition, perfect for Instagram feed',
-      'facebook': 'engaging composition, community focused, social sharing optimized, suitable for Facebook campaigns',
-      'linkedin': 'professional aesthetic, corporate style, business oriented, ideal for LinkedIn posts',
-      'twitter': 'clean design, attention-grabbing, minimal text overlay, optimized for Twitter/X visibility',
-      'x': 'clean design, attention-grabbing, minimal text overlay, optimized for Twitter/X visibility',
-      'tiktok': 'vertical format 9:16, dynamic composition, youthful energy, trending visual style, perfect for TikTok',
-      'youtube': 'thumbnail style, high contrast, eye-catching, optimized for YouTube click-through rates'
+  const description = cleanInput(formData.prompt);
+  const brand = cleanInput(formData.brand);
+  const theme = cleanInput(formData.theme);
+  const objective = cleanInput(formData.objective);
+  const platform = cleanInput(formData.platform);
+  const audience = cleanInput(formData.audience);
+  const tone = cleanInput(formData.tone);
+  const additionalInfo = cleanInput(formData.additionalInfo);
+
+  let promptParts: string[] = [];
+
+  // 1. Assunto Principal e Qualidade Central
+  if (description) {
+    promptParts.push(`Uma obra-prima de fotografia comercial, hiper-detalhada e fotorrealista de: ${description}`);
+  }
+
+  // 2. Contexto Estratégico (Marca, Tema, Objetivo)
+  if (brand || theme || objective) {
+    let strategicContext = "A imagem deve incorporar a identidade";
+    if (brand) strategicContext += ` da marca ${brand}`;
+    if (theme) strategicContext += ` através do tema de ${theme}`;
+    if (objective) strategicContext += `, projetada para ${objective}`;
+    promptParts.push(strategicContext);
+  }
+
+  // 3. Tom e Atmosfera
+  if (tone) {
+    const toneMap: { [key: string]: string } = {
+      'inspirador': 'banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves',
+      'motivacional': 'energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação',
+      'profissional': 'estética corporativa limpa, com iluminação de estúdio neutra e foco nítido, transmitindo confiança e expertise',
+      'casual': 'atmosfera relaxada com iluminação natural e suave, como a de uma janela, criando um ambiente amigável e convidativo',
+      'elegante': 'estilo sofisticado com uma paleta de cores refinada, iluminação suave e composição minimalista para um toque luxuoso',
+      'moderno': 'design contemporâneo com linhas arrojadas, iluminação de alto contraste e uma estética de vanguarda',
+      'tradicional': 'apelo atemporal com cores clássicas, iluminação equilibrada e composição simétrica, transmitindo herança e confiabilidade',
+      'divertido': 'humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética',
+      'sério': 'tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade'
     };
-    if (cleanPlatform && platformStyles[cleanPlatform.toLowerCase()]) {
-      prompt += `, ${platformStyles[cleanPlatform.toLowerCase()]}`;
-    }
-  
-    if (cleanTone.length > 3) {
-      const toneMap: { [key: string]: string } = {
-        'inspirador': 'inspirational mood, uplifting atmosphere, motivational lighting, evoking positive emotions',
-        'motivacional': 'motivational energy, dynamic composition, energetic colors, encouraging action',
-        'profissional': 'professional tone, clean aesthetic, business appropriate, conveying trust and expertise',
-        'casual': 'casual atmosphere, relaxed mood, approachable style, friendly and inviting',
-        'elegante': 'elegant style, sophisticated look, refined composition, luxurious and premium feel',
-        'moderno': 'modern design, contemporary feel, cutting-edge aesthetic, innovative and fresh',
-        'tradicional': 'classic style, timeless appeal, traditional values, conveying heritage and reliability',
-        'divertido': 'playful mood, cheerful atmosphere, vibrant energy, fun and engaging',
-        'sério': 'serious tone, formal presentation, authoritative mood, conveying gravity and importance'
-      };
-      const mappedTone = toneMap[cleanTone.toLowerCase()] || `${cleanTone} aesthetic`;
-      prompt += `, with a ${mappedTone}`;
-    }
-  
-    if (cleanAudience.length > 5) prompt += `, specifically appealing to ${cleanAudience}, considering their demographics and interests`;
-    if (cleanAdditionalInfo.length > 5) prompt += `, incorporating specific visual elements: ${cleanAdditionalInfo}`;
-  
-    prompt += ", commercial quality, marketing ready, professional composition, hyper-realistic, volumetric lighting, cinematic depth of field, award-winning photography, trending on ArtStation, Behance, and Getty Images.";
-  
-    return prompt.length > MAX_PROMPT_LENGTH ? prompt.substring(0, MAX_PROMPT_LENGTH) : prompt;
+    const mappedTone = toneMap[tone.toLowerCase()] || `com uma estética ${tone}`;
+    promptParts.push(`O clima da imagem é ${mappedTone}`);
+  }
+
+  // 4. Detalhes Técnicos da Câmera
+  promptParts.push("Detalhes técnicos: foto tirada com uma câmera DSLR profissional (como uma Canon EOS R5) e uma lente de 85mm f/1.4, resultando em uma profundidade de campo rasa e um belo efeito bokeh no fundo");
+
+  // 5. Otimização para Plataforma
+  const platformStyles: { [key: string]: string } = {
+    'instagram': 'formato quadrado 1:1, cores vibrantes, otimizado para feed do Instagram',
+    'facebook': 'composição envolvente, focada na comunidade, otimizada para compartilhamento social',
+    'linkedin': 'estética profissional e corporativa, ideal para posts de negócios',
+    'twitter': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
+    'x': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
+    'tiktok': 'formato vertical 9:16, composição dinâmica e energia jovem, perfeito para TikTok',
+    'youtube': 'estilo thumbnail de alto contraste, otimizado para taxas de clique no YouTube'
+  };
+  if (platform && platformStyles[platform.toLowerCase()]) {
+    promptParts.push(`Otimizado para a plataforma: ${platformStyles[platform.toLowerCase()]}`);
+  }
+
+  // 6. Público-Alvo e Informações Adicionais
+  if (audience) promptParts.push(`Direcionado especificamente para ${audience}`);
+  if (additionalInfo) promptParts.push(`Incorporando os seguintes elementos visuais: ${additionalInfo}`);
+
+  // 7. Palavras-chave de Reforço e "Prompt Negativo"
+  promptParts.push("Qualidade final: resolução 8K, UHD, iluminação cinematográfica e volumétrica. Importante: evite texto, marcas d'água, logotipos (a menos que solicitado na descrição), artefatos digitais e desfoque. A imagem deve ter qualidade de premiação e ser adequada para Getty Images e Behance.");
+
+  const finalPrompt = promptParts.join('. ');
+  return finalPrompt.length > MAX_PROMPT_LENGTH ? finalPrompt.substring(0, MAX_PROMPT_LENGTH) : finalPrompt;
 }
 
 /**
  * Prompt alternativo mais conservador.
  */
 function buildConservativePrompt(formData: any): string {
-    const cleanDescription = sanitizeText(formData.prompt || '');
-    const cleanBrand = sanitizeText(formData.brand || '');
-    const cleanPlatform = sanitizeText(formData.platform || '');
+  const description = cleanInput(formData.prompt);
+  const brand = cleanInput(formData.brand);
+  const platform = cleanInput(formData.platform);
 
-    let prompt = "Professional commercial photography, clean background, soft natural lighting, high quality, realistic, marketing ready";
-    if (cleanDescription.length > 5) prompt += `, featuring: ${cleanDescription.split(' ').slice(0, 20).join(' ')}`;
-    if (cleanBrand.length > 2) prompt += ` for the brand ${cleanBrand}`;
-    if (cleanPlatform.length > 2) prompt += ` optimized for ${cleanPlatform} platform`;
-    prompt += ", modern aesthetic, visually appealing.";
-    return prompt;
+  let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
+  if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
+  if (brand) prompt += ` para a marca ${brand}`;
+  if (platform) prompt += ` otimizado para a plataforma ${platform}`;
+  prompt += ", estética moderna e visualmente agradável.";
+  return prompt;
 }
 
 /**
  * Prompt de emergência ultra-conservador.
  */
 function buildFallbackPrompt(): string {
-  return "Professional commercial photography, minimal clean background, soft natural lighting, high resolution, product focused, marketing ready, simple and clear composition.";
+  return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
 }
 
 /**
@@ -180,21 +128,19 @@ interface GPTImage1Params {
   prompt: string;
   model: 'gpt-image-1';
   background?: 'auto' | 'transparent' | 'opaque';
-  quality?: 'low' | 'medium' | 'high' | 'auto'; // Corrigido para valores válidos
+  quality?: 'low' | 'medium' | 'high' | 'auto';
   size?: '1024x1024' | '1792x1024' | '1024x1792';
   output_format?: 'png' | 'jpeg';
-  moderation?: 'auto' | 'low'; // Corrigido para atender ao tipo esperado
+  moderation?: 'auto' | 'low';
   n?: number;
 }
 
 /**
  * Função específica para gerar imagens com GPT-Image-1
  */
-async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'low'): Promise<any> {
+async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
   try {
     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
-
-    // Parâmetros otimizados para GPT-Image-1
     const imageParams: GPTImage1Params = {
       model: 'gpt-image-1',
       prompt,
@@ -205,10 +151,7 @@ async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medi
       output_format: 'png',
       moderation: 'auto',
     };
-
-    // Chama a API usando a sintaxe correta para GPT-Image-1
     const response = await openai.images.generate(imageParams);
-
     return response;
   } catch (error) {
     console.error('Erro na geração com GPT-Image-1:', error);
@@ -232,11 +175,8 @@ async function generateImageWithFallbacks(formData: any) {
     const currentPrompt = prompts[i];
     try {
       console.log(`Tentativa ${i + 1} com GPT-Image-1, prompt: "${currentPrompt.substring(0, 100)}..."`);
-
-      // Usa qualidade baixa conforme configuração padrão
-      const quality: 'low' | 'medium' | 'high' | 'auto' = 'low';
+      const quality: 'low' | 'medium' | 'high' | 'auto' = 'medium';
       const response = await generateImageWithGPTImage1(currentPrompt, quality);
-
       const base64 = response.data[0]?.b64_json;
       if (base64) {
         const imageUrl = `data:image/png;base64,${base64}`;
@@ -256,43 +196,23 @@ async function generateImageWithFallbacks(formData: any) {
       }
     } catch (error) {
       console.warn(`Falha na tentativa ${i + 1} com GPT-Image-1.`);
-
       if (error instanceof OpenAI.APIError) {
         console.warn(`Erro da API GPT-Image-1: ${error.status} - ${error.message}`);
-
-        // Verifica códigos de erro específicos do GPT-Image-1
-        if (error.code === 'content_policy_violation' || 
-            error.status === 400 && error.message?.includes('content policy')) {
-          console.log('Violação de política de conteúdo, tentando próximo prompt...');
-          continue; // Tenta o próximo prompt de fallback
+        if (error.code === 'content_policy_violation' || (error.status === 400 && error.message?.includes('content policy'))) {
+          console.log('Violação de política de conteúdo detectada. Tentando próximo prompt de fallback...');
+          continue; // Tenta o próximo prompt. Esta é a nossa principal defesa agora.
         }
-
-        // Erros relacionados ao modelo ou quota
-        if (error.status === 429) {
-          throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
-        }
-
-        if (error.status === 401) {
-          throw new Error('Chave da API inválida ou não autorizada para GPT-Image-1.');
-        }
-
-        if (error.status === 404) {
-          throw new Error('Modelo GPT-Image-1 não encontrado. Verifique se sua conta tem acesso.');
-        }
-
-        // Outros erros da API
+        if (error.status === 429) throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
+        if (error.status === 401) throw new Error('Chave da API inválida ou não autorizada para GPT-Image-1.');
+        if (error.status === 404) throw new Error('Modelo GPT-Image-1 não encontrado. Verifique se sua conta tem acesso.');
         throw new Error(`Erro da API GPT-Image-1: ${error.message}`);
       }
-
-      // Erro inesperado
       throw error;
     }
   }
-
-  // Se todos os prompts falharem
-  return { 
-    success: false, 
-    error: 'Todos os prompts falharam devido a restrições de conteúdo ou outros erros do GPT-Image-1.' 
+  return {
+    success: false,
+    error: 'Todos os prompts falharam. O prompt detalhado pode ter violado as políticas de conteúdo e os prompts de fallback não foram suficientes.'
   };
 }
 
@@ -301,47 +221,44 @@ async function generateImageWithFallbacks(formData: any) {
  */
 async function generateTextContent(formData: any) {
   const textPrompt = `
-    # Persona: Copywriter e Estrategista de Conteúdo Sênior especializado em ${sanitizeText(formData.platform || 'redes sociais')}.
-    ## Missão: Criar conteúdo textual para um post de mídia social altamente engajador e estratégico.
-    ## Contexto:
-    - **Marca**: ${sanitizeText(formData.brand || '')}
-    - **Tema**: ${sanitizeText(formData.theme || '')}
-    - **Plataforma**: ${sanitizeText(formData.platform || '')}
-    - **Objetivo**: ${sanitizeText(formData.objective || '')}
-    - **Descrição Visual**: ${sanitizeText(formData.prompt || '')}
-    - **Público**: ${sanitizeText(formData.audience || '')}
-    - **Tom**: ${sanitizeText(formData.tone || '')}
-    ## Tarefa:
-    Responda ESTRITAMENTE em formato JSON com as chaves "title", "body", e "hashtags" (array de 6-8 strings sem '#').
-    A legenda ("body") deve ter quebras de linha (\\n), ser envolvente e incluir um CTA claro.
-    As hashtags devem ser específicas e relevantes.
-  `;
+# Persona: Copywriter e Estrategista de Conteúdo Sênior especializado em ${cleanInput(formData.platform) || 'redes sociais'}.
+## Missão: Criar conteúdo textual para um post de mídia social altamente engajador e estratégico.
+## Contexto:
+- **Marca**: ${cleanInput(formData.brand)}
+- **Tema**: ${cleanInput(formData.theme)}
+- **Plataforma**: ${cleanInput(formData.platform)}
+- **Objetivo**: ${cleanInput(formData.objective)}
+- **Descrição Visual da Imagem Gerada**: ${cleanInput(formData.prompt)}
+- **Público**: ${cleanInput(formData.audience)}
+- **Tom**: ${cleanInput(formData.tone)}
+## Tarefa:
+Responda ESTRITAMENTE em formato JSON com as chaves "title", "body", e "hashtags" (um array de 6 a 8 strings, cada uma sem o caractere '#').
+A legenda ("body") deve ter quebras de linha (use \\n), ser envolvente e incluir um CTA (Call to Action) claro.
+As hashtags devem ser específicas, relevantes para o conteúdo e em português.
+`;
 
   try {
     const chatCompletion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: textPrompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.8,
-        max_tokens: 1500
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: textPrompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.8,
+      max_tokens: 1500
     });
 
     const rawContent = chatCompletion.choices[0].message.content;
     const postContent = JSON.parse(rawContent || '{}');
-    
-    // Validação robusta do conteúdo gerado
+
     if (!postContent.title || !postContent.body || !Array.isArray(postContent.hashtags)) {
-        throw new Error("Formato de JSON inválido recebido do GPT-4o-mini.");
+      throw new Error("Formato de JSON inválido recebido do GPT-4o-mini.");
     }
-    
     return postContent;
   } catch (parseError) {
     console.warn('Erro ao gerar/parsear conteúdo com GPT-4o-mini:', parseError);
-    // Fallback com conteúdo padrão
     return {
-        title: `Conteúdo para ${formData.brand || 'Sua Marca'}`,
-        body: `Aqui está uma sugestão de conteúdo para sua campanha sobre "${formData.theme || 'novidades'}".\\n\\nDescubra mais sobre nossos produtos e serviços!\\n\\n#VemConhecer`,
-        hashtags: ["marketingdigital", "conteudo", "estrategia", "suamarca", "inovacao", "qualidade"]
+      title: `Conteúdo para ${cleanInput(formData.brand) || 'Sua Marca'}`,
+      body: `Aqui está uma sugestão de conteúdo para sua campanha sobre "${cleanInput(formData.theme) || 'novidades'}".\n\nDescubra mais sobre nossos produtos e serviços!\n\n#VemConhecer`,
+      hashtags: ["marketingdigital", "conteudo", "estrategia", "suamarca", "inovacao", "qualidade"]
     };
   }
 }
@@ -351,29 +268,24 @@ async function generateTextContent(formData: any) {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verificação da chave da API
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ 
-        error: 'Chave da API OpenAI não configurada no servidor.' 
-      }, { status: 500 });
+      return NextResponse.json({ error: 'Chave da API OpenAI não configurada no servidor.' }, { status: 500 });
     }
 
     const formData = await req.json();
     console.log('Dados recebidos:', formData);
 
     if (!formData.prompt) {
-      return NextResponse.json({ 
-        error: 'A descrição da imagem é obrigatória.' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'A descrição da imagem é obrigatória.' }, { status: 400 });
     }
 
-    // --- 1. GERAÇÃO DA IMAGEM COM GPT-IMAGE-1 ---
+    // --- 1. GERAÇÃO DA IMAGEM COM GPT-IMAGE-1 E FALLBACKS ---
     console.log('Iniciando geração de imagem com GPT-Image-1...');
     const imageResult = await generateImageWithFallbacks(formData);
 
     if (!imageResult.success) {
       return NextResponse.json({
-        error: imageResult.error || 'Não foi possível gerar a imagem com GPT-Image-1. Tente uma descrição mais neutra.'
+        error: imageResult.error || 'Não foi possível gerar a imagem com GPT-Image-1. Tente uma descrição diferente.'
       }, { status: 400 });
     }
 
@@ -402,24 +314,15 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Erro geral na rota /api/generate-image:', error);
-    
     let errorMessage = "Ocorreu um erro interno no servidor.";
     let statusCode = 500;
-    
     if (error instanceof Error) {
       errorMessage = error.message;
-      
-      // Ajusta código de status baseado no tipo de erro
-      if (error.message.includes('Limite de requisições')) {
-        statusCode = 429;
-      } else if (error.message.includes('não autorizada') || error.message.includes('inválida')) {
-        statusCode = 401;
-      } else if (error.message.includes('não encontrado')) {
-        statusCode = 404;
-      }
+      if (error.message.includes('Limite de requisições')) statusCode = 429;
+      else if (error.message.includes('não autorizada') || error.message.includes('inválida')) statusCode = 401;
+      else if (error.message.includes('não encontrado')) statusCode = 404;
     }
-    
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: errorMessage,
       model: 'gpt-image-1',
       timestamp: new Date().toISOString()
