@@ -13,13 +13,29 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Caso a imagem venha como Data URL (base64)
+    if (imageUrl.startsWith('data:image')) {
+      const base64Data = imageUrl.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const mimeMatch = imageUrl.match(/^data:(image\/[^;]+);/);
+      const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
+      const headers = new Headers();
+      headers.set('Content-Type', contentType);
+      headers.set('Content-Length', buffer.length.toString());
+      headers.set('Cache-Control', 'public, max-age=86400');
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('Access-Control-Allow-Methods', 'GET');
+      headers.set('Access-Control-Allow-Headers', 'Content-Type');
+      return new NextResponse(buffer, { status: 200, headers });
+    }
+
     // Validar se é uma URL válida
     let url: URL;
     try {
       url = new URL(imageUrl);
     } catch {
       return NextResponse.json(
-        { error: 'URL da imagem inválida' }, 
+        { error: 'URL da imagem inválida' },
         { status: 400 }
       );
     }
@@ -27,7 +43,7 @@ export async function GET(req: NextRequest) {
     // Verificar se é uma URL do OpenAI (para segurança)
     if (!url.hostname.includes('openai') && !url.hostname.includes('oaidalleapiprodscus')) {
       return NextResponse.json(
-        { error: 'URL não autorizada' }, 
+        { error: 'URL não autorizada' },
         { status: 403 }
       );
     }

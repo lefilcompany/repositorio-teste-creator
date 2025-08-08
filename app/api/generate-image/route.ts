@@ -190,17 +190,17 @@ interface GPTImage1Params {
 /**
  * Função específica para gerar imagens com GPT-Image-1
  */
-async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
+async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'low'): Promise<any> {
   try {
     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
 
     // Parâmetros otimizados para GPT-Image-1
     const imageParams: GPTImage1Params = {
       model: 'gpt-image-1',
-      prompt: prompt,
-      background: 'auto', 
+      prompt,
+      background: 'transparent',
       n: 1,
-      quality: quality, // Ajustado para valores válidos
+      quality,
       size: '1024x1024',
       output_format: 'png',
       moderation: 'auto',
@@ -233,21 +233,22 @@ async function generateImageWithFallbacks(formData: any) {
     try {
       console.log(`Tentativa ${i + 1} com GPT-Image-1, prompt: "${currentPrompt.substring(0, 100)}..."`);
 
-      // Usa qualidade alta na primeira tentativa, média nas demais para economizar créditos
-      const quality: 'low' | 'medium' | 'high' | 'auto' = i === 0 ? 'high' : 'medium';
+      // Usa qualidade baixa conforme configuração padrão
+      const quality: 'low' | 'medium' | 'high' | 'auto' = 'low';
       const response = await generateImageWithGPTImage1(currentPrompt, quality);
 
-      const imageUrl = response.data[0]?.url;
-      if (imageUrl) {
+      const base64 = response.data[0]?.b64_json;
+      if (base64) {
+        const imageUrl = `data:image/png;base64,${base64}`;
         console.log(`Sucesso na tentativa ${i + 1} com GPT-Image-1!`);
         return {
           success: true,
-          imageUrl: imageUrl,
+          imageUrl,
           promptUsed: currentPrompt,
           attemptNumber: i + 1,
           model: 'gpt-image-1',
-          background: 'auto',
-          quality: quality,
+          background: 'transparent',
+          quality,
           size: '1024x1024',
           output_format: 'png',
           moderation: 'auto'
