@@ -1,6 +1,11 @@
 // app/api/generate-image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next/types';
 import OpenAI from 'openai';
+// Add the import for GoogleGenAi (adjust the package name if needed)
+import { GoogleGenAI, Modality } from '@google/genai';
+import path from 'path';
+import fs from 'fs';
 
 // Inicializa o cliente da OpenAI com suas configurações.
 const openai = new OpenAI({
@@ -92,7 +97,7 @@ function buildDetailedImagePrompt(formData: any): string {
   if (additionalInfo) promptParts.push(`Incorporando os seguintes elementos visuais: ${additionalInfo}`);
 
   // 7. Palavras-chave de Reforço e "Prompt Negativo"
-  promptParts.push("Qualidade final: resolução 8K, UHD, iluminação cinematográfica e volumétrica. Importante: evite texto, marcas d'água, logotipos (a menos que solicitado na descrição), artefatos digitais e desfoque. A imagem deve ter qualidade de premiação e ser adequada para Getty Images e Behance.");
+  promptParts.push("Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento.Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.");
 
   const finalPrompt = promptParts.join('. ');
   return finalPrompt.length > MAX_PROMPT_LENGTH ? finalPrompt.substring(0, MAX_PROMPT_LENGTH) : finalPrompt;
@@ -101,113 +106,176 @@ function buildDetailedImagePrompt(formData: any): string {
 /**
  * Prompt alternativo mais conservador.
  */
-function buildConservativePrompt(formData: any): string {
-  const description = cleanInput(formData.prompt);
-  const brand = cleanInput(formData.brand);
-  const platform = cleanInput(formData.platform);
+// function buildConservativePrompt(formData: any): string {
+//   const description = cleanInput(formData.prompt);
+//   const brand = cleanInput(formData.brand);
+//   const platform = cleanInput(formData.platform);
 
-  let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
-  if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
-  if (brand) prompt += ` para a marca ${brand}`;
-  if (platform) prompt += ` otimizado para a plataforma ${platform}`;
-  prompt += ", estética moderna e visualmente agradável.";
-  return prompt;
-}
+//   let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
+//   if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
+//   if (brand) prompt += ` para a marca ${brand}`;
+//   if (platform) prompt += ` otimizado para a plataforma ${platform}`;
+//   prompt += ", estética moderna e visualmente agradável.";
+//   return prompt;
+// }
 
-/**
- * Prompt de emergência ultra-conservador.
- */
-function buildFallbackPrompt(): string {
-  return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
-}
+// /**
+//  * Prompt de emergência ultra-conservador.
+//  */
+// function buildFallbackPrompt(): string {
+//   return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
+// }
 
-/**
- * Interface para parâmetros específicos do GPT-Image-1
- */
-interface GPTImage1Params {
-  prompt: string;
-  model: 'gpt-image-1';
-  background?: 'auto' | 'transparent' | 'opaque';
-  quality?: 'low' | 'medium' | 'high' | 'auto';
-  size?: '1024x1024' | '1792x1024' | '1024x1792';
-  output_format?: 'png' | 'jpeg';
-  moderation?: 'auto' | 'low';
-  n?: number;
-}
+// /**
+//  * Interface para parâmetros específicos do GPT-Image-1
+//  */
+// interface GPTImage1Params {
+//   prompt: string;
+//   model: 'gpt-image-1';
+//   background?: 'auto' | 'transparent' | 'opaque';
+//   quality?: 'low' | 'medium' | 'high' | 'auto';
+//   size?: '1024x1024' | '1792x1024' | '1024x1792';
+//   output_format?: 'png' | 'jpeg';
+//   moderation?: 'auto' | 'low';
+//   n?: number;
+// }
 
-/**
- * Função específica para gerar imagens com GPT-Image-1
- */
-async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
+// /**
+//  * Função específica para gerar imagens com GPT-Image-1
+//  */
+// async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
+//   try {
+//     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
+//     const imageParams: GPTImage1Params = {
+//       model: 'gpt-image-1',
+//       prompt,
+//       background: 'transparent',
+//       n: 1,
+//       quality,
+//       size: '1024x1024',
+//       output_format: 'png',
+//       moderation: 'auto',
+//     };
+//     const response = await openai.images.generate(imageParams);
+//     return response;
+//   } catch (error) {
+//     console.error('Erro na geração com GPT-Image-1:', error);
+//     throw error;
+//   }
+// }
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_API,
+});
+
+async function generateImage(prompt: string): Promise<any> {
   try {
-    console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
-    const imageParams: GPTImage1Params = {
-      model: 'gpt-image-1',
-      prompt,
-      background: 'transparent',
-      n: 1,
-      quality,
-      size: '1024x1024',
-      output_format: 'png',
-      moderation: 'auto',
-    };
-    const response = await openai.images.generate(imageParams);
-    return response;
+    // O prompt com a descrição solicitada
+    const fullPrompt = `${prompt}. Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento. Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.`;
+
+    // Enviar a imagem base64 como referência e o prompt
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents: [
+        {
+          text: fullPrompt,
+        },
+      ],
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      },
+    });
+
+    if (response.candidates && response.candidates.length > 0) {
+      const candidate = response.candidates[0];
+
+      if (
+        candidate.content &&
+        Array.isArray(candidate.content.parts) &&
+        candidate.content.parts.length > 0
+      ) {
+        const part = candidate.content.parts.find((p) => p.inlineData);
+
+        if (part && part.inlineData) {
+          const imageData = part.inlineData.data;
+          const buffer = Buffer.from(imageData, "base64");
+
+          const imagePath = path.resolve(
+            process.cwd(),
+            "public",
+            "generated-image.png"
+          );
+          fs.writeFileSync(imagePath, buffer);
+          console.log("Image saved as generated-image.png");
+
+          return { imageUrl: "/generated-image.png" };
+        } else {
+          throw new Error("Image data is missing in the response");
+        }
+      } else {
+        throw new Error("No valid parts found in the response");
+      }
+    } else {
+      throw new Error("No candidates returned from the model");
+    }
   } catch (error) {
-    console.error('Erro na geração com GPT-Image-1:', error);
+    console.error("Erro ao gerar imagem:", error);
     throw error;
   }
 }
-
 /**
  * Tenta gerar a imagem com diferentes estratégias de prompt, usando GPT-Image-1.
  */
 async function generateImageWithFallbacks(formData: any) {
   const prompts = [
     buildDetailedImagePrompt(formData),
-    buildConservativePrompt(formData),
-    buildFallbackPrompt()
+    // buildConservativePrompt(formData),
+    // buildFallbackPrompt()
   ];
 
-  console.log('Tentando gerar imagem com GPT-Image-1...');
+  console.log('Tentando gerar imagem com Gemini...');
 
   for (let i = 0; i < prompts.length; i++) {
     const currentPrompt = prompts[i];
     try {
-      console.log(`Tentativa ${i + 1} com GPT-Image-1, prompt: "${currentPrompt.substring(0, 100)}..."`);
-      const quality: 'low' | 'medium' | 'high' | 'auto' = 'medium';
-      const response = await generateImageWithGPTImage1(currentPrompt, quality);
-      const base64 = response.data[0]?.b64_json;
-      if (base64) {
-        const imageUrl = `data:image/png;base64,${base64}`;
-        console.log(`Sucesso na tentativa ${i + 1} com GPT-Image-1!`);
+      console.log(`Tentativa ${i + 1} com Gemini, prompt: "${currentPrompt.substring(0, 100)}..."`);
+      const response = await generateImage(currentPrompt);
+
+      if (response.imageUrl) {
+        console.log(`Sucesso na tentativa ${i + 1} com Gemini!`);
         return {
           success: true,
-          imageUrl,
+          imageUrl: response.imageUrl,
           promptUsed: currentPrompt,
           attemptNumber: i + 1,
-          model: 'gpt-image-1',
-          background: 'transparent',
-          quality,
-          size: '1024x1024',
-          output_format: 'png',
-          moderation: 'auto'
+          model: 'gemini-2.0-flash-preview-image-generation',
+          quality: 'high',
+          size: '1080x1080',
+          output_format: 'png'
         };
       }
     } catch (error) {
-      console.warn(`Falha na tentativa ${i + 1} com GPT-Image-1.`);
-      if (error instanceof OpenAI.APIError) {
-        console.warn(`Erro da API GPT-Image-1: ${error.status} - ${error.message}`);
-        if (error.code === 'content_policy_violation' || (error.status === 400 && error.message?.includes('content policy'))) {
-          console.log('Violação de política de conteúdo detectada. Tentando próximo prompt de fallback...');
-          continue; // Tenta o próximo prompt. Esta é a nossa principal defesa agora.
-        }
-        if (error.status === 429) throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
-        if (error.status === 401) throw new Error('Chave da API inválida ou não autorizada para GPT-Image-1.');
-        if (error.status === 404) throw new Error('Modelo GPT-Image-1 não encontrado. Verifique se sua conta tem acesso.');
-        throw new Error(`Erro da API GPT-Image-1: ${error.message}`);
+      console.warn(`Falha na tentativa ${i + 1} com Gemini.`);
+      console.warn(`Erro: ${error.message}`);
+
+      if (error.message?.includes('content policy') || error.message?.includes('safety')) {
+        console.log('Violação de política de conteúdo detectada. Tentando próximo prompt de fallback...');
+        continue;
       }
-      throw error;
+      if (error.message?.includes('quota') || error.message?.includes('limit')) {
+        throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
+      }
+      if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
+        throw new Error('Chave da API inválida ou não autorizada para Gemini.');
+      }
+      if (error.message?.includes('not found') || error.message?.includes('model')) {
+        throw new Error('Modelo Gemini não encontrado. Verifique se sua conta tem acesso.');
+      }
+
+      // Se é o último prompt, propagar o erro
+      if (i === prompts.length - 1) {
+        throw error;
+      }
     }
   }
   return {
@@ -279,13 +347,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A descrição da imagem é obrigatória.' }, { status: 400 });
     }
 
-    // --- 1. GERAÇÃO DA IMAGEM COM GPT-IMAGE-1 E FALLBACKS ---
-    console.log('Iniciando geração de imagem com GPT-Image-1...');
+    // --- 1. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS ---
+    console.log('Iniciando geração de imagem com Gemini...');
     const imageResult = await generateImageWithFallbacks(formData);
 
     if (!imageResult.success) {
       return NextResponse.json({
-        error: imageResult.error || 'Não foi possível gerar a imagem com GPT-Image-1. Tente uma descrição diferente.'
+        error: imageResult.error || 'Não foi possível gerar a imagem com Gemini. Tente uma descrição diferente.'
       }, { status: 400 });
     }
 
@@ -301,11 +369,9 @@ export async function POST(req: NextRequest) {
       hashtags: postContent.hashtags,
       debug: {
         model: imageResult.model,
-        background: imageResult.background,
         quality: imageResult.quality,
         size: imageResult.size,
         output_format: imageResult.output_format,
-        moderation: imageResult.moderation,
         promptUsed: imageResult.promptUsed,
         attemptNumber: imageResult.attemptNumber,
         originalData: formData
@@ -324,7 +390,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({
       error: errorMessage,
-      model: 'gpt-image-1',
+      model: 'gemini-2.0-flash-preview-image-generation',
       timestamp: new Date().toISOString()
     }, { status: statusCode });
   }
