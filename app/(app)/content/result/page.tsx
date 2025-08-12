@@ -21,6 +21,14 @@ interface GeneratedContent {
   revisions: number;
   brand?: string;
   theme?: string;
+  originalId?: string; // ID da ação original para rastreamento
+}
+
+interface ContentVersion {
+  id: string;
+  content: GeneratedContent;
+  timestamp: string;
+  type: 'original' | 'image_revision' | 'text_revision';
 }
 
 export default function ResultPage() {
@@ -29,7 +37,8 @@ export default function ResultPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [versions, setVersions] = useState<GeneratedContent[]>([]);
+  const [versions, setVersions] = useState<ContentVersion[]>([]);
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
@@ -41,8 +50,24 @@ export default function ResultPage() {
       const storedContent = localStorage.getItem('generatedContent');
       if (storedContent) {
         const parsedContent = JSON.parse(storedContent);
+
+        // Garante que temos um ID único se não existir
+        if (!parsedContent.id) {
+          parsedContent.id = `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        }
+
         setContent(parsedContent);
-        setVersions([parsedContent]);
+
+        // Inicializa as versões com a versão original
+        const initialVersion: ContentVersion = {
+          id: `version-${Date.now()}`,
+          content: parsedContent,
+          timestamp: new Date().toISOString(),
+          type: 'original'
+        };
+
+        setVersions([initialVersion]);
+        setCurrentVersionIndex(0);
       } else {
         throw new Error('Nenhum conteúdo gerado encontrado.');
       }
@@ -77,20 +102,35 @@ export default function ResultPage() {
     }
   }, [user?.teamId]);
 
-
   const saveToHistory = (finalContent: GeneratedContent, approved = false) => {
-    if (!user?.teamId || !user?.email) return;
+    if (!user?.teamId || !user?.email || !finalContent) return;
+
     try {
       const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-      const actionId = finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const existingIndex = history.findIndex((a: any) => a.id === actionId);
-      const updatedResult = { ...finalContent, approved };
+
+      // Usa o ID original se existir, senão cria um novo
+      const actionId = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      // Procura por uma ação existente com o mesmo ID original
+      const existingIndex = history.findIndex((action: any) =>
+        action.id === actionId || (action.result && action.result.originalId === actionId)
+      );
+
+      const updatedResult = {
+        ...finalContent,
+        approved,
+        originalId: actionId // Mantém a referência ao ID original
+      };
 
       if (existingIndex > -1) {
+        // Atualiza a ação existente com a versão mais recente
         history[existingIndex].result = updatedResult;
         history[existingIndex].status = approved ? 'Aprovado' : 'Em revisão';
+        history[existingIndex].updatedAt = new Date().toISOString();
+        console.log('Ação atualizada no histórico:', actionId);
       } else {
-        history.unshift({
+        // Cria uma nova entrada no histórico
+        const newHistoryEntry = {
           id: actionId,
           createdAt: new Date().toISOString(),
           teamId: user.teamId,
@@ -101,21 +141,55 @@ export default function ResultPage() {
           details: {},
           result: updatedResult,
           status: approved ? 'Aprovado' : 'Em revisão'
-        });
+        };
+
+        history.unshift(newHistoryEntry);
+        console.log('Nova ação criada no histórico:', actionId);
       }
 
       localStorage.setItem('creator-action-history', JSON.stringify(history));
+      console.log('Histórico salvo com sucesso');
+
     } catch (e) {
       console.error("Erro ao salvar no histórico:", e);
+      toast.error("Erro ao salvar no histórico");
     }
+  };
+
+  const updateCurrentContent = (newContent: GeneratedContent) => {
+    // Mantém o ID original para rastreamento
+    const updatedContent = {
+      ...newContent,
+      originalId: content?.originalId || content?.id || newContent.id
+    };
+
+    // Atualiza o estado atual
+    setContent(updatedContent);
+
+    // Salva no localStorage
+    localStorage.setItem('generatedContent', JSON.stringify(updatedContent));
+
+    console.log('Conteúdo atual atualizado:', updatedContent);
   };
 
   const handleApprove = () => {
     if (!content) return;
-    saveToHistory(content, true);
-    toast.success('Conteúdo aprovado e salvo no histórico!');
-    localStorage.removeItem('generatedContent');
-    router.push('/historico');
+
+    try {
+      const currentVersion = versions[currentVersionIndex];
+      const finalContent = currentVersion ? currentVersion.content : content;
+
+      saveToHistory(finalContent, true);
+      toast.success('Conteúdo aprovado e salvo no histórico!');
+
+      // Limpa apenas o conteúdo temporário
+      localStorage.removeItem('generatedContent');
+
+      router.push('/historico');
+    } catch (error) {
+      console.error('Erro ao aprovar conteúdo:', error);
+      toast.error('Erro ao aprovar o conteúdo');
+    }
   };
 
   const handleStartRevision = (type: 'image' | 'text') => {
@@ -130,6 +204,68 @@ export default function ResultPage() {
     setRevisionType(type);
     setShowRevisionDialog(false);
     setShowRevisionForm(true);
+  };
+
+  const handleRevisionComplete = (updatedContent: GeneratedContent) => {
+    try {
+      updateTeamCredits('contentReviews');
+
+      // Incrementa o contador de revisões
+      const contentWithRevision = {
+        ...updatedContent,
+        revisions: (content?.revisions || 0) + 1,
+        originalId: content?.originalId || content?.id || updatedContent.id
+      };
+
+      // Cria uma nova versão
+      const newVersion: ContentVersion = {
+        id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        content: contentWithRevision,
+        timestamp: new Date().toISOString(),
+        type: revisionType === 'image' ? 'image_revision' : 'text_revision'
+      };
+
+      // Adiciona a nova versão à lista
+      const updatedVersions = [...versions, newVersion];
+      setVersions(updatedVersions);
+      setCurrentVersionIndex(updatedVersions.length - 1);
+
+      // Atualiza o conteúdo atual
+      updateCurrentContent(contentWithRevision);
+
+      // Salva temporariamente no histórico como "Em revisão"
+      saveToHistory(contentWithRevision, false);
+
+      setShowRevisionForm(false);
+      setRevisionType(null);
+
+      toast.success(`Revisão ${revisionType === 'image' ? 'da imagem' : 'do texto'} concluída!`);
+
+    } catch (error) {
+      console.error('Erro ao completar revisão:', error);
+      toast.error('Erro ao processar a revisão');
+    }
+  };
+
+  const handleRevert = () => {
+    if (currentVersionIndex <= 0) {
+      toast.info("Você já está na versão original.");
+      return;
+    }
+
+    try {
+      const previousIndex = currentVersionIndex - 1;
+      const previousVersion = versions[previousIndex];
+
+      if (previousVersion) {
+        setCurrentVersionIndex(previousIndex);
+        updateCurrentContent(previousVersion.content);
+        toast.info("Versão anterior restaurada.");
+      }
+    } catch (error) {
+      console.error('Erro ao reverter versão:', error);
+      toast.error('Erro ao reverter para versão anterior');
+    }
   };
 
   const handleDownloadImage = async () => {
@@ -159,16 +295,6 @@ export default function ResultPage() {
     }
   };
 
-  const handleRevert = () => {
-    if (versions.length <= 1) return;
-    const prev = versions[versions.length - 2];
-    const revisionCount = content?.revisions || 0; // Manter a contagem de revisões
-    setVersions(prevArr => prevArr.slice(0, -1));
-    setContent({ ...prev, revisions: revisionCount });
-    localStorage.setItem('generatedContent', JSON.stringify({ ...prev, revisions: revisionCount }));
-    toast.info("Versão anterior restaurada.");
-  };
-
   const handleCopyToClipboard = () => {
     if (!content) return;
     const fullText = `${content.title}\n\n${content.body}\n\n${content.hashtags.map(h => `#${h}`).join(' ')}`;
@@ -183,14 +309,7 @@ export default function ResultPage() {
       <RevisionForm
         content={content}
         revisionType={revisionType}
-        onRevisionComplete={(updatedContent) => {
-          updateTeamCredits('contentReviews');
-          setVersions(prev => [...prev, updatedContent]);
-          setContent(updatedContent);
-          setShowRevisionForm(false);
-          setRevisionType(null);
-          localStorage.setItem('generatedContent', JSON.stringify(updatedContent));
-        }}
+        onRevisionComplete={handleRevisionComplete}
         onCancel={() => {
           setShowRevisionForm(false);
           setRevisionType(null);
@@ -229,17 +348,41 @@ export default function ResultPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
-            <p className="text-muted-foreground">Revise, edite, aprove ou baixe seus resultados.</p>
+            <p className="text-muted-foreground">
+              Revise, edite, aprove ou baixe seus resultados.
+              {versions.length > 1 && (
+                <span className="block text-sm text-primary mt-1">
+                  Versão {currentVersionIndex + 1} de {versions.length} - {
+                    versions[currentVersionIndex]?.type === 'original' ? 'Original' :
+                      versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
+                        'Texto Revisado'
+                  }
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0 flex-wrap">
-          <Button onClick={handleRevert} variant="outline" className="rounded-full" disabled={versions.length <= 1}>
+          <Button
+            onClick={handleRevert}
+            variant="outline"
+            className="rounded-full"
+            disabled={currentVersionIndex <= 0}
+          >
             <Undo2 className="mr-2" /> Reverter
           </Button>
-          <Button onClick={() => setShowRevisionDialog(true)} variant="secondary" className="rounded-full" disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}>
+          <Button
+            onClick={() => setShowRevisionDialog(true)}
+            variant="secondary"
+            className="rounded-full"
+            disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}
+          >
             <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
           </Button>
-          <Button onClick={handleApprove} className="rounded-full bg-green-600 hover:bg-green-700 text-white">
+          <Button
+            onClick={handleApprove}
+            className="rounded-full bg-green-600 hover:bg-green-700 text-white"
+          >
             <ThumbsUp className="mr-2" /> Aprovar e Salvar
           </Button>
         </div>

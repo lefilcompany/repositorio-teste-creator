@@ -1,4 +1,4 @@
-// components/content.tsx
+// components/content/content.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -36,22 +36,58 @@ const toneOptions = [
   'moderno', 'tradicional', 'divertido', 'sério'
 ];
 
-// Função de histórico
+// Função para gerar ID único baseado em timestamp e aleatoriedade
+const generateUniqueId = (): string => {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2);
+  return `gen-${timestamp}-${random}`;
+};
+
+// Função de histórico melhorada
 const saveActionToHistory = (actionData: any, teamId: string | undefined, userEmail: string | undefined) => {
-  if (!teamId || !userEmail) return;
+  if (!teamId || !userEmail) {
+    console.warn('TeamId ou userEmail não fornecidos para salvar no histórico');
+    return;
+  }
+
   try {
     const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
+
+    // Garante que temos um ID único
+    const actionId = actionData.id || generateUniqueId();
+
+    // Verifica se já existe uma ação com este ID (não deveria acontecer, mas é uma segurança)
+    const existingIndex = history.findIndex((action: any) => action.id === actionId);
+
     const newAction = {
-      id: actionData.id || new Date().toISOString() + Math.random(),
+      id: actionId,
       createdAt: new Date().toISOString(),
       teamId,
       userEmail,
       ...actionData,
+      // Garante que o resultado também tenha o mesmo ID para rastreamento
+      result: actionData.result ? {
+        ...actionData.result,
+        id: actionId,
+        originalId: actionId
+      } : undefined
     };
-    history.unshift(newAction);
+
+    if (existingIndex > -1) {
+      // Se existir, atualiza (não deveria acontecer na criação, mas por segurança)
+      history[existingIndex] = newAction;
+      console.warn('Ação duplicada encontrada e substituída:', actionId);
+    } else {
+      // Adiciona no início da lista
+      history.unshift(newAction);
+    }
+
     localStorage.setItem('creator-action-history', JSON.stringify(history));
+    console.log('Ação salva no histórico:', actionId);
+
   } catch (error) {
     console.error("Erro ao salvar ação no histórico:", error);
+    toast.error("Erro ao salvar no histórico. O conteúdo será criado, mas pode não aparecer no histórico.");
   }
 };
 
@@ -136,6 +172,23 @@ export default function Creator() {
     });
   };
 
+  const updateTeamCredits = () => {
+    if (!team || !user?.teamId) return;
+
+    try {
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const teamIndex = teams.findIndex(t => t.id === team.id);
+
+      if (teamIndex > -1) {
+        teams[teamIndex].credits.contentSuggestions -= 1;
+        localStorage.setItem('creator-teams', JSON.stringify(teams));
+        setTeam(teams[teamIndex]);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar créditos da equipe:', error);
+    }
+  };
+
   const handleGenerateContent = async () => {
     if (!team) {
       toast.error('Equipe não encontrada.');
@@ -154,6 +207,7 @@ export default function Creator() {
 
     try {
       const base64Image = await fileToBase64(referenceImage);
+
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +225,9 @@ export default function Creator() {
 
       const data = await response.json();
 
-      const actionId = `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      // Gera um ID único para esta ação/conteúdo
+      const actionId = generateUniqueId();
+
       const resultData = {
         id: actionId,
         imageUrl: data.imageUrl,
@@ -180,11 +236,14 @@ export default function Creator() {
         hashtags: data.hashtags,
         revisions: 0,
         brand: formData.brand,
-        theme: formData.theme
+        theme: formData.theme,
+        originalId: actionId // Mantém referência ao ID original
       };
 
+      // Salva o conteúdo temporariamente para a página de resultados
       localStorage.setItem('generatedContent', JSON.stringify(resultData));
 
+      // Salva no histórico como uma nova ação
       saveActionToHistory({
         id: actionId,
         type: 'Criar conteúdo',
@@ -192,27 +251,23 @@ export default function Creator() {
         theme: formData.theme,
         platform: formData.platform,
         details: { ...formData },
-        result: { ...data },
+        result: { ...data, id: actionId, originalId: actionId },
         status: 'Em revisão'
       }, user?.teamId, user?.email);
 
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const teamIndex = teams.findIndex(t => t.id === team.id);
-      if (teamIndex > -1) {
-        teams[teamIndex].credits.contentSuggestions -= 1;
-        localStorage.setItem('creator-teams', JSON.stringify(teams));
-        setTeam(teams[teamIndex]);
-      }
+      // Atualiza os créditos da equipe
+      updateTeamCredits();
 
+      toast.success('Conteúdo gerado com sucesso!');
       router.push('/content/result');
 
     } catch (err: any) {
+      console.error('Erro ao gerar conteúdo:', err);
       toast.error(err.message || 'Erro ao gerar o conteúdo.');
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 h-full flex flex-col">
