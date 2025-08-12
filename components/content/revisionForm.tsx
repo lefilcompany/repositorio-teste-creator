@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 interface RevisionFormProps {
   content: {
+    id: string;
     imageUrl: string;
     title: string;
     body: string;
