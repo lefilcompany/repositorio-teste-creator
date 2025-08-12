@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader, Wand2, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RevisionFormProps {
   content: {
@@ -25,15 +26,13 @@ interface RevisionFormProps {
 export default function RevisionForm({ content, revisionType, onRevisionComplete, onCancel }: RevisionFormProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!prompt) {
-      setError('Por favor, descreva os ajustes desejados.');
+      toast.error('Por favor, descreva os ajustes desejados.');
       return;
     }
     setLoading(true);
-    setError(null);
 
     try {
       let updatedContent;
@@ -80,7 +79,7 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
       onRevisionComplete(updatedContent);
 
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -104,9 +103,6 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
             className="min-h-[150px]"
           />
         </div>
-
-        {error && <p className="text-destructive text-sm">{error}</p>}
-        
         <div className="flex flex-col-reverse sm:flex-row gap-4">
           <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
