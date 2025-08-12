@@ -13,12 +13,12 @@ import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 
 interface GeneratedContent {
+  id: string;
   imageUrl: string;
   title: string;
   body: string;
   hashtags: string[];
   revisions: number;
-  originalActionId?: string;
   brand?: string;
   theme?: string;
 }
@@ -82,13 +82,28 @@ export default function ResultPage() {
     if (!user?.teamId || !user?.email) return;
     try {
       const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-      const actionId = finalContent.originalActionId || `gen-${new Date().toISOString()}`;
-
+      const actionId = finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const existingIndex = history.findIndex((a: any) => a.id === actionId);
+      const updatedResult = { ...finalContent, approved };
+
       if (existingIndex > -1) {
-        history[existingIndex].result = { ...finalContent, approved };
+        history[existingIndex].result = updatedResult;
         history[existingIndex].status = approved ? 'Aprovado' : 'Em revisão';
+      } else {
+        history.unshift({
+          id: actionId,
+          createdAt: new Date().toISOString(),
+          teamId: user.teamId,
+          userEmail: user.email,
+          type: 'Criar conteúdo',
+          brand: finalContent.brand || '',
+          theme: finalContent.theme || '',
+          details: {},
+          result: updatedResult,
+          status: approved ? 'Aprovado' : 'Em revisão'
+        });
       }
+
       localStorage.setItem('creator-action-history', JSON.stringify(history));
     } catch (e) {
       console.error("Erro ao salvar no histórico:", e);

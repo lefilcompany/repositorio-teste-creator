@@ -171,16 +171,16 @@ export default function Creator() {
 
       const data = await response.json();
 
-      const actionId = `gen-${Date.now()}`;
+      const actionId = `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const resultData = {
+        id: actionId,
         imageUrl: data.imageUrl,
         title: data.title,
         body: data.body,
         hashtags: data.hashtags,
         revisions: 0,
         brand: formData.brand,
-        theme: formData.theme,
-        originalActionId: actionId
+        theme: formData.theme
       };
 
       localStorage.setItem('generatedContent', JSON.stringify(resultData));
