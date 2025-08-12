@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader, Download, ArrowLeft, Copy, Check, ThumbsUp, Edit, ShieldAlert } from 'lucide-react';
+import { Loader, Download, ArrowLeft, Copy, Check, ThumbsUp, Edit, ShieldAlert, Undo2 } from 'lucide-react';
+import { toast } from 'sonner';
 import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,7 +29,7 @@ export default function ResultPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [versions, setVersions] = useState<GeneratedContent[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
@@ -41,8 +42,9 @@ export default function ResultPage() {
       if (storedContent) {
         const parsedContent = JSON.parse(storedContent);
         setContent(parsedContent);
+        setVersions([parsedContent]);
       } else {
-        throw new Error("Nenhum conteúdo gerado encontrado.");
+        throw new Error('Nenhum conteúdo gerado encontrado.');
       }
 
       if (user?.teamId) {
@@ -51,7 +53,7 @@ export default function ResultPage() {
         setTeam(currentTeam || null);
       }
     } catch (e: any) {
-      setError(e.message);
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -107,18 +109,18 @@ export default function ResultPage() {
   const handleApprove = () => {
     if (!content) return;
     saveToHistory(content, true);
-    alert('Conteúdo aprovado e salvo no histórico!');
+    toast.success('Conteúdo aprovado e salvo no histórico!');
     localStorage.removeItem('generatedContent');
     router.push('/historico');
   };
 
   const handleStartRevision = (type: 'image' | 'text') => {
     if (team && team.credits.contentReviews <= 0) {
-      setError("Você não tem créditos de revisão suficientes.");
+      toast.error('Você não tem créditos de revisão suficientes.');
       return;
     }
     if (content && content.revisions >= 2) {
-      setError("Limite de 2 revisões por conteúdo atingido.");
+      toast.error('Limite de 2 revisões por conteúdo atingido.');
       return;
     }
     setRevisionType(type);
@@ -131,23 +133,34 @@ export default function ResultPage() {
     setIsDownloading(true);
     try {
       const response = await fetch(`/api/download-image?url=${encodeURIComponent(content.imageUrl)}`);
-      if (!response.ok) throw new Error("Falha ao buscar a imagem.");
+      if (!response.ok) throw new Error('Falha ao buscar a imagem.');
 
       const blob = await response.blob();
+      const contentType = response.headers.get('Content-Type') || 'image/png';
+      const extension = contentType.includes('jpeg') ? 'jpeg' : 'png';
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'creator-ai-image.png');
+      link.setAttribute('download', `creator-ai-image.${extension}`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Erro ao baixar a imagem:", err);
-      setError("Não foi possível baixar a imagem.");
+      console.error('Erro ao baixar a imagem:', err);
+      toast.error('Não foi possível baixar a imagem.');
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleRevert = () => {
+    if (versions.length <= 1) return;
+    const prev = versions[versions.length - 2];
+    const revisionCount = content?.revisions || 0;
+    setVersions(prevArr => prevArr.slice(0, -1));
+    setContent({ ...prev, revisions: revisionCount });
+    localStorage.setItem('generatedContent', JSON.stringify({ ...prev, revisions: revisionCount }));
   };
 
   const handleCopyToClipboard = () => {
@@ -165,6 +178,7 @@ export default function ResultPage() {
         revisionType={revisionType}
         onRevisionComplete={(updatedContent) => {
           updateTeamCredits('contentReviews');
+          setVersions(prev => [...prev, updatedContent]);
           setContent(updatedContent);
           setShowRevisionForm(false);
           setRevisionType(null);
@@ -186,12 +200,12 @@ export default function ResultPage() {
     );
   }
 
-  if (error || !content) {
+  if (!content) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-destructive mb-4">Ocorreu um Erro</h2>
-        <p className="text-muted-foreground mb-6">{error || "Não foi possível carregar o conteúdo."}</p>
+        <p className="text-muted-foreground mb-6">Não foi possível carregar o conteúdo.</p>
         <Button onClick={() => router.push('/content')}>
           <ArrowLeft className="mr-2" /> Voltar
         </Button>
@@ -234,12 +248,15 @@ export default function ResultPage() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-4">
-            <Button onClick={() => setShowRevisionDialog(true)} variant="outline" className="w-full rounded-full text-base py-6 border-2" disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}>
-              <Edit /> Revisar ({2 - content.revisions} rest.)
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button onClick={handleRevert} variant="outline" className="flex-1 rounded-full text-base py-6" disabled={versions.length <= 1}>
+              <Undo2 className="mr-2" /> Reverter
             </Button>
-            <Button onClick={handleApprove} className="w-full rounded-full text-base py-6 bg-green-600 hover:bg-green-700 text-white">
-              <ThumbsUp /> Aprovar Versão Final
+            <Button onClick={() => setShowRevisionDialog(true)} variant="outline" className="flex-1 rounded-full text-base py-6 border-2" disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}>
+              <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
+            </Button>
+            <Button onClick={handleApprove} className="flex-1 rounded-full text-base py-6 bg-green-600 hover:bg-green-700 text-white">
+              <ThumbsUp className="mr-2" /> Aprovar
             </Button>
           </div>
           {content.revisions >= 2 && <p className="text-center text-sm text-destructive">Limite de revisões atingido.</p>}

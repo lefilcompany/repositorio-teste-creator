@@ -180,19 +180,26 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API,
 });
 
-async function generateImage(prompt: string): Promise<any> {
+async function generateImage(prompt: string, referenceImage?: string): Promise<any> {
   try {
-    // O prompt com a descrição solicitada
     const fullPrompt = `${prompt}. Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento. Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.`;
 
-    // Enviar a imagem base64 como referência e o prompt
+    const contents: any[] = [];
+    if (referenceImage) {
+      const [meta, data] = referenceImage.split(',');
+      const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
+      contents.push({
+        inlineData: {
+          data,
+          mimeType: mimeMatch ? mimeMatch[1] : 'image/png',
+        },
+      });
+    }
+    contents.push({ text: fullPrompt });
+
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
-      contents: [
-        {
-          text: fullPrompt,
-        },
-      ],
+      contents,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
       },
@@ -251,7 +258,7 @@ async function generateImageWithFallbacks(formData: any) {
     const currentPrompt = prompts[i];
     try {
       console.log(`Tentativa ${i + 1} com Gemini, prompt: "${currentPrompt.substring(0, 100)}..."`);
-      const response = await generateImage(currentPrompt);
+      const response = await generateImage(currentPrompt, formData.referenceImage);
 
       if (response.imageUrl) {
         console.log(`Sucesso na tentativa ${i + 1} com Gemini!`);

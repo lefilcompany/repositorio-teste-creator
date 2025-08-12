@@ -49,7 +49,7 @@ const saveActionToHistory = (actionData: any, teamId: string | undefined, userEm
   try {
     const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
     const newAction = {
-      id: new Date().toISOString() + Math.random(),
+      id: actionData.id || new Date().toISOString() + Math.random(),
       createdAt: new Date().toISOString(),
       teamId,
       userEmail,
@@ -76,7 +76,7 @@ export default function Creator() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [referenceImage, setReferenceImage] = useState<File | null>(null);
 
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -101,7 +101,7 @@ export default function Creator() {
       }
     } catch (e) {
       console.error('Falha ao carregar dados do localStorage', e);
-      setError("Houve um problema ao carregar seus dados. Tente recarregar a página.");
+      toast.error('Houve um problema ao carregar seus dados. Tente recarregar a página.');
     }
   }, [user]);
 
@@ -136,7 +136,7 @@ export default function Creator() {
   };
 
   const isFormValid = () => {
-    return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone.length > 0;
+    return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone.length > 0 && referenceImage;
   };
 
   const handleCopyToClipboard = () => {
@@ -156,47 +156,59 @@ export default function Creator() {
       if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
       const blob = await response.blob();
+      const contentType = response.headers.get('Content-Type') || 'image/png';
+      const extension = contentType.includes('jpeg') ? 'jpeg' : 'png';
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `creator-ai-${Date.now()}.png`);
+      link.setAttribute('download', `creator-ai-${Date.now()}.${extension}`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Erro ao baixar a imagem:", err);
-      setError("Não foi possível baixar a imagem. Tente clicar com o botão direito e 'Salvar como'.");
+      toast.error("Não foi possível baixar a imagem.");
     } finally {
       setIsDownloading(false);
     }
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleGenerateContent = async () => {
     if (!team) {
-      setError("Equipe não encontrada.");
+      toast.error('Equipe não encontrada.');
       return;
     }
     if (team.credits.contentSuggestions <= 0) {
-      setError('Seus créditos para sugestões de conteúdo acabaram.');
+      toast.error('Seus créditos para sugestões de conteúdo acabaram.');
       return;
     }
-    if (!isFormValid()) {
-      setError('Por favor, preencha todos os campos obrigatórios (*).');
+    if (!isFormValid() || !referenceImage) {
+      toast.error('Por favor, preencha todos os campos obrigatórios (*).');
       return;
     }
 
     setLoading(true);
-    setError(null);
     setShowResults(false);
 
     try {
+      const base64Image = await fileToBase64(referenceImage);
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: formData.description,
           ...formData,
+          referenceImage: base64Image,
         }),
       });
 
@@ -206,27 +218,30 @@ export default function Creator() {
       }
 
       const data = await response.json();
-      
+
+      const actionId = `gen-${Date.now()}`;
       const resultData = {
         imageUrl: data.imageUrl,
         title: data.title,
         body: data.body,
         hashtags: data.hashtags,
-        revisions: 0, 
+        revisions: 0,
         brand: formData.brand,
-        theme: formData.theme, 
-        originalActionId: `gen-${new Date().toISOString()}`
+        theme: formData.theme,
+        originalActionId: actionId
       };
 
       localStorage.setItem('generatedContent', JSON.stringify(resultData));
 
       saveActionToHistory({
+        id: actionId,
         type: 'Criar conteúdo',
         brand: formData.brand,
         theme: formData.theme,
         platform: formData.platform,
         details: { ...formData },
         result: { ...data },
+        status: 'Em revisão'
       }, user?.teamId, user?.email);
 
       const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
@@ -237,11 +252,10 @@ export default function Creator() {
         setTeam(teams[teamIndex]);
       }
 
-      // Redireciona para a página de resultados
       router.push('/content/result');
 
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Erro ao gerar o conteúdo.');
     } finally {
       setLoading(false);
     }
@@ -255,6 +269,7 @@ export default function Creator() {
       description: '', audience: '', tone: [], additionalInfo: '',
     });
     setFilteredThemes([]);
+    setReferenceImage(null);
   };
 
   if (showResults && generatedContent) {
@@ -331,12 +346,6 @@ export default function Creator() {
         </CardHeader>
 
         <CardContent className="flex-grow p-6 overflow-y-auto space-y-8">
-          {error && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
-              <p>{error}</p>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -388,6 +397,11 @@ export default function Creator() {
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="description" className="font-semibold">Descrição Visual da Imagem *</Label>
               <Textarea id="description" placeholder="Descreva o que você quer ver na imagem. Seja detalhista!" value={formData.description} onChange={handleInputChange} className="min-h-[120px] rounded-lg border-2" />
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="referenceImage" className="font-semibold">Imagem Exemplo *</Label>
+              <Input id="referenceImage" type="file" accept="image/*" onChange={(e) => setReferenceImage(e.target.files?.[0] || null)} className="h-12 rounded-lg border-2" />
             </div>
 
             <div className="md:col-span-2 space-y-2">
