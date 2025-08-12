@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Loader, Sparkles, Zap, Copy, Check, Download, ArrowLeft, X } from 'lucide-react';
+import { Loader, Sparkles, Zap, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
@@ -28,13 +28,6 @@ interface FormData {
   audience: string;
   tone: string[]; // Alterado para array de strings
   additionalInfo: string;
-}
-
-interface GeneratedContent {
-  imageUrl: string;
-  title: string;
-  body: string;
-  hashtags: string[];
 }
 
 // Opções para o Tom de Voz
@@ -67,7 +60,7 @@ export default function Creator() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     brand: '', theme: '', persona: '', objective: '', platform: '',
-    description: '', audience: '', tone: [], additionalInfo: '', // Valor inicial como array vazio
+    description: '', audience: '', tone: [], additionalInfo: '',
   });
 
   const [team, setTeam] = useState<Team | null>(null);
@@ -77,11 +70,6 @@ export default function Creator() {
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
-
-  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
-  const [showResults, setShowResults] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     try {
@@ -109,7 +97,7 @@ export default function Creator() {
     setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
   };
 
-  const handleSelectChange = (field: keyof FormData, value: string) => {
+  const handleSelectChange = (field: keyof Omit<FormData, 'tone'>, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     if (field === 'brand') {
@@ -139,41 +127,6 @@ export default function Creator() {
     return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone.length > 0 && referenceImage;
   };
 
-  const handleCopyToClipboard = () => {
-    if (!generatedContent) return;
-    const fullText = `${generatedContent.title}\n\n${generatedContent.body}\n\n${generatedContent.hashtags.map(h => `#${h}`).join(' ')}`;
-    navigator.clipboard.writeText(fullText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownloadImage = async () => {
-    if (!generatedContent?.imageUrl) return;
-    setIsDownloading(true);
-    try {
-      const proxyUrl = `/api/download-image?url=${encodeURIComponent(generatedContent.imageUrl)}`;
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-
-      const blob = await response.blob();
-      const contentType = response.headers.get('Content-Type') || 'image/png';
-      const extension = contentType.includes('jpeg') ? 'jpeg' : 'png';
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `creator-ai-${Date.now()}.${extension}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Erro ao baixar a imagem:", err);
-      toast.error("Não foi possível baixar a imagem.");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -198,7 +151,6 @@ export default function Creator() {
     }
 
     setLoading(true);
-    setShowResults(false);
 
     try {
       const base64Image = await fileToBase64(referenceImage);
@@ -260,68 +212,6 @@ export default function Creator() {
       setLoading(false);
     }
   };
-
-  const handleCreateAnother = () => {
-    setShowResults(false);
-    setGeneratedContent(null);
-    setFormData({
-      brand: '', theme: '', persona: '', objective: '', platform: '',
-      description: '', audience: '', tone: [], additionalInfo: '',
-    });
-    setFilteredThemes([]);
-    setReferenceImage(null);
-  };
-
-  if (showResults && generatedContent) {
-    return (
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 md:p-8 h-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-          {/* Coluna da Imagem */}
-          <div className="flex flex-col gap-6 h-full">
-            <Card className="flex-grow aspect-square bg-gradient-to-br from-muted/20 to-muted/40 rounded-3xl shadow-2xl border-2 border-primary/20 overflow-hidden relative group">
-              <img src={generatedContent.imageUrl} alt="Conteúdo Gerado" className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
-            </Card>
-            <div className="flex gap-4">
-              <Button onClick={handleCreateAnother} variant="outline" className="flex-1 rounded-full text-base py-6 border-2">
-                <ArrowLeft className="mr-2" /> Criar Outro
-              </Button>
-              <Button onClick={handleDownloadImage} disabled={isDownloading} className="flex-1 rounded-full text-base py-6">
-                {isDownloading ? <Loader className="animate-spin mr-2" /> : <Download className="mr-2" />}
-                {isDownloading ? 'Baixando...' : 'Baixar Imagem'}
-              </Button>
-            </div>
-          </div>
-          {/* Coluna do Conteúdo Textual */}
-          <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-2xl flex flex-col h-full">
-            <CardHeader className="pb-4">
-              <div className="flex justify-between items-start gap-4">
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  {generatedContent.title}
-                </h2>
-                <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary rounded-full">
-                  {copied ? <Check className="text-green-500" /> : <Copy />}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-grow overflow-y-auto space-y-6">
-              <div>
-                <Label className="font-semibold text-base">Legenda</Label>
-                <p className="whitespace-pre-line text-muted-foreground mt-2">{generatedContent.body}</p>
-              </div>
-              <div>
-                <Label className="font-semibold text-base">Hashtags</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {generatedContent.hashtags.map((tag) => (
-                    <span key={tag} className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">#{tag}</span>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
 
   return (
@@ -401,7 +291,13 @@ export default function Creator() {
 
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="referenceImage" className="font-semibold">Imagem Exemplo *</Label>
-              <Input id="referenceImage" type="file" accept="image/*" onChange={(e) => setReferenceImage(e.target.files?.[0] || null)} className="h-12 rounded-lg border-2" />
+              <Input
+                id="referenceImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
+                className="h-12 rounded-lg border-2 pt-3"
+              />
             </div>
 
             <div className="md:col-span-2 space-y-2">

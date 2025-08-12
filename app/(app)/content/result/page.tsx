@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Loader, Download, ArrowLeft, Copy, Check, ThumbsUp, Edit, ShieldAlert, Undo2 } from 'lucide-react';
+import { Loader, Download, ArrowLeft, Copy, Check, ThumbsUp, Edit, ShieldAlert, Undo2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
@@ -53,11 +53,12 @@ export default function ResultPage() {
         setTeam(currentTeam || null);
       }
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message, { description: "Você será redirecionado." });
+      router.push('/content');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, router]);
 
   const updateTeamCredits = useCallback((creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
     if (!user?.teamId) return;
@@ -65,7 +66,6 @@ export default function ResultPage() {
       const teams: Team[] = JSON.parse(localStorage.getItem('creator-teams') || '[]');
       const teamIndex = teams.findIndex(t => t.id === user.teamId);
       if (teamIndex > -1) {
-        // Correctly access the property on the specific credit type
         if (creditType in teams[teamIndex].credits) {
           (teams[teamIndex].credits as any)[creditType] -= amount;
         }
@@ -79,26 +79,15 @@ export default function ResultPage() {
 
 
   const saveToHistory = (finalContent: GeneratedContent, approved = false) => {
+    if (!user?.teamId || !user?.email) return;
     try {
       const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
       const actionId = finalContent.originalActionId || `gen-${new Date().toISOString()}`;
 
-      if (approved) {
-        const existingIndex = history.findIndex((a: any) => a.id === actionId);
-        if (existingIndex > -1) {
-          history[existingIndex].result = { ...finalContent, approved: true };
-          history[existingIndex].status = 'Aprovado';
-        } else {
-          history.unshift({
-            id: actionId,
-            type: 'Criar conteúdo',
-            brand: finalContent.brand,
-            createdAt: new Date().toISOString(),
-            details: { theme: finalContent.theme },
-            result: { ...finalContent, approved: true },
-            status: 'Aprovado',
-          });
-        }
+      const existingIndex = history.findIndex((a: any) => a.id === actionId);
+      if (existingIndex > -1) {
+        history[existingIndex].result = { ...finalContent, approved };
+        history[existingIndex].status = approved ? 'Aprovado' : 'Em revisão';
       }
       localStorage.setItem('creator-action-history', JSON.stringify(history));
     } catch (e) {
@@ -131,6 +120,7 @@ export default function ResultPage() {
   const handleDownloadImage = async () => {
     if (!content?.imageUrl) return;
     setIsDownloading(true);
+    toast.info("O download da imagem foi iniciado.");
     try {
       const response = await fetch(`/api/download-image?url=${encodeURIComponent(content.imageUrl)}`);
       if (!response.ok) throw new Error('Falha ao buscar a imagem.');
@@ -157,10 +147,11 @@ export default function ResultPage() {
   const handleRevert = () => {
     if (versions.length <= 1) return;
     const prev = versions[versions.length - 2];
-    const revisionCount = content?.revisions || 0;
+    const revisionCount = content?.revisions || 0; // Manter a contagem de revisões
     setVersions(prevArr => prevArr.slice(0, -1));
     setContent({ ...prev, revisions: revisionCount });
     localStorage.setItem('generatedContent', JSON.stringify({ ...prev, revisions: revisionCount }));
+    toast.info("Versão anterior restaurada.");
   };
 
   const handleCopyToClipboard = () => {
@@ -168,6 +159,7 @@ export default function ResultPage() {
     const fullText = `${content.title}\n\n${content.body}\n\n${content.hashtags.map(h => `#${h}`).join(' ')}`;
     navigator.clipboard.writeText(fullText);
     setCopied(true);
+    toast.success("Conteúdo copiado!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -207,36 +199,56 @@ export default function ResultPage() {
         <h2 className="text-2xl font-bold text-destructive mb-4">Ocorreu um Erro</h2>
         <p className="text-muted-foreground mb-6">Não foi possível carregar o conteúdo.</p>
         <Button onClick={() => router.push('/content')}>
-          <ArrowLeft className="mr-2" /> Voltar
+          <ArrowLeft className="mr-2" /> Voltar para Criação
         </Button>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="p-4 md:p-8 h-full">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
-        <div className="flex flex-col gap-4 h-full">
-          <Card className="flex-grow w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10">
-            <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
-          </Card>
-          <div className="flex gap-4">
-            <Button onClick={handleDownloadImage} disabled={isDownloading} variant="outline" className="w-full rounded-full text-base py-6">
-              {isDownloading ? <Loader className="animate-spin" /> : <Download />}
-              {isDownloading ? 'Baixando...' : 'Baixar Imagem'}
-            </Button>
+    <div className="p-4 md:p-8 h-full flex flex-col gap-6">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
+            <p className="text-muted-foreground">Revise, edite, aprove ou baixe seus resultados.</p>
           </div>
         </div>
+        <div className="flex items-center gap-2 mt-4 md:mt-0 flex-wrap">
+          <Button onClick={handleRevert} variant="outline" className="rounded-full" disabled={versions.length <= 1}>
+            <Undo2 className="mr-2" /> Reverter
+          </Button>
+          <Button onClick={() => setShowRevisionDialog(true)} variant="secondary" className="rounded-full" disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}>
+            <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
+          </Button>
+          <Button onClick={handleApprove} className="rounded-full bg-green-600 hover:bg-green-700 text-white">
+            <ThumbsUp className="mr-2" /> Aprovar e Salvar
+          </Button>
+        </div>
+      </header>
 
-        <div className="flex flex-col h-full gap-4">
-          <Card className="w-full flex-grow bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/10 flex flex-col">
-            <CardHeader className="p-0 pb-4 flex-row justify-between items-center">
-              <CardTitle className="text-2xl font-bold text-foreground">{content.title}</CardTitle>
+      <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow overflow-hidden">
+        <div className="flex flex-col gap-4 h-full overflow-hidden">
+          <Card className="flex-grow w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
+            <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
+            <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
+              {isDownloading ? <Loader className="animate-spin" /> : <Download />}
+            </Button>
+          </Card>
+        </div>
+
+        <div className="flex flex-col h-full overflow-hidden">
+          <Card className="w-full h-full bg-card rounded-2xl p-1 shadow-lg border-2 border-primary/10 flex flex-col">
+            <CardHeader className="p-4 flex-row justify-between items-center border-b border-border/10">
+              <CardTitle className="text-xl font-bold text-foreground">{content.title}</CardTitle>
               <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                 {copied ? <Check className="text-green-500" /> : <Copy />}
               </Button>
             </CardHeader>
-            <CardContent className="p-0 flex-grow overflow-y-auto">
+            <CardContent className="p-4 flex-grow overflow-y-auto">
               <div className="prose prose-sm dark:prose-invert max-w-none text-left">
                 <p className="whitespace-pre-line text-base text-muted-foreground">{content.body}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -247,29 +259,15 @@ export default function ResultPage() {
               </div>
             </CardContent>
           </Card>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button onClick={handleRevert} variant="outline" className="flex-1 rounded-full text-base py-6" disabled={versions.length <= 1}>
-              <Undo2 className="mr-2" /> Reverter
-            </Button>
-            <Button onClick={() => setShowRevisionDialog(true)} variant="outline" className="flex-1 rounded-full text-base py-6 border-2" disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}>
-              <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
-            </Button>
-            <Button onClick={handleApprove} className="flex-1 rounded-full text-base py-6 bg-green-600 hover:bg-green-700 text-white">
-              <ThumbsUp className="mr-2" /> Aprovar
-            </Button>
-          </div>
-          {content.revisions >= 2 && <p className="text-center text-sm text-destructive">Limite de revisões atingido.</p>}
-          {team && team.credits.contentReviews <= 0 && <p className="text-center text-sm text-destructive">Créditos de revisão esgotados.</p>}
         </div>
-      </div>
+      </main>
 
       <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>O que você deseja revisar?</DialogTitle>
             <DialogDescription>
-              Você pode fazer até 2 revisões por conteúdo. Cada revisão consome 1 crédito.
+              Você pode fazer até {2 - content.revisions} revisões. Cada revisão consome 1 crédito.
               Restam {team?.credits.contentReviews || 0} créditos de revisão.
             </DialogDescription>
           </DialogHeader>

@@ -225,7 +225,6 @@ async function generateImage(prompt: string, referenceImage?: string): Promise<a
             "generated-image.png"
           );
           fs.writeFileSync(imagePath, buffer);
-          console.log("Image saved as generated-image.png");
 
           return { imageUrl: "/generated-image.png" };
         } else {
@@ -238,7 +237,6 @@ async function generateImage(prompt: string, referenceImage?: string): Promise<a
       throw new Error("No candidates returned from the model");
     }
   } catch (error) {
-    console.error("Erro ao gerar imagem:", error);
     throw error;
   }
 }
@@ -252,16 +250,12 @@ async function generateImageWithFallbacks(formData: any) {
     // buildFallbackPrompt()
   ];
 
-  console.log('Tentando gerar imagem com Gemini...');
-
   for (let i = 0; i < prompts.length; i++) {
     const currentPrompt = prompts[i];
     try {
-      console.log(`Tentativa ${i + 1} com Gemini, prompt: "${currentPrompt.substring(0, 100)}..."`);
       const response = await generateImage(currentPrompt, formData.referenceImage);
 
       if (response.imageUrl) {
-        console.log(`Sucesso na tentativa ${i + 1} com Gemini!`);
         return {
           success: true,
           imageUrl: response.imageUrl,
@@ -274,11 +268,7 @@ async function generateImageWithFallbacks(formData: any) {
         };
       }
     } catch (error) {
-      console.warn(`Falha na tentativa ${i + 1} com Gemini.`);
-      console.warn(`Erro: ${error.message}`);
-
       if (error.message?.includes('content policy') || error.message?.includes('safety')) {
-        console.log('Violação de política de conteúdo detectada. Tentando próximo prompt de fallback...');
         continue;
       }
       if (error.message?.includes('quota') || error.message?.includes('limit')) {
@@ -307,34 +297,42 @@ async function generateImageWithFallbacks(formData: any) {
  * Gera texto usando GPT-4o-mini
  */
 async function generateTextContent(formData: any) {
+  // --- PROMPT APRIMORADO E MAIS SEGURO ---
+  const cleanedTones = Array.isArray(formData.tone)
+    ? formData.tone.map(cleanInput).join(', ')
+    : cleanInput(formData.tone);
+
   const textPrompt = `
-Você é um copywriter especialista em mídias sociais. Crie conteúdo para um post baseado nas informações abaixo:
+# CONTEXTO
+- **Marca**: ${cleanInput(formData.brand)}
+- **Tema**: ${cleanInput(formData.theme)}
+- **Plataforma**: ${cleanInput(formData.platform)}
+- **Objetivo**: ${cleanInput(formData.objective)}
+- **Descrição da Imagem Associada**: ${cleanInput(formData.prompt)}
+- **Público**: ${cleanInput(formData.audience)}
+- **Persona**: ${cleanInput(formData.persona) || 'Não especificada'}
+- **Tom de Voz**: ${cleanedTones || 'Não especificado'}
 
-MARCA: ${cleanInput(formData.brand)}
-TEMA: ${cleanInput(formData.theme)}
-PLATAFORMA: ${cleanInput(formData.platform)}
-OBJETIVO: ${cleanInput(formData.objective)}
-DESCRIÇÃO DA IMAGEM: ${cleanInput(formData.prompt)}
-PÚBLICO-ALVO: ${cleanInput(formData.audience)}
-${cleanInput(formData.persona) ? `PERSONA: ${cleanInput(formData.persona)}` : ''}
-TOM DE VOZ: ${cleanInput(formData.tone)}
+# TAREFA
+Sua missão é criar o conteúdo textual para este post.
 
-INSTRUÇÕES:
-- Crie um título chamativo (máximo 60 caracteres)
-- Escreva uma legenda envolvente com quebras de linha estratégicas
-- Inclua um CTA (call-to-action) claro
-- Sugira 6-8 hashtags relevantes em português (sem o símbolo #)
+# REGRAS DE SAÍDA (MUITO IMPORTANTE)
+- Sua resposta deve ser **APENAS** um objeto JSON válido. Não inclua nenhum texto, explicação ou markdown.
+- O JSON deve conter EXATAMENTE as chaves: "title", "body", e "hashtags".
+- "title": deve ser uma string com um título chamativo (máximo 60 caracteres).
+- "body": deve ser uma string com a legenda, usando '\\n' para novas linhas e incluindo um CTA claro.
+- "hashtags": deve ser um **ARRAY JSON contendo de 6 a 8 strings**.
+- **CRÍTICO**: As strings dentro do array "hashtags" NÃO DEVEM conter o caractere '#'.
 
-RESPONDA APENAS COM UM JSON VÁLIDO NO SEGUINTE FORMATO:
+# EXEMPLO DE SAÍDA CORRETA:
 {
-  "title": "título aqui",
-  "body": "legenda aqui\\ncom quebras de linha\\n\\nCTA aqui",
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5", "hashtag6"]
+  "title": "Título de Exemplo Criativo",
+  "body": "Esta é uma legenda de exemplo.\\nEla tem quebras de linha.\\n\\n➡️ Compre agora!",
+  "hashtags": ["exemplo", "criativo", "marketingdigital", "socialmedia", "conteudo", "inovacao"]
 }
 `;
 
   try {
-    console.log('Enviando prompt para GPT-4o-mini...');
     const chatCompletion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: textPrompt }],
@@ -344,68 +342,49 @@ RESPONDA APENAS COM UM JSON VÁLIDO NO SEGUINTE FORMATO:
     });
 
     const rawContent = chatCompletion.choices[0].message.content;
-    console.log('Resposta recebida do GPT-4o-mini:', rawContent);
 
     if (!rawContent) {
       throw new Error("Resposta vazia do GPT-4o-mini");
     }
 
-    let postContent;
-    try {
-      postContent = JSON.parse(rawContent);
-    } catch (jsonError) {
-      console.error('Erro ao fazer parse do JSON:', jsonError);
-      console.error('Conteúdo recebido:', rawContent);
-      throw new Error("JSON inválido recebido do GPT-4o-mini");
-    }
+    const postContent = JSON.parse(rawContent);
 
-    // Validação mais robusta do conteúdo
+    // --- LÓGICA DE CORREÇÃO E VALIDAÇÃO ---
     if (!postContent || typeof postContent !== 'object') {
       throw new Error("Conteúdo não é um objeto válido");
     }
-
-    if (!postContent.title || typeof postContent.title !== 'string') {
-      throw new Error("Título ausente ou inválido");
-    }
-
-    if (!postContent.body || typeof postContent.body !== 'string') {
-      throw new Error("Corpo da mensagem ausente ou inválido");
+    
+    // Se a IA retornar uma string em vez de um array, tentamos corrigir.
+    if (typeof postContent.hashtags === 'string') {
+        postContent.hashtags = postContent.hashtags.replace(/#/g, '').split(/[\s,]+/).filter(Boolean);
     }
 
     if (!Array.isArray(postContent.hashtags) || postContent.hashtags.length === 0) {
-      throw new Error("Hashtags ausentes ou inválidas");
+      throw new Error("Hashtags ausentes ou em formato inválido após tentativa de correção");
     }
-
-    console.log('Conteúdo validado com sucesso');
     
-    // Limpa as hashtags para garantir que não tenham caracteres especiais
-    postContent.hashtags = postContent.hashtags.map((tag: string) => 
-      String(tag).replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõç]/g, '').toLowerCase()
+    postContent.hashtags = postContent.hashtags.map((tag: any) => 
+      String(tag).replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ]/g, '').toLowerCase()
     ).filter((tag: string) => tag.length > 0);
     
     return postContent;
 
-  } catch (error) {
-    console.error('Erro na geração de texto:', error);
-    
+  } catch (error: any) {
     // Fallback com conteúdo padrão mais personalizado
-    const brandName = cleanInput(formData.brand) || 'nossa marca';
+    const brandName = cleanInput(formData.brand) || 'nossamarca';
     const themeName = cleanInput(formData.theme) || 'novidades';
-    const platform = cleanInput(formData.platform) || 'redes sociais';
     
     return {
       title: `${brandName}: ${themeName}`,
-      body: `🌟 Descubra o que preparamos especialmente para você!\n\n${cleanInput(formData.objective) || 'Conteúdo exclusivo'} no ${platform}.\n\n👉 Não perca essa oportunidade!`,
+      body: `🌟 Descubra o que preparamos especialmente para você!\n\n${cleanInput(formData.objective) || 'Conteúdo exclusivo'}.\n\n👉 Não perca essa oportunidade!`,
       hashtags: [
-        "marketing", 
-        "conteudo", 
-        brandName.toLowerCase().replace(/\s+/g, ''),
+        brandName.toLowerCase().replace(/\s+/g, ''), 
         themeName.toLowerCase().replace(/\s+/g, ''),
-        "inovacao", 
-        "qualidade",
-        "digital",
-        "estrategia"
-      ].filter(tag => tag.length > 0).slice(0, 8)
+        "marketingdigital", 
+        "conteudo", 
+        "estrategia",
+        "inovacao"
+      ].filter(tag => tag && tag.length > 0).slice(0, 8)
     };
   }
 }
@@ -420,14 +399,12 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.json();
-    console.log('Dados recebidos:', formData);
 
     if (!formData.prompt) {
       return NextResponse.json({ error: 'A descrição da imagem é obrigatória.' }, { status: 400 });
     }
 
     // --- 1. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS ---
-    console.log('Iniciando geração de imagem com Gemini...');
     const imageResult = await generateImageWithFallbacks(formData);
 
     if (!imageResult.success) {
@@ -437,7 +414,6 @@ export async function POST(req: NextRequest) {
     }
 
     // --- 2. GERAÇÃO DO TEXTO COM GPT-4O-MINI ---
-    console.log('Iniciando geração de texto com GPT-4o-mini...');
     const postContent = await generateTextContent(formData);
 
     // --- 3. RETORNO DA RESPOSTA COMPLETA ---
@@ -458,7 +434,6 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro geral na rota /api/generate-image:', error);
     let errorMessage = "Ocorreu um erro interno no servidor.";
     let statusCode = 500;
     if (error instanceof Error) {
