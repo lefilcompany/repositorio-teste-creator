@@ -1,8 +1,6 @@
 // app/api/generate-image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { NextApiRequest, NextApiResponse } from 'next/types';
 import OpenAI from 'openai';
-// Add the import for GoogleGenAi (adjust the package name if needed)
 import { GoogleGenAI, Modality } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
@@ -19,10 +17,19 @@ const MAX_PROMPT_LENGTH = 3950;
  * que podem corromper a sintaxe do prompt e normalizando espaços em branco.
  * NÃO remove palavras nem faz substituições, preservando a intenção original do usuário.
  */
-function cleanInput(text: string | undefined | null): string {
+function cleanInput(text: string | string[] | undefined | null): string {
   if (!text) return '';
+  
+  // Se for um array, junta os elementos com vírgula
+  if (Array.isArray(text)) {
+    return text.map(item => cleanInput(item)).join(', ');
+  }
+  
+  // Converte para string se não for
+  const textStr = String(text);
+  
   // Remove apenas caracteres potencialmente perigosos para a sintaxe do prompt.
-  let cleanedText = text.replace(/[<>{}[\]"'`]/g, '');
+  let cleanedText = textStr.replace(/[<>{}[\]"'`]/g, '');
   // Normaliza múltiplos espaços para apenas um e remove espaços nas pontas.
   cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
   return cleanedText;
@@ -39,7 +46,8 @@ function buildDetailedImagePrompt(formData: any): string {
   const objective = cleanInput(formData.objective);
   const platform = cleanInput(formData.platform);
   const audience = cleanInput(formData.audience);
-  const tone = cleanInput(formData.tone);
+  const tones = Array.isArray(formData.tone) ? formData.tone : (formData.tone ? [formData.tone] : []); // Garante que seja um array
+  const persona = cleanInput(formData.persona);
   const additionalInfo = cleanInput(formData.additionalInfo);
 
   let promptParts: string[] = [];
@@ -59,7 +67,7 @@ function buildDetailedImagePrompt(formData: any): string {
   }
 
   // 3. Tom e Atmosfera
-  if (tone) {
+  if (tones.length > 0) {
     const toneMap: { [key: string]: string } = {
       'inspirador': 'banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves',
       'motivacional': 'energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação',
@@ -71,8 +79,11 @@ function buildDetailedImagePrompt(formData: any): string {
       'divertido': 'humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética',
       'sério': 'tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade'
     };
-    const mappedTone = toneMap[tone.toLowerCase()] || `com uma estética ${tone}`;
-    promptParts.push(`O clima da imagem é ${mappedTone}`);
+    const mappedTones = tones.map(tone => {
+      const cleanTone = cleanInput(tone);
+      return toneMap[cleanTone.toLowerCase()] || `com uma estética ${cleanTone}`;
+    }).join(', ');
+    promptParts.push(`O clima da imagem é uma combinação de: ${mappedTones}`);
   }
 
   // 4. Detalhes Técnicos da Câmera
@@ -94,6 +105,7 @@ function buildDetailedImagePrompt(formData: any): string {
 
   // 6. Público-Alvo e Informações Adicionais
   if (audience) promptParts.push(`Direcionado especificamente para ${audience}`);
+  if (persona) promptParts.push(`Conectando-se com a persona de ${persona}`);
   if (additionalInfo) promptParts.push(`Incorporando os seguintes elementos visuais: ${additionalInfo}`);
 
   // 7. Palavras-chave de Reforço e "Prompt Negativo"
@@ -289,44 +301,104 @@ async function generateImageWithFallbacks(formData: any) {
  */
 async function generateTextContent(formData: any) {
   const textPrompt = `
-# Persona: Copywriter e Estrategista de Conteúdo Sênior especializado em ${cleanInput(formData.platform) || 'redes sociais'}.
-## Missão: Criar conteúdo textual para um post de mídia social altamente engajador e estratégico.
-## Contexto:
-- **Marca**: ${cleanInput(formData.brand)}
-- **Tema**: ${cleanInput(formData.theme)}
-- **Plataforma**: ${cleanInput(formData.platform)}
-- **Objetivo**: ${cleanInput(formData.objective)}
-- **Descrição Visual da Imagem Gerada**: ${cleanInput(formData.prompt)}
-- **Público**: ${cleanInput(formData.audience)}
-- **Tom**: ${cleanInput(formData.tone)}
-## Tarefa:
-Responda ESTRITAMENTE em formato JSON com as chaves "title", "body", e "hashtags" (um array de 6 a 8 strings, cada uma sem o caractere '#').
-A legenda ("body") deve ter quebras de linha (use \\n), ser envolvente e incluir um CTA (Call to Action) claro.
-As hashtags devem ser específicas, relevantes para o conteúdo e em português.
+Você é um copywriter especialista em mídias sociais. Crie conteúdo para um post baseado nas informações abaixo:
+
+MARCA: ${cleanInput(formData.brand)}
+TEMA: ${cleanInput(formData.theme)}
+PLATAFORMA: ${cleanInput(formData.platform)}
+OBJETIVO: ${cleanInput(formData.objective)}
+DESCRIÇÃO DA IMAGEM: ${cleanInput(formData.prompt)}
+PÚBLICO-ALVO: ${cleanInput(formData.audience)}
+${cleanInput(formData.persona) ? `PERSONA: ${cleanInput(formData.persona)}` : ''}
+TOM DE VOZ: ${cleanInput(formData.tone)}
+
+INSTRUÇÕES:
+- Crie um título chamativo (máximo 60 caracteres)
+- Escreva uma legenda envolvente com quebras de linha estratégicas
+- Inclua um CTA (call-to-action) claro
+- Sugira 6-8 hashtags relevantes em português (sem o símbolo #)
+
+RESPONDA APENAS COM UM JSON VÁLIDO NO SEGUINTE FORMATO:
+{
+  "title": "título aqui",
+  "body": "legenda aqui\\ncom quebras de linha\\n\\nCTA aqui",
+  "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5", "hashtag6"]
+}
 `;
 
   try {
+    console.log('Enviando prompt para GPT-4o-mini...');
     const chatCompletion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: textPrompt }],
       response_format: { type: "json_object" },
-      temperature: 0.8,
-      max_tokens: 1500
+      temperature: 0.7,
+      max_tokens: 1000
     });
 
     const rawContent = chatCompletion.choices[0].message.content;
-    const postContent = JSON.parse(rawContent || '{}');
+    console.log('Resposta recebida do GPT-4o-mini:', rawContent);
 
-    if (!postContent.title || !postContent.body || !Array.isArray(postContent.hashtags)) {
-      throw new Error("Formato de JSON inválido recebido do GPT-4o-mini.");
+    if (!rawContent) {
+      throw new Error("Resposta vazia do GPT-4o-mini");
     }
+
+    let postContent;
+    try {
+      postContent = JSON.parse(rawContent);
+    } catch (jsonError) {
+      console.error('Erro ao fazer parse do JSON:', jsonError);
+      console.error('Conteúdo recebido:', rawContent);
+      throw new Error("JSON inválido recebido do GPT-4o-mini");
+    }
+
+    // Validação mais robusta do conteúdo
+    if (!postContent || typeof postContent !== 'object') {
+      throw new Error("Conteúdo não é um objeto válido");
+    }
+
+    if (!postContent.title || typeof postContent.title !== 'string') {
+      throw new Error("Título ausente ou inválido");
+    }
+
+    if (!postContent.body || typeof postContent.body !== 'string') {
+      throw new Error("Corpo da mensagem ausente ou inválido");
+    }
+
+    if (!Array.isArray(postContent.hashtags) || postContent.hashtags.length === 0) {
+      throw new Error("Hashtags ausentes ou inválidas");
+    }
+
+    console.log('Conteúdo validado com sucesso');
+    
+    // Limpa as hashtags para garantir que não tenham caracteres especiais
+    postContent.hashtags = postContent.hashtags.map((tag: string) => 
+      String(tag).replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõç]/g, '').toLowerCase()
+    ).filter((tag: string) => tag.length > 0);
+    
     return postContent;
-  } catch (parseError) {
-    console.warn('Erro ao gerar/parsear conteúdo com GPT-4o-mini:', parseError);
+
+  } catch (error) {
+    console.error('Erro na geração de texto:', error);
+    
+    // Fallback com conteúdo padrão mais personalizado
+    const brandName = cleanInput(formData.brand) || 'nossa marca';
+    const themeName = cleanInput(formData.theme) || 'novidades';
+    const platform = cleanInput(formData.platform) || 'redes sociais';
+    
     return {
-      title: `Conteúdo para ${cleanInput(formData.brand) || 'Sua Marca'}`,
-      body: `Aqui está uma sugestão de conteúdo para sua campanha sobre "${cleanInput(formData.theme) || 'novidades'}".\n\nDescubra mais sobre nossos produtos e serviços!\n\n#VemConhecer`,
-      hashtags: ["marketingdigital", "conteudo", "estrategia", "suamarca", "inovacao", "qualidade"]
+      title: `${brandName}: ${themeName}`,
+      body: `🌟 Descubra o que preparamos especialmente para você!\n\n${cleanInput(formData.objective) || 'Conteúdo exclusivo'} no ${platform}.\n\n👉 Não perca essa oportunidade!`,
+      hashtags: [
+        "marketing", 
+        "conteudo", 
+        brandName.toLowerCase().replace(/\s+/g, ''),
+        themeName.toLowerCase().replace(/\s+/g, ''),
+        "inovacao", 
+        "qualidade",
+        "digital",
+        "estrategia"
+      ].filter(tag => tag.length > 0).slice(0, 8)
     };
   }
 }

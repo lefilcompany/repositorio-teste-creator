@@ -2,15 +2,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader, Sparkles, Zap, Target, Users, Palette, MessageCircle, Copy, Check, Download, ArrowLeft } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Loader, Sparkles, Zap, Copy, Check, Download, ArrowLeft, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
+import type { Persona } from '@/types/persona';
 import { useAuth } from '@/hooks/useAuth';
 import type { Team } from '@/types/team';
 
@@ -18,11 +21,12 @@ import type { Team } from '@/types/team';
 interface FormData {
   brand: string;
   theme: string;
+  persona: string;
   objective: string;
   platform: string;
   description: string;
   audience: string;
-  tone: string;
+  tone: string[]; // Alterado para array de strings
   additionalInfo: string;
 }
 
@@ -31,11 +35,17 @@ interface GeneratedContent {
   title: string;
   body: string;
   hashtags: string[];
-  formData?: FormData;
 }
 
+// Opções para o Tom de Voz
+const toneOptions = [
+  'inspirador', 'motivacional', 'profissional', 'casual', 'elegante',
+  'moderno', 'tradicional', 'divertido', 'sério'
+];
+
 // Função de histórico
-const saveActionToHistory = (actionData: any, teamId: string, userEmail: string) => {
+const saveActionToHistory = (actionData: any, teamId: string | undefined, userEmail: string | undefined) => {
+  if (!teamId || !userEmail) return;
   try {
     const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
     const newAction = {
@@ -54,19 +64,20 @@ const saveActionToHistory = (actionData: any, teamId: string, userEmail: string)
 
 export default function Creator() {
   const { user } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
-    brand: '', theme: '', objective: '', platform: '',
-    description: '', audience: '', tone: '', additionalInfo: '',
+    brand: '', theme: '', persona: '', objective: '', platform: '',
+    description: '', audience: '', tone: [], additionalInfo: '', // Valor inicial como array vazio
   });
 
   const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados para a visualização dos resultados
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -77,8 +88,13 @@ export default function Creator() {
       if (user?.teamId) {
         const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
         setBrands(storedBrands.filter(b => b.teamId === user.teamId));
+
         const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
         setThemes(storedThemes.filter(t => t.teamId === user.teamId));
+
+        const storedPersonas = JSON.parse(localStorage.getItem('creator-personas') || '[]') as Persona[];
+        setPersonas(storedPersonas.filter(p => p.teamId === user.teamId));
+
         const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
         const currentTeam = teams.find(tm => tm.id === user.teamId);
         if (currentTeam) setTeam(currentTeam);
@@ -93,22 +109,34 @@ export default function Creator() {
     setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
   };
 
-  const handleBrandChange = (brandName: string) => {
-    setFormData(prev => ({ ...prev, brand: brandName, theme: '' }));
-    const selectedBrand = brands.find(b => b.name === brandName);
-    setFilteredThemes(selectedBrand ? themes.filter(t => t.brandId === selectedBrand.id) : []);
+  const handleSelectChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+    if (field === 'brand') {
+      const selectedBrand = brands.find(b => b.name === value);
+      setFilteredThemes(selectedBrand ? themes.filter(t => t.brandId === selectedBrand.id) : []);
+      setFormData(prev => ({ ...prev, theme: '', persona: '' }));
+    }
   };
 
-  const handleThemeChange = (themeTitle: string) => {
-    setFormData(prev => ({ ...prev, theme: themeTitle }));
+  const handleToneSelect = (tone: string) => {
+    if (!formData.tone.includes(tone)) {
+      if (formData.tone.length >= 4) {
+        toast.error("Limite atingido", {
+          description: "Você pode selecionar no máximo 4 tons de voz."
+        });
+        return;
+      }
+      setFormData(prev => ({ ...prev, tone: [...prev.tone, tone] }));
+    }
   };
 
-  const handlePlatformChange = (value: string) => {
-    setFormData(prev => ({ ...prev, platform: value }));
+  const handleToneRemove = (toneToRemove: string) => {
+    setFormData(prev => ({ ...prev, tone: prev.tone.filter(t => t !== toneToRemove) }));
   };
 
   const isFormValid = () => {
-    return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone;
+    return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone.length > 0;
   };
 
   const handleCopyToClipboard = () => {
@@ -178,9 +206,19 @@ export default function Creator() {
       }
 
       const data = await response.json();
-      const contentWithFormData: GeneratedContent = { ...data, formData: formData };
-      setGeneratedContent(contentWithFormData);
-      setShowResults(true);
+      
+      const resultData = {
+        imageUrl: data.imageUrl,
+        title: data.title,
+        body: data.body,
+        hashtags: data.hashtags,
+        revisions: 0, 
+        brand: formData.brand,
+        theme: formData.theme, 
+        originalActionId: `gen-${new Date().toISOString()}`
+      };
+
+      localStorage.setItem('generatedContent', JSON.stringify(resultData));
 
       saveActionToHistory({
         type: 'Criar conteúdo',
@@ -189,7 +227,7 @@ export default function Creator() {
         platform: formData.platform,
         details: { ...formData },
         result: { ...data },
-      }, team.id, user?.email || '');
+      }, user?.teamId, user?.email);
 
       const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
       const teamIndex = teams.findIndex(t => t.id === team.id);
@@ -198,6 +236,10 @@ export default function Creator() {
         localStorage.setItem('creator-teams', JSON.stringify(teams));
         setTeam(teams[teamIndex]);
       }
+
+      // Redireciona para a página de resultados
+      router.push('/content/result');
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -209,8 +251,8 @@ export default function Creator() {
     setShowResults(false);
     setGeneratedContent(null);
     setFormData({
-      brand: '', theme: '', objective: '', platform: '',
-      description: '', audience: '', tone: '', additionalInfo: '',
+      brand: '', theme: '', persona: '', objective: '', platform: '',
+      description: '', audience: '', tone: [], additionalInfo: '',
     });
     setFilteredThemes([]);
   };
@@ -238,9 +280,9 @@ export default function Creator() {
           <Card className="rounded-3xl border-2 border-primary/20 bg-card shadow-2xl flex flex-col h-full">
             <CardHeader className="pb-4">
               <div className="flex justify-between items-start gap-4">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   {generatedContent.title}
-                </CardTitle>
+                </h2>
                 <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary rounded-full">
                   {copied ? <Check className="text-green-500" /> : <Copy />}
                 </Button>
@@ -268,9 +310,7 @@ export default function Creator() {
 
 
   return (
-    // Container principal que centraliza e define o tamanho máximo
     <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 h-full flex flex-col">
-      {/* O Card agora ocupa toda a altura disponível e é um container flex column */}
       <Card className="w-full h-full flex flex-col rounded-3xl shadow-2xl bg-gradient-to-br from-card to-card/90 border-2 border-primary/20 overflow-hidden">
         <CardHeader className="flex-shrink-0 p-6 border-b border-primary/10">
           <div className="flex items-center gap-4">
@@ -290,7 +330,6 @@ export default function Creator() {
           )}
         </CardHeader>
 
-        {/* O CardContent é a área que vai ter scroll, se necessário */}
         <CardContent className="flex-grow p-6 overflow-y-auto space-y-8">
           {error && (
             <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
@@ -299,35 +338,39 @@ export default function Creator() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Campos do formulário */}
-            {/* Marca e Tema */}
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="brand" className="font-semibold">Marca *</Label>
-                <Select onValueChange={handleBrandChange} value={formData.brand}>
+                <Select onValueChange={(value) => handleSelectChange('brand', value)} value={formData.brand}>
                   <SelectTrigger className="h-12 rounded-lg border-2"><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
                   <SelectContent>{brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="theme" className="font-semibold">Tema Estratégico *</Label>
-                <Select onValueChange={handleThemeChange} value={formData.theme} disabled={!formData.brand}>
+                <Select onValueChange={(value) => handleSelectChange('theme', value)} value={formData.theme} disabled={!formData.brand}>
                   <SelectTrigger className="h-12 rounded-lg border-2"><SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione o tema"} /></SelectTrigger>
                   <SelectContent>{filteredThemes.map(t => <SelectItem key={t.id} value={t.title}>{t.title}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Objetivo */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="persona" className="font-semibold">Persona (Opcional)</Label>
+              <Select onValueChange={(value) => handleSelectChange('persona', value)} value={formData.persona} disabled={!formData.brand}>
+                <SelectTrigger className="h-12 rounded-lg border-2"><SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione uma persona"} /></SelectTrigger>
+                <SelectContent>{personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="objective" className="font-semibold">Objetivo do Post *</Label>
               <Textarea id="objective" placeholder="Ex: Gerar engajamento, anunciar um novo produto..." value={formData.objective} onChange={handleInputChange} className="min-h-[100px] rounded-lg border-2" />
             </div>
 
-            {/* Plataforma e Público */}
             <div className="space-y-2">
               <Label htmlFor="platform" className="font-semibold">Plataforma *</Label>
-              <Select onValueChange={handlePlatformChange} value={formData.platform}>
+              <Select onValueChange={(value) => handleSelectChange('platform', value)} value={formData.platform}>
                 <SelectTrigger className="h-12 rounded-lg border-2"><SelectValue placeholder="Onde será postado?" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Instagram">Instagram</SelectItem>
@@ -342,23 +385,44 @@ export default function Creator() {
               <Input id="audience" placeholder="Ex: Jovens de 18-25 anos" value={formData.audience} onChange={handleInputChange} className="h-12 rounded-lg border-2" />
             </div>
 
-            {/* Descrição e Tom */}
             <div className="md:col-span-2 space-y-2">
               <Label htmlFor="description" className="font-semibold">Descrição Visual da Imagem *</Label>
               <Textarea id="description" placeholder="Descreva o que você quer ver na imagem. Seja detalhista!" value={formData.description} onChange={handleInputChange} className="min-h-[120px] rounded-lg border-2" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="tone" className="font-semibold">Tom de Voz *</Label>
-              <Input id="tone" placeholder="Ex: Profissional, divertido, elegante" value={formData.tone} onChange={handleInputChange} className="h-12 rounded-lg border-2" />
+
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="tone" className="font-semibold">Tom de Voz * (máx. 4)</Label>
+              <Select onValueChange={handleToneSelect} value="">
+                <SelectTrigger className="h-12 rounded-lg border-2 text-muted-foreground">
+                  <SelectValue placeholder="Adicionar tom de voz..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {toneOptions.map(option => (
+                    <SelectItem key={option} value={option} disabled={formData.tone.includes(option)}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {formData.tone.map(tone => (
+                  <div key={tone} className="flex items-center gap-1 bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full">
+                    {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                    <button onClick={() => handleToneRemove(tone)} className="ml-1 text-primary hover:text-destructive">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
+
+            <div className="md:col-span-2 space-y-2">
               <Label htmlFor="additionalInfo" className="font-semibold">Informações Extras</Label>
-              <Input id="additionalInfo" placeholder="Cores, elementos obrigatórios, etc." value={formData.additionalInfo} onChange={handleInputChange} className="h-12 rounded-lg border-2" />
+              <Textarea id="additionalInfo" placeholder="Cores, elementos obrigatórios, etc." value={formData.additionalInfo} onChange={handleInputChange} className="min-h-[120px] rounded-lg border-2" />
             </div>
           </div>
         </CardContent>
 
-        {/* Footer fixo do card */}
         <div className="p-6 border-t border-primary/10 flex-shrink-0">
           <Button onClick={handleGenerateContent} disabled={loading || !isFormValid()} className="w-full h-14 rounded-xl text-lg font-semibold">
             {loading ? (
