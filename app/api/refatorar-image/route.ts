@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Modality } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '@/lib/prisma';
+import { ActionType } from '@prisma/client';
 
 const MAX_PROMPT_LENGTH = 3950;
 
@@ -80,25 +82,43 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const imageFile = formData.get('image') as File | null;
     const prompt = formData.get('prompt') as string | null;
+    const brand = formData.get('brand') as string | null;
+    const theme = formData.get('theme') as string | null;
+    const teamId = formData.get('teamId') as string | null;
+    const brandId = formData.get('brandId') as string | null;
+    const userId = formData.get('userId') as string | null;
 
-    if (!imageFile || !prompt) {
-      return NextResponse.json({ error: 'Imagem e prompt de ajuste são obrigatórios.' }, { status: 400 });
+    if (!imageFile || !prompt || !teamId || !brandId || !userId) {
+      return NextResponse.json({ error: 'Imagem, prompt, teamId, brandId e userId são obrigatórios.' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await imageFile.arrayBuffer());
     const base64Image = buffer.toString('base64');
     const mimeType = imageFile.type || 'image/png';
+    const dataURI = `data:${mimeType};base64,${base64Image}`;
 
     const revisionPrompt = buildRevisionPrompt({
       prompt,
-      brand: formData.get('brand'),
-      theme: formData.get('theme'),
+      brand,
+      theme,
     });
 
     const result = await generateImage(revisionPrompt, base64Image, mimeType);
 
+    const action = await prisma.action.create({
+      data: {
+        type: ActionType.REVISAR_CONTEUDO,
+        teamId,
+        brandId,
+        userId,
+        details: { prompt, brand, theme, originalImage: dataURI },
+        result: { imageUrl: result.imageUrl },
+      },
+    });
+
     return NextResponse.json({
       imageUrl: result.imageUrl,
+      actionId: action.id,
       debug: {
         promptUsed: revisionPrompt,
         model: 'gemini-2.0-flash-preview-image-generation',

@@ -1,6 +1,8 @@
 // app/api/refatorar-text/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { prisma } from '@/lib/prisma';
+import { ActionType } from '@prisma/client';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -12,9 +14,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { prompt, originalTitle, originalBody, originalHashtags, brand, theme } = await req.json();
+        const body = await req.json();
+        const { prompt, originalTitle, originalBody, originalHashtags, brand, theme, teamId, brandId, userId } = body;
 
-        if (!prompt || !originalTitle || !originalBody || !originalHashtags) {
+        if (!prompt || !originalTitle || !originalBody || !originalHashtags || !teamId || !brandId || !userId) {
             return NextResponse.json({ error: 'Dados insuficientes para a revisão.' }, { status: 400 });
         }
 
@@ -88,7 +91,18 @@ export async function POST(req: NextRequest) {
             throw new Error(`Falha ao refatorar texto após ${maxRetries} tentativas. O modelo pode estar sobrecarregado.`);
         }
 
-        return NextResponse.json(revisedContent);
+        const action = await prisma.action.create({
+            data: {
+                type: ActionType.REVISAR_CONTEUDO,
+                teamId,
+                brandId,
+                userId,
+                details: { prompt, originalTitle, originalBody, originalHashtags, brand, theme },
+                result: revisedContent,
+            },
+        });
+
+        return NextResponse.json({ ...revisedContent, actionId: action.id });
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro desconhecido';
