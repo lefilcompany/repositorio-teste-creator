@@ -281,7 +281,6 @@ async function generateImageWithFallbacks(formData: any) {
         throw new Error('Modelo Gemini não encontrado. Verifique se sua conta tem acesso.');
       }
 
-      // Se é o último prompt, propagar o erro
       if (i === prompts.length - 1) {
         throw error;
       }
