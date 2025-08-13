@@ -25,7 +25,7 @@ interface ThemeDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: ThemeFormData) => void;
   themeToEdit: StrategicTheme | null;
-  brands: Brand[]; // Recebe a lista de marcas para o select
+  brands?: Brand[]; // Recebe a lista de marcas para o select
 }
 
 const initialFormData: ThemeFormData = {
@@ -45,7 +45,7 @@ const initialFormData: ThemeFormData = {
   additionalInfo: '',
 };
 
-export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit, brands }: ThemeDialogProps) {
+export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit, brands = [] }: ThemeDialogProps) {
   const [formData, setFormData] = useState<ThemeFormData>(initialFormData);
 
   useEffect(() => {

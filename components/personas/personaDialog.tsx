@@ -26,7 +26,7 @@ interface PersonaDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: PersonaFormData) => void;
   personaToEdit: Persona | null;
-  brands: Brand[];
+  brands?: Brand[];
 }
 
 const initialFormData: PersonaFormData = {
@@ -42,7 +42,7 @@ const initialFormData: PersonaFormData = {
   challenges: '',
 };
 
-export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToEdit, brands }: PersonaDialogProps) {
+export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToEdit, brands = [] }: PersonaDialogProps) {
   const [formData, setFormData] = useState<PersonaFormData>(initialFormData);
 
   useEffect(() => {
