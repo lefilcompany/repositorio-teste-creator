@@ -43,7 +43,7 @@ export default function MarcasPage() {
   const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
     if (!user?.teamId || !user.id) return;
     try {
-      const method = brandToEdit ? 'PATCH' : 'POST';
+      const method = brandToEdit ? 'PUT' : 'POST';
       const url = brandToEdit ? `/api/brands/${brandToEdit.id}` : '/api/brands';
       const res = await fetch(url, {
         method,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const data = await req.json();
   try {
     const brand = await prisma.brand.update({ where: { id: params.id }, data });
