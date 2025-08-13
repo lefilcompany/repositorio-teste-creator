@@ -1,4 +1,5 @@
 export interface User {
+  id?: string;
   name: string;
   email: string;
   password?: string;
@@ -6,6 +7,6 @@ export interface User {
   state?: string;
   city?: string;
   teamId?: string | null;
-  role?: 'admin' | 'member';
-  status?: 'active' | 'pending';
+  role?: 'ADMIN' | 'MEMBER';
+  status?: 'ACTIVE' | 'PENDING';
 }

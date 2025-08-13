@@ -43,20 +43,17 @@ export default function LoginPage() {
     Autoplay({ delay: 4000, stopOnInteraction: true }) // Delay de 4 segundos
   );
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
-    setTimeout(() => {
-      const result = login({ email, password });
-      if (result === 'invalid') {
-        setError('E-mail ou senha inválidos.');
-      } else if (result === 'pending') {
-        setError('Aguardando aprovação do administrador da equipe.');
-      }
-      setIsLoading(false);
-    }, 1000);
+    const result = await login({ email, password });
+    if (result === 'invalid') {
+      setError('E-mail ou senha inválidos.');
+    } else if (result === 'pending') {
+      setError('Aguardando aprovação do administrador da equipe.');
+    }
+    setIsLoading(false);
   };
 
   return (
