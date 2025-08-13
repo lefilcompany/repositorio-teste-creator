@@ -10,88 +10,81 @@ import ThemeDialog from '@/components/temas/themeDialog';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
 
 type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 export default function TemasPage() {
   const { user } = useAuth();
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]); // Estado para armazenar as marcas
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
-
   useEffect(() => {
-    try {
-      const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
-      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-      if (user?.teamId) {
-        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
-      }
-    } catch (error) {
-      console.error('Falha ao carregar dados do localStorage', error);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (isLoaded) {
+    const load = async () => {
+      if (!user?.teamId) return;
       try {
-        const all = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
-        const others = all.filter(t => t.teamId !== user?.teamId);
-        localStorage.setItem('creator-themes', JSON.stringify([...others, ...themes]));
+        const [themesRes, brandsRes] = await Promise.all([
+          fetch(`/api/themes?teamId=${user.teamId}`),
+          fetch(`/api/brands?teamId=${user.teamId}`),
+        ]);
+        if (themesRes.ok) {
+          const data: StrategicTheme[] = await themesRes.json();
+          setThemes(data);
+        }
+        if (brandsRes.ok) {
+          const data: Brand[] = await brandsRes.json();
+          setBrands(data);
+        }
       } catch (error) {
-        console.error('Falha ao salvar os temas no localStorage', error);
+        console.error('Falha ao carregar temas ou marcas', error);
       }
-    }
-  }, [themes, isLoaded, user?.teamId]);
+    };
+    load();
+  }, [user]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
     setThemeToEdit(theme);
     setIsDialogOpen(true);
   }, []);
 
-  const handleSaveTheme = useCallback((formData: ThemeFormData) => {
-    if (!user) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-    const team = teams.find(t => t.id === user.teamId);
-    if (!team) return;
-    const now = new Date().toISOString();
-    if (!themeToEdit && themes.length >= team.plan.limits.themes) {
-      alert('Limite de temas do plano atingido.');
-      return;
-    }
-    setThemes(prevThemes => {
-      if (themeToEdit) {
-        const updatedThemes = prevThemes.map(t =>
-          t.id === themeToEdit.id ? { ...t, ...formData, updatedAt: now } : t
+  const handleSaveTheme = useCallback(
+    async (formData: ThemeFormData) => {
+      if (!user?.teamId || !user.id) return;
+      try {
+        const method = themeToEdit ? 'PATCH' : 'POST';
+        const url = themeToEdit ? `/api/themes/${themeToEdit.id}` : '/api/themes';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
+        });
+        if (!res.ok) throw new Error('Falha ao salvar tema');
+        const saved: StrategicTheme = await res.json();
+        setThemes(prev =>
+          themeToEdit ? prev.map(t => (t.id === saved.id ? saved : t)) : [...prev, saved]
         );
-        if (selectedTheme?.id === themeToEdit.id) {
-          setSelectedTheme(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
+        if (themeToEdit && selectedTheme?.id === saved.id) {
+          setSelectedTheme(saved);
         }
-        return updatedThemes;
-      } else {
-        const newTheme: StrategicTheme = {
-          id: now,
-          teamId: user.teamId!,
-          userEmail: user.email,
-          ...formData,
-          createdAt: now,
-          updatedAt: now,
-        };
-        return [...prevThemes, newTheme];
+      } catch (error) {
+        console.error(error);
       }
-    });
-  }, [themeToEdit, themes.length, selectedTheme?.id, user]);
+    },
+    [themeToEdit, selectedTheme?.id, user]
+  );
 
-  const handleDeleteTheme = useCallback(() => {
+  const handleDeleteTheme = useCallback(async () => {
     if (!selectedTheme) return;
-    setThemes(prevThemes => prevThemes.filter(t => t.id !== selectedTheme.id));
-    setSelectedTheme(null);
+    try {
+      const res = await fetch(`/api/themes/${selectedTheme.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setThemes(prev => prev.filter(t => t.id !== selectedTheme.id));
+        setSelectedTheme(null);
+      }
+    } catch (error) {
+      console.error('Falha ao deletar tema', error);
+    }
   }, [selectedTheme]);
 
   return (

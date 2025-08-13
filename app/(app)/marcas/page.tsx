@@ -8,7 +8,6 @@ import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
 type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
@@ -16,78 +15,65 @@ type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | '
 export default function MarcasPage() {
   const { user } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
 
   useEffect(() => {
-    try {
-      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-      if (user?.teamId) {
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
-      }
-    } catch (error) {
-      console.error('Falha ao carregar as marcas do localStorage', error);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (isLoaded) {
+    const load = async () => {
+      if (!user?.teamId) return;
       try {
-        const all = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-        const others = all.filter(b => b.teamId !== user?.teamId);
-        localStorage.setItem('creator-brands', JSON.stringify([...others, ...brands]));
+        const res = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (res.ok) {
+          const data: Brand[] = await res.json();
+          setBrands(data);
+        }
       } catch (error) {
-        console.error('Falha ao salvar as marcas no localStorage', error);
+        console.error('Falha ao carregar marcas', error);
       }
-    }
-  }, [brands, isLoaded, user?.teamId]);
+    };
+    load();
+  }, [user]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
     setBrandToEdit(brand);
     setIsDialogOpen(true);
   }, []);
 
-  const handleSaveBrand = useCallback((formData: BrandFormData) => {
-    if (!user) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-    const team = teams.find(t => t.id === user.teamId);
-    if (!team) return;
-    const now = new Date().toISOString();
-    if (!brandToEdit && brands.length >= team.plan.limits.brands) {
-      alert('Limite de marcas do plano atingido.');
-      return;
-    }
-    setBrands(prevBrands => {
-      if (brandToEdit) {
-        const updatedBrands = prevBrands.map(b =>
-          b.id === brandToEdit.id ? { ...b, ...formData, updatedAt: now } : b
-        );
-        if (selectedBrand?.id === brandToEdit.id) {
-          setSelectedBrand(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
-        }
-        return updatedBrands;
-      } else {
-        const newBrand: Brand = {
-          id: now,
-          teamId: user.teamId!,
-          userEmail: user.email,
-          ...formData,
-          createdAt: now,
-          updatedAt: now,
-        };
-        return [...prevBrands, newBrand];
+  const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
+    if (!user?.teamId || !user.id) return;
+    try {
+      const method = brandToEdit ? 'PATCH' : 'POST';
+      const url = brandToEdit ? `/api/brands/${brandToEdit.id}` : '/api/brands';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
+      });
+      if (!res.ok) throw new Error('Falha ao salvar marca');
+      const saved: Brand = await res.json();
+      setBrands(prev =>
+        brandToEdit ? prev.map(b => (b.id === saved.id ? saved : b)) : [...prev, saved]
+      );
+      if (brandToEdit && selectedBrand?.id === saved.id) {
+        setSelectedBrand(saved);
       }
-    });
-  }, [brandToEdit, brands.length, selectedBrand?.id, user]);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [brandToEdit, selectedBrand?.id, user]);
 
-  const handleDeleteBrand = useCallback(() => {
+  const handleDeleteBrand = useCallback(async () => {
     if (!selectedBrand) return;
-    setBrands(prevBrands => prevBrands.filter(b => b.id !== selectedBrand.id));
-    setSelectedBrand(null);
+    try {
+      const res = await fetch(`/api/brands/${selectedBrand.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
+        setSelectedBrand(null);
+      }
+    } catch (error) {
+      console.error('Falha ao deletar marca', error);
+    }
   }, [selectedBrand]);
 
   return (
