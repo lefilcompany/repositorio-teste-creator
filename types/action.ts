@@ -1,11 +1,21 @@
 import { Sparkles, CheckCircle, Calendar } from 'lucide-react';
 
-// Tipos de ação para consistência
-export type ActionType = 'Criar conteúdo' | 'Revisar conteúdo' | 'Planejar conteúdo';
+// Tipos de ação para consistência - deve corresponder ao enum ActionType no Prisma
+export type ActionType = 'CRIAR_CONTEUDO' | 'REVISAR_CONTEUDO' | 'PLANEJAR_CONTEUDO';
+
+// Tipos de ação para exibição
+export type ActionDisplayType = 'Criar conteúdo' | 'Revisar conteúdo' | 'Planejar conteúdo';
+
+// Mapeamento de tipos para exibição
+export const ACTION_TYPE_DISPLAY: { [key in ActionType]: ActionDisplayType } = {
+  'CRIAR_CONTEUDO': 'Criar conteúdo',
+  'REVISAR_CONTEUDO': 'Revisar conteúdo',
+  'PLANEJAR_CONTEUDO': 'Planejar conteúdo',
+};
 
 // Mapeamento de tipos para seus respectivos ícones e cores
 export const ACTION_STYLE_MAP: {
-  [key in ActionType]: { icon: React.ElementType; color: string; background: string };
+  [key in ActionDisplayType]: { icon: React.ElementType; color: string; background: string };
 } = {
   'Criar conteúdo': {
     icon: Sparkles,
@@ -24,21 +34,21 @@ export const ACTION_STYLE_MAP: {
   },
 };
 
-// Interface principal da Ação
+// Interface principal da Ação - corresponde ao modelo Prisma
 export interface Action {
   id: string;
   type: ActionType;
-  brand: string;
+  brandId: string;
   teamId: string;
-  userEmail: string;
+  userId: string;
   createdAt: string;
-  details: {
+  details?: {
     prompt?: string;
     objective?: string;
     platform?: string;
     [key: string]: any;
-  };
-  result: {
+  } | null;
+  result?: {
     imageUrl?: string;
     title?: string;
     body?: string;
@@ -46,5 +56,16 @@ export interface Action {
     feedback?: string;
     plan?: string;
     originalImage?: string;
+    [key: string]: any;
+  } | null;
+  // Relacionamentos vindos do Prisma
+  brand?: {
+    id: string;
+    name: string;
+  };
+  user?: {
+    id: string;
+    name: string;
+    email: string;
   };
 }

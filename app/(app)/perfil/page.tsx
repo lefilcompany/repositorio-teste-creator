@@ -18,22 +18,33 @@ export default function PerfilPage() {
   });
 
   useEffect(() => {
-    if (user?.teamId) {
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const t = teams.find((team) => team.id === user.teamId);
-      if (t) {
-        setTeamInfo({
-          teamName: t.name,
-          plan: t.plan.name,
-          actionsRemaining: {
-            total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
-            createContent: t.credits.contentSuggestions,
-            reviewContent: t.credits.contentReviews,
-            planContent: t.credits.contentPlans,
-          },
-        });
+    const loadTeamInfo = async () => {
+      if (!user?.teamId || !user.id) return;
+      
+      try {
+        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          const t = teamsData.find((team) => team.id === user.teamId);
+          if (t) {
+            setTeamInfo({
+              teamName: t.name,
+              plan: t.plan.name,
+              actionsRemaining: {
+                total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
+                createContent: t.credits.contentSuggestions,
+                reviewContent: t.credits.contentReviews,
+                planContent: t.credits.contentPlans,
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar informações da equipe:', error);
       }
-    }
+    };
+    
+    loadTeamInfo();
   }, [user]);
 
   if (isLoading || !user) {

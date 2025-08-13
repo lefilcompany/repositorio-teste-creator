@@ -1,5 +1,5 @@
-// app/page.tsx
-'use client'; // Necessário para usar hooks como useState e useEffect
+// app/(app)/home/page.tsx
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -25,57 +25,68 @@ import type { Team } from '@/types/team';
 
 
 export default function HomePage() {
-  const { user } = useAuth();
-  const [dashboardData, setDashboardData] = useState({
-    userName: 'Usuário',
-    stats: { conteudosGerados: 0, marcasGerenciadas: 0 },
-    creditos: { restantes: 0, total: 0 },
-    atividadesRecentes: [] as { id: string; tipo: string; titulo: string; data: string }[],
-  });
+  const { user, team } = useAuth();
+  const [stats, setStats] = useState({ conteudosGerados: 0, marcasGerenciadas: 0 });
+  const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.teamId) return;
-    try {
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const team = teams.find(t => t.id === user.teamId);
-      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-      const storedActions = JSON.parse(localStorage.getItem('creator-action-history') || '[]') as Action[];
+    const fetchDashboardData = async () => {
+      if (!user?.teamId) {
+        setIsLoading(false);
+        return;
+      }
 
-      const teamBrands = storedBrands.filter(b => b.teamId === user.teamId);
-      const teamActions = storedActions.filter(a => a.teamId === user.teamId);
+      try {
+        // Fetch brands and actions in parallel
+        const [brandsResponse, actionsResponse] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/actions?teamId=${user.teamId}&limit=3`) // Assumes an endpoint to get actions
+        ]);
 
-      const atividadesRecentes = teamActions
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 3)
-        .map(action => ({
-          id: action.id,
-          tipo: action.type,
-          titulo: action.brand,
-          data: new Date(action.createdAt).toLocaleDateString('pt-BR'),
-        }));
+        if (brandsResponse.ok) {
+          const brandsData: Brand[] = await brandsResponse.json();
+          setStats(prev => ({ ...prev, marcasGerenciadas: brandsData.length }));
+        }
 
-      const totalCreditos = team ?
-        team.plan.limits.contentSuggestions + team.plan.limits.contentReviews + team.plan.limits.calendars : 0;
-      const restantes = team ?
-        team.credits.contentSuggestions + team.credits.contentReviews + team.credits.contentPlans : 0;
+        if (actionsResponse.ok) {
+          const actionsData: Action[] = await actionsResponse.json();
+          // Assuming the API can also provide a total count or we fetch all and count
+          // For simplicity, we'll assume another call or header provides total count if needed.
+          // Here, we'll just set the recent actions.
+          setAtividadesRecentes(actionsData);
+          // A more robust solution would be a dedicated stats endpoint
+          const totalActionsRes = await fetch(`/api/actions?teamId=${user.teamId}`);
+          if (totalActionsRes.ok) {
+            const allActions: Action[] = await totalActionsRes.json();
+            setStats(prev => ({ ...prev, conteudosGerados: allActions.length }));
+          }
+        }
+      } catch (error) {
+        console.error('Falha ao carregar dados do dashboard via API', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      setDashboardData({
-        userName: user.name || 'Usuário',
-        stats: {
-          conteudosGerados: teamActions.length,
-          marcasGerenciadas: teamBrands.length,
-        },
-        creditos: { restantes, total: totalCreditos },
-        atividadesRecentes,
-      });
-    } catch (error) {
-      console.error('Falha ao carregar dados do dashboard do localStorage', error);
-    }
+    fetchDashboardData();
   }, [user]);
 
-  const creditosUsadosPercentual = (dashboardData.creditos.total > 0)
-    ? ((dashboardData.creditos.total - dashboardData.creditos.restantes) / dashboardData.creditos.total) * 100
+  const creditos = team ? {
+    restantes: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0),
+    total: (team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0)
+  } : { restantes: 0, total: 0 };
+
+  const creditosUsadosPercentual = (creditos.total > 0)
+    ? ((creditos.total - creditos.restantes) / creditos.total) * 100
     : 0;
+
+  const formattedAtividadesRecentes = atividadesRecentes.map(action => ({
+    id: action.id,
+    tipo: action.type,
+    titulo: action.brand?.name || 'Marca não especificada',
+    data: new Date(action.createdAt).toLocaleDateString('pt-BR'),
+  }));
 
   return (
     <div className="flex flex-col min-h-full p-4 md:p-8 space-y-8 pb-8">
@@ -87,7 +98,7 @@ export default function HomePage() {
               <Home className="h-8 w-8" />
             </div>
             <h1 className="text-3xl font-bold text-foreground">
-              Olá, {dashboardData.userName}!
+              Olá, {user?.name || 'Usuário'}!
             </h1>
           </div>
           <p className="text-muted-foreground">
@@ -111,9 +122,9 @@ export default function HomePage() {
             <Rocket className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{dashboardData.creditos.restantes}</div>
+            <div className="text-4xl font-bold">{creditos.restantes}</div>
             <p className="text-xs text-muted-foreground">
-              de {dashboardData.creditos.total} créditos disponíveis
+              de {creditos.total} créditos disponíveis
             </p>
             <Progress value={creditosUsadosPercentual} className="mt-4 h-3" />
             <Button variant="link" className="px-0 mt-2 text-primary">
@@ -129,7 +140,7 @@ export default function HomePage() {
             <Sparkles className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{dashboardData.stats.conteudosGerados}</div>
+            <div className="text-4xl font-bold">{stats.conteudosGerados}</div>
             <p className="text-xs text-muted-foreground">total de conteúdos criados</p>
           </CardContent>
         </Card>
@@ -141,7 +152,7 @@ export default function HomePage() {
             <Tag className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{dashboardData.stats.marcasGerenciadas}</div>
+            <div className="text-4xl font-bold">{stats.marcasGerenciadas}</div>
             <p className="text-xs text-muted-foreground">total de marcas ativas</p>
           </CardContent>
         </Card>
@@ -193,8 +204,8 @@ export default function HomePage() {
           <Card className="shadow-lg">
             <CardContent className="p-0">
               <div className="divide-y">
-                {dashboardData.atividadesRecentes.length > 0 ? (
-                  dashboardData.atividadesRecentes.map((item) => (
+                {formattedAtividadesRecentes.length > 0 ? (
+                  formattedAtividadesRecentes.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="p-2 bg-muted rounded-full">
@@ -207,13 +218,13 @@ export default function HomePage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">{item.data}</p>
-                        <Link href="#" className="text-sm text-primary hover:underline">Ver detalhes</Link>
+                        <Link href={`/historico?actionId=${item.id}`} className="text-sm text-primary hover:underline">Ver detalhes</Link>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="p-8 text-center text-muted-foreground">
-                    Nenhuma atividade recente encontrada.
+                    {isLoading ? 'Carregando atividades...' : 'Nenhuma atividade recente encontrada.'}
                   </div>
                 )}
               </div>

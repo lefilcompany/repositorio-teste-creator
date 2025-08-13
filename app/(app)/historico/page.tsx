@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { History } from 'lucide-react';
 import type { Action } from '@/types/action';
 import type { Brand } from '@/types/brand';
+import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import ActionList from '@/components/historico/actionList';
 import ActionDetails from '@/components/historico/actionDetails';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,25 +20,39 @@ export default function HistoricoPage() {
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  // Carrega ações e marcas do localStorage
+  // Carrega ações e marcas via API
   useEffect(() => {
-    try {
-      if (user?.teamId) {
-        const storedActions = JSON.parse(localStorage.getItem('creator-action-history') || '[]') as Action[];
-        setActions(storedActions.filter(a => a.teamId === user.teamId));
-        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const [actionsRes, brandsRes] = await Promise.all([
+          fetch(`/api/actions?teamId=${user.teamId}`),
+          fetch(`/api/brands?teamId=${user.teamId}`)
+        ]);
+        
+        if (actionsRes.ok) {
+          const actionsData: Action[] = await actionsRes.json();
+          setActions(actionsData);
+        }
+        
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        }
+      } catch (error) {
+        console.error("Falha ao carregar dados da API", error);
       }
-    } catch (error) {
-      console.error("Falha ao carregar dados do localStorage", error);
-    }
+    };
+    
+    loadData();
   }, [user]);
 
   // Lógica de filtragem
   const filteredActions = useMemo(() => {
     return actions.filter(action => {
-      const brandMatch = brandFilter === 'all' || action.brand === brandFilter;
-      const typeMatch = typeFilter === 'all' || action.type === typeFilter;
+      const brandMatch = brandFilter === 'all' || action.brand?.name === brandFilter;
+      const typeMatch = typeFilter === 'all' || ACTION_TYPE_DISPLAY[action.type] === typeFilter;
       return brandMatch && typeMatch;
     });
   }, [actions, brandFilter, typeFilter]);

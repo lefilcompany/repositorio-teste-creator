@@ -16,19 +16,17 @@ interface LeaveTeamDialogProps {
 export default function LeaveTeamDialog({ isOpen, onOpenChange }: LeaveTeamDialogProps) {
   const { user, logout } = useAuth();
 
-  const handleLeaveTeam = () => {
-    if (!user) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-    const teamIndex = teams.findIndex(t => t.id === user.teamId);
-    if (teamIndex > -1) {
-      teams[teamIndex].members = teams[teamIndex].members.filter(m => m !== user.email);
-      localStorage.setItem('creator-teams', JSON.stringify(teams));
+  const handleLeaveTeam = async () => {
+    if (!user || !user.teamId) return;
+    
+    try {
+      // Fazer chamada à API para remover o usuário da equipe
+      // Por ora, apenas fazemos logout pois a lógica completa depende da API de teams
+      onOpenChange(false);
+      logout();
+    } catch (error) {
+      console.error('Erro ao sair da equipe:', error);
     }
-    const users = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-    const updatedUsers = users.filter(u => u.email !== user.email);
-    localStorage.setItem('creator-users', JSON.stringify(updatedUsers));
-    onOpenChange(false);
-    logout();
   };
 
   return (

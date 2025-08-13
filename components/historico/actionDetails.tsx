@@ -2,7 +2,7 @@
 
 import { History, Image as ImageIcon } from 'lucide-react';
 import type { Action } from '@/types/action';
-import { ACTION_STYLE_MAP } from '@/types/action';
+import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 import { cn } from '@/lib/utils';
 
 interface ActionDetailsProps {
@@ -37,7 +37,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
     );
   }
 
-  const style = ACTION_STYLE_MAP[action.type];
+  const displayType = ACTION_TYPE_DISPLAY[action.type];
+  const style = ACTION_STYLE_MAP[displayType];
   const Icon = style.icon;
 
   return (
@@ -48,20 +49,20 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             <Icon className={cn("h-8 w-8", style.color)} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-foreground break-words">{action.type}</h2>
+            <h2 className="text-2xl font-bold text-foreground break-words">{displayType}</h2>
             <p className="text-sm text-muted-foreground">{formatDate(action.createdAt)}</p>
           </div>
         </div>
 
         <div className="space-y-4 text-left overflow-y-auto flex-grow pr-2 -mr-4">
-          <DetailItem label="Marca" value={action.brand || 'N/A'} />
+          <DetailItem label="Marca" value={action.brand?.name || 'N/A'} />
 
-          {action.type === 'Criar conteúdo' && (
+          {action.type === 'CRIAR_CONTEUDO' && (
             <>
-              <DetailItem label="Plataforma" value={action.details.platform} />
-              <DetailItem label="Título Gerado" value={action.result.title} />
-              <DetailItem label="Legenda Gerada" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result.body}</p>} />
-              {action.result.imageUrl && (
+              <DetailItem label="Plataforma" value={action.details?.platform} />
+              <DetailItem label="Título Gerado" value={action.result?.title} />
+              <DetailItem label="Legenda Gerada" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.body}</p>} />
+              {action.result?.imageUrl && (
                 <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
                   <img src={action.result.imageUrl} alt="Imagem Gerada" className="rounded-lg object-cover w-full h-full" />
                 </div>
@@ -69,10 +70,10 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             </>
           )}
 
-          {action.type === 'Revisar conteúdo' && (
+          {action.type === 'REVISAR_CONTEUDO' && (
             <>
-              <DetailItem label="Feedback Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result.feedback}</p>} />
-              {action.result.originalImage ? (
+              <DetailItem label="Feedback Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.feedback}</p>} />
+              {action.result?.originalImage ? (
                 <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
                   <img src={action.result.originalImage} alt="Imagem Original" className="rounded-lg object-cover w-full h-full" />
                 </div>
@@ -80,11 +81,11 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             </>
           )}
 
-          {action.type === 'Planejar conteúdo' && (
+          {action.type === 'PLANEJAR_CONTEUDO' && (
             <>
-              <DetailItem label="Plataforma" value={action.details.platform} />
-              <DetailItem label="Quantidade" value={action.details.quantity} />
-              <DetailItem label="Planejamento Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result.plan}</p>} />
+              <DetailItem label="Plataforma" value={action.details?.platform} />
+              <DetailItem label="Quantidade" value={action.details?.quantity} />
+              <DetailItem label="Planejamento Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.plan}</p>} />
             </>
           )}
 

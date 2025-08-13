@@ -10,7 +10,7 @@ import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
-type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function MarcasPage() {
   const { user } = useAuth();
@@ -27,6 +27,9 @@ export default function MarcasPage() {
         if (res.ok) {
           const data: Brand[] = await res.json();
           setBrands(data);
+        } else {
+          const error = await res.json();
+          console.error('Falha ao carregar marcas:', error.error);
         }
       } catch (error) {
         console.error('Falha ao carregar marcas', error);
@@ -50,7 +53,13 @@ export default function MarcasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
       });
-      if (!res.ok) throw new Error('Falha ao salvar marca');
+      
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Falha ao salvar marca:', error.error);
+        throw new Error(error.error || 'Falha ao salvar marca');
+      }
+      
       const saved: Brand = await res.json();
       setBrands(prev =>
         brandToEdit ? prev.map(b => (b.id === saved.id ? saved : b)) : [...prev, saved]
@@ -59,22 +68,27 @@ export default function MarcasPage() {
         setSelectedBrand(saved);
       }
     } catch (error) {
-      console.error(error);
+      console.error('Erro ao salvar marca:', error);
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
   const handleDeleteBrand = useCallback(async () => {
-    if (!selectedBrand) return;
+    if (!selectedBrand || !user?.teamId || !user?.id) return;
     try {
-      const res = await fetch(`/api/brands/${selectedBrand.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, { 
+        method: 'DELETE' 
+      });
       if (res.ok) {
         setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
         setSelectedBrand(null);
+      } else {
+        const error = await res.json();
+        console.error('Falha ao deletar marca:', error.error);
       }
     } catch (error) {
       console.error('Falha ao deletar marca', error);
     }
-  }, [selectedBrand]);
+  }, [selectedBrand, user]);
 
   return (
     <div className="p-4 md:p-8 h-full flex flex-col gap-8">

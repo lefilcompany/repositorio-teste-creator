@@ -42,19 +42,37 @@ export default function Plan() {
   const [isResultView, setIsResultView] = useState<boolean>(false);
 
   useEffect(() => {
-    try {
-      if (user?.teamId) {
-        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
-        const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
-        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
-        const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-        const t = teams.find(tm => tm.id === user.teamId);
-        if (t) setTeam(t);
+    const loadData = async () => {
+      if (!user?.teamId || !user.id) return;
+      
+      try {
+        const [brandsRes, themesRes, teamsRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/themes?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
+        
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        }
+        
+        if (themesRes.ok) {
+          const themesData: StrategicTheme[] = await themesRes.json();
+          setThemes(themesData);
+        }
+        
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        }
+      } catch (error) {
+        console.error('Failed to load data from API', error);
       }
-    } catch (error) {
-      console.error('Failed to load data from localStorage', error);
-    }
+    };
+    
+    loadData();
   }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -107,29 +125,47 @@ export default function Plan() {
       const data = await response.json();
       setPlannedContent(data.plan);
 
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const idx = teams.findIndex(t => t.id === team.id);
-      if (idx > -1) {
-        teams[idx].credits.contentPlans -= 1;
-        localStorage.setItem('creator-teams', JSON.stringify(teams));
-        setTeam(teams[idx]);
+      // Atualizar créditos no banco de dados
+      if (team && user?.id) {
+        try {
+          const updatedCredits = { ...team.credits, contentPlans: team.credits.contentPlans - 1 };
+          const updateRes = await fetch('/api/teams', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: team.id, credits: updatedCredits }),
+          });
+          
+          if (updateRes.ok) {
+            const updatedTeam = await updateRes.json();
+            setTeam(updatedTeam);
+          }
+        } catch (error) {
+          console.error('Failed to update team credits', error);
+        }
       }
 
-      const saveHistory = {
-        type: 'Planejar conteúdo',
-        brand: formData.brand,
-        details: { ...formData },
-        result: { plan: data.plan },
-      };
-      const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-      history.unshift({
-        id: new Date().toISOString() + Math.random(),
-        createdAt: new Date().toISOString(),
-        teamId: team.id,
-        userEmail: user?.email || '',
-        ...saveHistory,
-      });
-      localStorage.setItem('creator-action-history', JSON.stringify(history));
+      // Salvar no histórico via API
+      if (user?.teamId && user.id && formData.brand) {
+        try {
+          const brandData = brands.find(b => b.name === formData.brand);
+          if (brandData) {
+            await fetch('/api/actions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'PLANEJAR_CONTEUDO',
+                teamId: user.teamId,
+                userId: user.id,
+                brandId: brandData.id,
+                details: { ...formData },
+                result: { plan: data.plan },
+              }),
+            });
+          }
+        } catch (error) {
+          console.error('Failed to save action', error);
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

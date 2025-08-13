@@ -4,19 +4,21 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types/user';
+import { Team } from '@/types/team';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
+  team: Team | null;
   login: (data: Omit<User, 'name'>) => Promise<'success' | 'pending' | 'invalid'>;
   logout: () => void;
   updateUser: (updatedData: Partial<User>) => Promise<void>;
   isLoading: boolean;
+  reloadTeam: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Gera um token aleatório com no mínimo 32 caracteres
 const generateToken = () => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -25,45 +27,52 @@ const generateToken = () => {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   const loadTeam = async (teamId: string | undefined | null) => {
-    if (!teamId) return;
+    if (!teamId) {
+      setTeam(null);
+      return;
+    }
     try {
       const res = await fetch(`/api/teams/${teamId}`);
       if (res.ok) {
-        const team = await res.json();
-        localStorage.setItem('creator-teams', JSON.stringify([team]));
+        const teamData = await res.json();
+        setTeam(teamData);
+      } else {
+        setTeam(null);
+        console.error('Failed to load team data');
       }
     } catch (error) {
       console.error('Failed to load team data', error);
+      setTeam(null);
     }
   };
 
-  // useEffect para carregar dados (sem alterações)
   useEffect(() => {
-      const init = async () => {
-        try {
-          const token = localStorage.getItem('authToken');
-          if (token && token.length >= 32) {
-            const storedUser = localStorage.getItem('authUser');
-            if (storedUser) {
-              const parsedUser: User = JSON.parse(storedUser);
-              setUser(parsedUser);
-              await loadTeam(parsedUser.teamId);
-            } else {
-              logout();
-            }
+    const init = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (token && token.length >= 32) {
+          const storedUser = localStorage.getItem('authUser');
+          if (storedUser) {
+            const parsedUser: User = JSON.parse(storedUser);
+            setUser(parsedUser);
+            await loadTeam(parsedUser.teamId);
+          } else {
+            await logout();
           }
-        } catch (error) {
-          console.error('Failed to parse auth data from localStorage', error);
-        } finally {
-          setIsLoading(false);
         }
-      };
-      init();
-    }, []);
+      } catch (error) {
+        console.error('Failed to parse auth data from localStorage', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, []);
 
   const login = async (
     data: Omit<User, 'name'>
@@ -76,31 +85,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.status === 403) return 'pending';
       if (!res.ok) return 'invalid';
+
       const userToAuth: User = await res.json();
       setUser(userToAuth);
+
       const token = generateToken();
       localStorage.setItem('authToken', token);
-        localStorage.setItem('authUser', JSON.stringify(userToAuth));
-        await loadTeam(userToAuth.teamId);
-        router.push('/home');
-        return 'success';
-      } catch (error) {
-        console.error('Login failed', error);
-        return 'invalid';
-      }
-    };
+      localStorage.setItem('authUser', JSON.stringify(userToAuth));
 
-  const logout = () => {
+      await loadTeam(userToAuth.teamId);
+
+      router.push('/home');
+      return 'success';
+    } catch (error) {
+      console.error('Login failed', error);
+      return 'invalid';
+    }
+  };
+
+  const logout = async () => {
     setUser(null);
+    setTeam(null);
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
-    localStorage.removeItem('creator-teams');
     router.push('/login');
   };
 
-  // <-- INÍCIO DA NOVA FUNÇÃO -->
   const updateUser = async (updatedData: Partial<User>) => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
       const res = await fetch(`/api/users/${user.id}`, {
         method: 'PATCH',
@@ -111,20 +123,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newUser: User = await res.json();
         setUser(newUser);
         localStorage.setItem('authUser', JSON.stringify(newUser));
+      } else {
+        throw new Error('Falha ao atualizar usuário');
       }
     } catch (error) {
       console.error('Failed to update user data', error);
     }
   };
-  // <-- FIM DA NOVA FUNÇÃO -->
-  
+
+  const reloadTeam = async () => {
+    if (user?.teamId) {
+      await loadTeam(user.teamId);
+    }
+  };
+
   const value = {
     isAuthenticated: !!user,
     user,
+    team,
     login,
     logout,
-    updateUser, // <-- EXPORTAR A FUNÇÃO
-    isLoading
+    updateUser,
+    isLoading,
+    reloadTeam,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

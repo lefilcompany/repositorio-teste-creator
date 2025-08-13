@@ -7,7 +7,7 @@ export interface MoodboardFile {
 export interface Brand {
   id: string;
   teamId: string;
-  userEmail: string;
+  userId: string;
   name: string;
   responsible: string;
   segment: string;
@@ -22,7 +22,7 @@ export interface Brand {
   promise: string;
   crisisInfo: string;
   milestones: string;
-  collaborations:string;
+  collaborations: string;
   restrictions: string;
   moodboard: MoodboardFile | null;
   createdAt: string;

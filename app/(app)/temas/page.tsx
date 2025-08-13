@@ -11,7 +11,7 @@ import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
 
-type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function TemasPage() {
   const { user } = useAuth();

@@ -19,7 +19,7 @@ import {
 import type { Brand, MoodboardFile } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
 
-type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 interface BrandDialogProps {
   isOpen: boolean;

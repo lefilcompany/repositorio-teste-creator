@@ -11,7 +11,7 @@ import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
 
-type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function PersonasPage() {
   const { user } = useAuth();

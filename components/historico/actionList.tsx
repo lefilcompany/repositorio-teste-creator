@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import type { Action } from '@/types/action';
-import { ACTION_STYLE_MAP } from '@/types/action';
+import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 
 interface ActionListProps {
   actions: Action[];
@@ -24,7 +24,8 @@ export default function ActionList({ actions, selectedAction, onSelectAction }: 
         {actions.length > 0 ? (
           <ul className="space-y-3">
             {actions.map((action) => {
-              const style = ACTION_STYLE_MAP[action.type];
+              const displayType = ACTION_TYPE_DISPLAY[action.type];
+              const style = ACTION_STYLE_MAP[displayType];
               const Icon = style.icon;
               return (
                 <li key={action.id}>
@@ -42,8 +43,8 @@ export default function ActionList({ actions, selectedAction, onSelectAction }: 
                         <Icon className={cn("h-5 w-5", style.color)} />
                       </div>
                       <div className="overflow-hidden">
-                        <p className="font-semibold text-lg text-foreground truncate">{action.type}</p>
-                        <p className="text-sm text-muted-foreground truncate">Marca: {action.brand || 'Não especificada'}</p>
+                        <p className="font-semibold text-lg text-foreground truncate">{ACTION_TYPE_DISPLAY[action.type]}</p>
+                        <p className="text-sm text-muted-foreground truncate">Marca: {action.brand?.name || 'Não especificada'}</p>
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground hidden md:block flex-shrink-0">

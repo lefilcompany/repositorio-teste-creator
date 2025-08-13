@@ -20,18 +20,27 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.onerror = reject;
   });
 
-// Função auxiliar para salvar no histórico
-const saveActionToHistory = (actionData: any, teamId: string, userEmail: string) => {
-  const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-  const newAction = {
-    id: new Date().toISOString() + Math.random(),
-    createdAt: new Date().toISOString(),
-    teamId,
-    userEmail,
-    ...actionData,
-  };
-  history.unshift(newAction);
-  localStorage.setItem('creator-action-history', JSON.stringify(history));
+// Função auxiliar para salvar no histórico via API
+const saveActionToHistory = async (actionData: any, teamId: string, userId: string, brandName: string, brands: Brand[]) => {
+  try {
+    const brandData = brands.find(b => b.name === brandName);
+    if (brandData) {
+      await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'REVISAR_CONTEUDO',
+          teamId,
+          userId,
+          brandId: brandData.id,
+          details: actionData.details,
+          result: actionData.result,
+        }),
+      });
+    }
+  } catch (error) {
+    console.error('Failed to save action', error);
+  }
 };
 
 export default function Revisar() {
@@ -50,19 +59,37 @@ export default function Revisar() {
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
 
   useEffect(() => {
-    try {
-      if (user?.teamId) {
-        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
-        const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
-        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
-        const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-        const t = teams.find(tm => tm.id === user.teamId);
-        if (t) setTeam(t);
+    const loadData = async () => {
+      if (!user?.teamId || !user.id) return;
+      
+      try {
+        const [brandsRes, themesRes, teamsRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/themes?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
+        
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        }
+        
+        if (themesRes.ok) {
+          const themesData: StrategicTheme[] = await themesRes.json();
+          setThemes(themesData);
+        }
+        
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        }
+      } catch (error) {
+        console.error('Failed to load data from API', error);
       }
-    } catch (error) {
-      console.error('Failed to load data from localStorage', error);
-    }
+    };
+    
+    loadData();
   }, [user]);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -114,11 +141,9 @@ export default function Revisar() {
       const data = await response.json();
       setRevisedText(data.feedback);
 
-      // ADICIONAR ESTA PARTE: Salvar no histórico
+      // ADICIONAR ESTA PARTE: Salvar no histórico via API
       const originalImageBase64 = await fileToBase64(imageFile);
-      saveActionToHistory({
-        type: 'Revisar conteúdo',
-        brand: brand,
+      await saveActionToHistory({
         details: {
           prompt: adjustmentsPrompt,
           theme: theme,
@@ -127,14 +152,25 @@ export default function Revisar() {
           feedback: data.feedback,
           originalImage: originalImageBase64,
         },
-      }, team.id, user?.email || '');
+      }, team.id, user?.id || '', brand, brands);
 
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const idx = teams.findIndex(t => t.id === team.id);
-      if (idx > -1) {
-        teams[idx].credits.contentReviews -= 1;
-        localStorage.setItem('creator-teams', JSON.stringify(teams));
-        setTeam(teams[idx]);
+      // Atualizar créditos no banco de dados
+      if (team && user?.id) {
+        try {
+          const updatedCredits = { ...team.credits, contentReviews: team.credits.contentReviews - 1 };
+          const updateRes = await fetch('/api/teams', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: team.id, credits: updatedCredits }),
+          });
+          
+          if (updateRes.ok) {
+            const updatedTeam = await updateRes.json();
+            setTeam(updatedTeam);
+          }
+        } catch (error) {
+          console.error('Failed to update team credits', error);
+        }
       }
     } catch (err: any) {
       setError(err.message);

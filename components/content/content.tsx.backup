@@ -290,10 +290,10 @@ export default function Creator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
+      <div className="container mx-auto px-4 max-w-7xl flex flex-col h-screen">
         {/* Fixed Header */}
-        <header className="py-6 border-b border-border/10 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <header className="flex-shrink-0 py-6 border-b border-border/10 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -313,36 +313,23 @@ export default function Creator() {
             </div>
             {team && (
               <div className="flex items-center gap-4">
-                <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 backdrop-blur-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-30"></div>
-                        <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                          <Zap className="h-4 w-4" />
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits.contentSuggestions}
-                          </span>
-                        </div>
-                        <span className="text-xs text-muted-foreground font-medium">créditos restantes</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium text-foreground">{team.credits.contentSuggestions}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">créditos restantes</span>
+                </div>
               </div>
             )}
           </div>
         </header>
 
-        {/* Main Content with proper padding */}
-        <main className="py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6 lg:gap-8">
-            {/* Left Panel - Configuration */}
-            <div className="lg:col-span-1 xl:col-span-2 space-y-6">
+        {/* Scrollable Main Content */}
+        <div className="flex-1 overflow-hidden py-6">
+          <div className="h-full overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6 lg:gap-8 pb-6">
+          {/* Left Panel - Configuration */}
+          <div className="lg:col-span-1 xl:col-span-2 space-y-6">
             <Card className="backdrop-blur-sm bg-card/50 border-0 shadow-xl shadow-black/5">
               <CardHeader className="pb-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -397,10 +384,10 @@ export default function Creator() {
                       <SelectValue placeholder="Onde será postado?" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Instagram">Instagram</SelectItem>
-                      <SelectItem value="Facebook">Facebook</SelectItem>
-                      <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                      <SelectItem value="Twitter">Twitter (X)</SelectItem>
+                      <SelectItem value="Instagram">📷 Instagram</SelectItem>
+                      <SelectItem value="Facebook">👥 Facebook</SelectItem>
+                      <SelectItem value="LinkedIn">💼 LinkedIn</SelectItem>
+                      <SelectItem value="Twitter">🐦 Twitter (X)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -518,9 +505,9 @@ export default function Creator() {
             </Card>
           </div>
         </div>
-        
-        {/* Action Button Section */}
-        <div className="py-8 border-t border-border/10 bg-background/50 backdrop-blur-sm mt-8">
+
+        {/* Fixed Action Button */}
+        <footer className="flex-shrink-0 p-6 border-t border-border/10 bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4">
             <Button 
               onClick={handleGenerateContent} 
@@ -549,8 +536,7 @@ export default function Creator() {
               </div>
             )}
           </div>
-        </div>
-        </main>
+        </footer>
       </div>
     </div>
   );
