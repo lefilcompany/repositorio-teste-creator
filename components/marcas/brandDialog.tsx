@@ -18,8 +18,6 @@ import {
 } from '@/components/ui/dialog';
 import type { Brand, MoodboardFile } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
-import type { User } from '@/types/user';
 
 type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
@@ -82,18 +80,22 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
   }, [brandToEdit, isOpen]);
 
   useEffect(() => {
-    if (isOpen && user?.teamId) {
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const users = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-      const team = teams.find(t => t.id === user.teamId);
-      if (team) {
-        const data = team.members.map(email => {
-          const u = users.find(us => us.email === email);
-          return { email, name: u?.name || email };
-        });
-        setMembers(data);
+    const loadMembers = async () => {
+      if (!isOpen || !user?.teamId) return;
+      try {
+        const res = await fetch(`/api/team-members?teamId=${user.teamId}`);
+        if (res.ok) {
+          const data: { email: string; name: string }[] = await res.json();
+          setMembers(data);
+        } else {
+          setMembers([]);
+        }
+      } catch (error) {
+        console.error('Failed to load team members', error);
+        setMembers([]);
       }
-    }
+    };
+    loadMembers();
   }, [isOpen, user]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

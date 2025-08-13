@@ -1,5 +1,7 @@
 // app/api/revisar-imagem/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { ActionType } from '@prisma/client';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -14,9 +16,12 @@ export async function POST(req: NextRequest) {
     const prompt = formData.get('prompt') as string | null;
     const brand = formData.get('brand') as string | null;
     const theme = formData.get('theme') as string | null;
+    const teamId = formData.get('teamId') as string | null;
+    const brandId = formData.get('brandId') as string | null;
+    const userId = formData.get('userId') as string | null;
 
-    if (!imageFile || !prompt) {
-      return NextResponse.json({ error: 'Imagem e prompt de ajuste são obrigatórios.' }, { status: 400 });
+    if (!imageFile || !prompt || !teamId || !brandId || !userId) {
+      return NextResponse.json({ error: 'Imagem, prompt, teamId, brandId e userId são obrigatórios.' }, { status: 400 });
     }
 
     const imageBuffer = await imageFile.arrayBuffer();
@@ -88,7 +93,18 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const analysisContent = data.choices[0].message.content;
 
-    return NextResponse.json({ feedback: analysisContent });
+    const action = await prisma.action.create({
+      data: {
+        type: ActionType.REVISAR_CONTEUDO,
+        teamId,
+        brandId,
+        userId,
+        details: { prompt, brand, theme },
+        result: { feedback: analysisContent, originalImage: dataURI },
+      },
+    });
+
+    return NextResponse.json({ feedback: analysisContent, actionId: action.id });
 
   } catch (error) {
     console.error('Erro ao chamar a API da OpenAI:', error);

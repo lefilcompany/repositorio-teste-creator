@@ -94,7 +94,7 @@ export default function PersonaDetails({ persona, onEdit, onDelete, brands }: Pe
             <AlertDialogHeader>
               <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
               <AlertDialogDescription>
-                Essa ação não pode ser desfeita. Isso irá deletar permanentemente a persona "{persona.name}".
+                Essa ação não pode ser desfeita. Isso irá deletar permanentemente a persona &quot;{persona.name}&quot;.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

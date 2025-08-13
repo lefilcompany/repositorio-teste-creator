@@ -4,6 +4,8 @@ import OpenAI from 'openai';
 import { GoogleGenAI, Modality } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
+import { prisma } from '@/lib/prisma';
+import { ActionType } from '@prisma/client';
 
 // Inicializa o cliente da OpenAI com suas configurações.
 const openai = new OpenAI({
@@ -398,13 +400,14 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.json();
+    const { teamId, brandId, userId, ...actionDetails } = formData;
 
-    if (!formData.prompt) {
-      return NextResponse.json({ error: 'A descrição da imagem é obrigatória.' }, { status: 400 });
+    if (!actionDetails.prompt || !teamId || !brandId || !userId) {
+      return NextResponse.json({ error: 'Dados obrigatórios ausentes.' }, { status: 400 });
     }
 
     // --- 1. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS ---
-    const imageResult = await generateImageWithFallbacks(formData);
+    const imageResult = await generateImageWithFallbacks(actionDetails);
 
     if (!imageResult.success) {
       return NextResponse.json({
@@ -413,7 +416,23 @@ export async function POST(req: NextRequest) {
     }
 
     // --- 2. GERAÇÃO DO TEXTO COM GPT-4O-MINI ---
-    const postContent = await generateTextContent(formData);
+    const postContent = await generateTextContent(actionDetails);
+
+    const action = await prisma.action.create({
+      data: {
+        type: ActionType.CRIAR_CONTEUDO,
+        teamId,
+        brandId,
+        userId,
+        details: actionDetails,
+        result: {
+          imageUrl: imageResult.imageUrl,
+          title: postContent.title,
+          body: postContent.body,
+          hashtags: postContent.hashtags,
+        },
+      },
+    });
 
     // --- 3. RETORNO DA RESPOSTA COMPLETA ---
     return NextResponse.json({
@@ -421,6 +440,7 @@ export async function POST(req: NextRequest) {
       title: postContent.title,
       body: postContent.body,
       hashtags: postContent.hashtags,
+      actionId: action.id,
       debug: {
         model: imageResult.model,
         quality: imageResult.quality,
@@ -428,7 +448,7 @@ export async function POST(req: NextRequest) {
         output_format: imageResult.output_format,
         promptUsed: imageResult.promptUsed,
         attemptNumber: imageResult.attemptNumber,
-        originalData: formData
+        originalData: actionDetails
       }
     });
 

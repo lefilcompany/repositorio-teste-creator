@@ -8,9 +8,9 @@ import { User } from '@/types/user';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (data: Omit<User, 'name'>) => 'success' | 'pending' | 'invalid';
+  login: (data: Omit<User, 'name'>) => Promise<'success' | 'pending' | 'invalid'>;
   logout: () => void;
-  updateUser: (updatedData: Partial<User>) => void; // <-- NOVA FUNÇÃO
+  updateUser: (updatedData: Partial<User>) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -28,83 +28,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // useEffect para carregar dados (sem alterações)
-  useEffect(() => {
+  const loadTeam = async (teamId: string | undefined | null) => {
+    if (!teamId) return;
     try {
-      const token = localStorage.getItem('authToken');
-      if (token && token.length >= 32) {
-        const storedUser = localStorage.getItem('authUser');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        } else {
-          logout();
-        }
+      const res = await fetch(`/api/teams/${teamId}`);
+      if (res.ok) {
+        const team = await res.json();
+        localStorage.setItem('creator-teams', JSON.stringify([team]));
       }
     } catch (error) {
-      console.error('Failed to parse auth data from localStorage', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const login = (data: Omit<User, 'name'>): 'success' | 'pending' | 'invalid' => {
-    try {
-      const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-      const foundUser = storedUsers.find(
-        (u) => u.email === data.email && u.password === data.password
-      );
-
-      if (foundUser) {
-        if (foundUser.status === 'pending') {
-          return 'pending';
-        }
-        const userToAuth = { ...foundUser };
-        delete userToAuth.password; // Não guardamos a senha no authUser
-
-        setUser(userToAuth);
-        const token = generateToken();
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('authUser', JSON.stringify(userToAuth));
-        router.push('/home');
-        return 'success';
-      }
-      return 'invalid';
-    } catch (error) {
-      console.error("Login failed", error);
-      return 'invalid';
+      console.error('Failed to load team data', error);
     }
   };
+
+  // useEffect para carregar dados (sem alterações)
+  useEffect(() => {
+      const init = async () => {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token && token.length >= 32) {
+            const storedUser = localStorage.getItem('authUser');
+            if (storedUser) {
+              const parsedUser: User = JSON.parse(storedUser);
+              setUser(parsedUser);
+              await loadTeam(parsedUser.teamId);
+            } else {
+              logout();
+            }
+          }
+        } catch (error) {
+          console.error('Failed to parse auth data from localStorage', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      init();
+    }, []);
+
+  const login = async (
+    data: Omit<User, 'name'>
+  ): Promise<'success' | 'pending' | 'invalid'> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.status === 403) return 'pending';
+      if (!res.ok) return 'invalid';
+      const userToAuth: User = await res.json();
+      setUser(userToAuth);
+      const token = generateToken();
+      localStorage.setItem('authToken', token);
+        localStorage.setItem('authUser', JSON.stringify(userToAuth));
+        await loadTeam(userToAuth.teamId);
+        router.push('/home');
+        return 'success';
+      } catch (error) {
+        console.error('Login failed', error);
+        return 'invalid';
+      }
+    };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
+    localStorage.removeItem('creator-teams');
     router.push('/login');
   };
 
   // <-- INÍCIO DA NOVA FUNÇÃO -->
-  const updateUser = (updatedData: Partial<User>) => {
+  const updateUser = async (updatedData: Partial<User>) => {
     if (!user) return;
     try {
-        // Atualiza o estado local
-        const newUser = { ...user, ...updatedData };
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      });
+      if (res.ok) {
+        const newUser: User = await res.json();
         setUser(newUser);
-        
-        // Atualiza o usuário no localStorage de autenticação
         localStorage.setItem('authUser', JSON.stringify(newUser));
-
-        // Atualiza a lista geral de usuários
-        const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-        const userIndex = storedUsers.findIndex(u => u.email === user.email);
-        
-        if (userIndex > -1) {
-            const fullUser = storedUsers[userIndex];
-            // Mantém a senha original e atualiza o resto
-            storedUsers[userIndex] = { ...fullUser, ...updatedData };
-            localStorage.setItem('creator-users', JSON.stringify(storedUsers));
-        }
+      }
     } catch (error) {
-        console.error("Failed to update user data", error);
+      console.error('Failed to update user data', error);
     }
   };
   // <-- FIM DA NOVA FUNÇÃO -->
