@@ -1,6 +1,8 @@
 export type StrategicTheme = {
   id: string;
-  brandId: string; 
+  teamId: string;
+  userEmail: string;
+  brandId: string;
   title: string;
   description: string;
   colorPalette: string;

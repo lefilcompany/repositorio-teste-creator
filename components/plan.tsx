@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader, Calendar, ArrowLeft, MessageSquareQuote } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
 
 interface FormData {
   brand: string;
@@ -30,6 +32,8 @@ export default function Plan() {
     additionalInfo: '',
   });
 
+  const { user } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
@@ -39,18 +43,19 @@ export default function Plan() {
 
   useEffect(() => {
     try {
-      const storedBrands = localStorage.getItem('creator-brands');
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
-      }
-      const storedThemes = localStorage.getItem('creator-themes');
-      if (storedThemes) {
-        setThemes(JSON.parse(storedThemes));
+      if (user?.teamId) {
+        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
+        const storedThemes = JSON.parse(localStorage.getItem('creator-themes') || '[]') as StrategicTheme[];
+        setThemes(storedThemes.filter(t => t.teamId === user.teamId));
+        const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+        const t = teams.find(tm => tm.id === user.teamId);
+        if (t) setTeam(t);
       }
     } catch (error) {
-      console.error("Failed to load data from localStorage", error);
+      console.error('Failed to load data from localStorage', error);
     }
-  }, []);
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -76,6 +81,12 @@ export default function Plan() {
 
 
   const handleGeneratePlan = async () => {
+    if (!team) return;
+    if (team.credits.contentPlans <= 0) {
+      setError('Seus créditos para calendário de conteúdo acabaram.');
+      setIsResultView(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     setPlannedContent(null);
@@ -95,6 +106,30 @@ export default function Plan() {
 
       const data = await response.json();
       setPlannedContent(data.plan);
+
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const idx = teams.findIndex(t => t.id === team.id);
+      if (idx > -1) {
+        teams[idx].credits.contentPlans -= 1;
+        localStorage.setItem('creator-teams', JSON.stringify(teams));
+        setTeam(teams[idx]);
+      }
+
+      const saveHistory = {
+        type: 'Planejar conteúdo',
+        brand: formData.brand,
+        details: { ...formData },
+        result: { plan: data.plan },
+      };
+      const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
+      history.unshift({
+        id: new Date().toISOString() + Math.random(),
+        createdAt: new Date().toISOString(),
+        teamId: team.id,
+        userEmail: user?.email || '',
+        ...saveHistory,
+      });
+      localStorage.setItem('creator-action-history', JSON.stringify(history));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -144,7 +179,7 @@ export default function Plan() {
                 <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
                 <SelectContent>
                   {themes.map((theme) => (
-                    <SelectItem key={theme.id} value={theme.name}>{theme.name}</SelectItem>
+                    <SelectItem key={theme.id} value={theme.title}>{theme.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -29,15 +29,15 @@ export interface Action {
   id: string;
   type: ActionType;
   brand: string;
+  teamId: string;
+  userEmail: string;
   createdAt: string;
-  // Detalhes da entrada do usuário
   details: {
     prompt?: string;
     objective?: string;
     platform?: string;
     [key: string]: any;
   };
-  // Resultado gerado pela IA
   result: {
     imageUrl?: string;
     title?: string;
@@ -45,6 +45,6 @@ export interface Action {
     hashtags?: string[];
     feedback?: string;
     plan?: string;
-    originalImage?: string; // Para armazenar a imagem original na revisão
+    originalImage?: string;
   };
 }

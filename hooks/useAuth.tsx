@@ -8,7 +8,7 @@ import { User } from '@/types/user';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (data: Omit<User, 'name'>) => boolean;
+  login: (data: Omit<User, 'name'>) => 'success' | 'pending' | 'invalid';
   logout: () => void;
   updateUser: (updatedData: Partial<User>) => void; // <-- NOVA FUNÇÃO
   isLoading: boolean;
@@ -16,7 +16,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const FAKE_TOKEN = 'fake-jwt-token-for-local-storage-demo';
+// Gera um token aleatório com no mínimo 32 caracteres
+const generateToken = () => {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -27,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const token = localStorage.getItem('authToken');
-      if (token === FAKE_TOKEN) {
+      if (token && token.length >= 32) {
         const storedUser = localStorage.getItem('authUser');
         if (storedUser) {
           setUser(JSON.parse(storedUser));
@@ -36,13 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error("Failed to parse auth data from localStorage", error);
+      console.error('Failed to parse auth data from localStorage', error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const login = (data: Omit<User, 'name'>): boolean => {
+  const login = (data: Omit<User, 'name'>): 'success' | 'pending' | 'invalid' => {
     try {
       const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
       const foundUser = storedUsers.find(
@@ -50,19 +55,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (foundUser) {
+        if (foundUser.status === 'pending') {
+          return 'pending';
+        }
         const userToAuth = { ...foundUser };
         delete userToAuth.password; // Não guardamos a senha no authUser
 
         setUser(userToAuth);
-        localStorage.setItem('authToken', FAKE_TOKEN);
+        const token = generateToken();
+        localStorage.setItem('authToken', token);
         localStorage.setItem('authUser', JSON.stringify(userToAuth));
         router.push('/home');
-        return true;
+        return 'success';
       }
-      return false;
+      return 'invalid';
     } catch (error) {
       console.error("Login failed", error);
-      return false;
+      return 'invalid';
     }
   };
 

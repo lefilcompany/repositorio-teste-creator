@@ -7,11 +7,14 @@ import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
+import { useAuth } from '@/hooks/useAuth';
+import type { Team } from '@/types/team';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
-type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>;
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 export default function MarcasPage() {
+  const { user } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
@@ -20,26 +23,28 @@ export default function MarcasPage() {
 
   useEffect(() => {
     try {
-      const storedBrands = localStorage.getItem('creator-brands');
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
+      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+      if (user?.teamId) {
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
       }
     } catch (error) {
-      console.error("Falha ao carregar as marcas do localStorage", error);
+      console.error('Falha ao carregar as marcas do localStorage', error);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem('creator-brands', JSON.stringify(brands));
+        const all = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+        const others = all.filter(b => b.teamId !== user?.teamId);
+        localStorage.setItem('creator-brands', JSON.stringify([...others, ...brands]));
       } catch (error) {
-        console.error("Falha ao salvar as marcas no localStorage", error);
+        console.error('Falha ao salvar as marcas no localStorage', error);
       }
     }
-  }, [brands, isLoaded]);
+  }, [brands, isLoaded, user?.teamId]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
     setBrandToEdit(brand);
@@ -47,28 +52,37 @@ export default function MarcasPage() {
   }, []);
 
   const handleSaveBrand = useCallback((formData: BrandFormData) => {
+    if (!user) return;
+    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+    const team = teams.find(t => t.id === user.teamId);
+    if (!team) return;
     const now = new Date().toISOString();
-
+    if (!brandToEdit && brands.length >= team.plan.limits.brands) {
+      alert('Limite de marcas do plano atingido.');
+      return;
+    }
     setBrands(prevBrands => {
       if (brandToEdit) {
         const updatedBrands = prevBrands.map(b =>
           b.id === brandToEdit.id ? { ...b, ...formData, updatedAt: now } : b
         );
         if (selectedBrand?.id === brandToEdit.id) {
-          setSelectedBrand(prev => prev ? { ...prev, ...formData, updatedAt: now } : null);
+          setSelectedBrand(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
         }
         return updatedBrands;
       } else {
         const newBrand: Brand = {
           id: now,
-          ...formData, // Adiciona todos os campos do formulário
+          teamId: user.teamId!,
+          userEmail: user.email,
+          ...formData,
           createdAt: now,
           updatedAt: now,
         };
         return [...prevBrands, newBrand];
       }
     });
-  }, [brandToEdit, selectedBrand?.id]);
+  }, [brandToEdit, brands.length, selectedBrand?.id, user]);
 
   const handleDeleteBrand = useCallback(() => {
     if (!selectedBrand) return;

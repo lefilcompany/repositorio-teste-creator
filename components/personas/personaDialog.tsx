@@ -19,7 +19,7 @@ import {
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 
-type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt'>;
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
 interface PersonaDialogProps {
   isOpen: boolean;
@@ -66,7 +66,14 @@ export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToE
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    
+    // Máscara para idade - aceita apenas números
+    if (id === 'age') {
+      const numericValue = value.replace(/\D/g, ''); // Remove tudo que não é dígito
+      setFormData(prev => ({ ...prev, [id]: numericValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [id]: value }));
+    }
   };
 
   const handleSelectChange = (value: string) => {
@@ -109,8 +116,18 @@ export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToE
               <Input id="name" value={formData.name} onChange={handleInputChange} placeholder="Escreva o nome do persona" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="age">Idade</Label>
-              <Input id="age" value={formData.age} onChange={handleInputChange} placeholder="Escreva a idade do persona" />
+              <Label htmlFor="age">Idade (em anos)</Label>
+              <div className="relative">
+                <Input 
+                  id="age" 
+                  type="text"
+                  value={formData.age}
+                  onChange={handleInputChange} 
+                  placeholder="Ex: 25 anos" 
+                  className="pr-14"
+                  maxLength={3}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Cargo e Formação</Label>

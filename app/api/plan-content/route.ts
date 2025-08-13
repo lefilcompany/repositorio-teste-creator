@@ -15,22 +15,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Todos os campos são obrigatórios.' }, { status: 400 });
     }
 
+    // --- PROMPT DE PLANEJAMENTO APRIMORADO ---
     const planningPrompt = `
-      Você é um planejador de conteúdo especialista em mídias sociais. Sua tarefa é criar um plano de conteúdo para a marca "${brand}" com base no tema estratégico "${theme}".
+      # Persona: Estrategista de Conteúdo de Alta Performance.
 
-      **Plataforma:** ${platform}
-      **Quantidade de Posts:** ${quantity}
-      **Objetivo Principal:** ${objective}
-      **Informações Adicionais:** ${additionalInfo || 'Nenhuma'}
+      ## Missão:
+      Desenvolver um plano de conteúdo detalhado e estratégico para ${platform}, que sirva como um briefing completo para a equipe de design e copywriting. O plano deve ser criativo, coeso e focado em atingir os objetivos de negócio.
 
-      Crie um plano detalhado para cada um dos ${quantity} posts. Para cada post, descreva:
-      1.  **Conceito do Post:** Uma breve descrição da ideia principal.
-      2.  **Sugestão de Legenda:** Um texto para a legenda, incluindo uma chamada para ação (CTA).
-      3.  **Sugestão de Imagem/Vídeo:** Descreva o tipo de visual que acompanharia o post.
-      4.  **Hashtags:** Uma lista de 5 a 7 hashtags relevantes.
+      ## Contexto da Campanha:
+      - **Marca:** "${brand}"
+      - **Tema Estratégico da Campanha:** "${theme}"
+      - **Plataforma de Foco:** ${platform}
+      - **Quantidade de Posts a Planejar:** ${quantity}
+      - **Objetivo Principal da Campanha:** "${objective}"
+      - **Informações Adicionais Relevantes:** ${additionalInfo || 'Nenhuma'}
 
-      Estruture sua resposta em um formato de texto claro e organizado, com cada post bem definido.
-      A resposta deve ser um único texto, formatado com quebras de linha (\\n) para facilitar a leitura.
+      ## Tarefa Detalhada:
+      Crie um plano de conteúdo para ${quantity} post(s). Para cada post, estruture a resposta de forma clara, utilizando a seguinte formatação:
+
+      **Post [Número do Post]**
+
+      1.  **Conceito Criativo:** Descreva a ideia central do post. Qual é a mensagem principal que queremos passar? (Ex: "Apresentar o novo sabor de café com foco na cremosidade e no aroma.")
+      2.  **Diretrizes Visuais (Briefing para o Designer):** Descreva em detalhes a imagem ou vídeo que deve ser criado. Inclua estilo (realista, ilustrado), composição, paleta de cores, elementos essenciais e o sentimento a ser evocado. (Ex: "Fotografia macro de uma xícara de café, com a espuma cremosa em destaque. Vapor subindo. Fundo desfocado com tons quentes.")
+      3.  **Sugestão de Legenda (Briefing para o Copywriter):** Crie uma legenda envolvente que complemente o visual. A legenda deve incluir um gancho inicial, desenvolver a ideia e terminar com uma chamada para ação (CTA) clara que incentive o usuário a cumprir o objetivo de "${objective}".
+      4.  **Hashtags Estratégicas:** Liste de 5 a 7 hashtags relevantes, misturando hashtags populares, de nicho e da marca.
+
+      ---
+      Repita essa estrutura para todos os ${quantity} posts. A resposta final deve ser um único texto, bem formatado com quebras de linha (\\n) para fácil leitura.
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -40,14 +51,15 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini', // Modelo atualizado
         messages: [
           {
             role: 'user',
             content: planningPrompt,
           },
         ],
-        max_tokens: 1500,
+        max_tokens: 2000, // Aumentado para acomodar planos maiores
+        temperature: 0.8, // Um pouco mais criativo
       }),
     });
 

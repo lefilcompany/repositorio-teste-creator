@@ -7,8 +7,10 @@ import type { Brand } from '@/types/brand';
 import ActionList from '@/components/historico/actionList';
 import ActionDetails from '@/components/historico/actionDetails';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HistoricoPage() {
+  const { user } = useAuth();
   const [actions, setActions] = useState<Action[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
@@ -20,18 +22,16 @@ export default function HistoricoPage() {
   // Carrega ações e marcas do localStorage
   useEffect(() => {
     try {
-      const storedActions = localStorage.getItem('creator-action-history');
-      if (storedActions) {
-        setActions(JSON.parse(storedActions));
-      }
-      const storedBrands = localStorage.getItem('creator-brands');
-      if (storedBrands) {
-        setBrands(JSON.parse(storedBrands));
+      if (user?.teamId) {
+        const storedActions = JSON.parse(localStorage.getItem('creator-action-history') || '[]') as Action[];
+        setActions(storedActions.filter(a => a.teamId === user.teamId));
+        const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
+        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
       }
     } catch (error) {
       console.error("Falha ao carregar dados do localStorage", error);
     }
-  }, []);
+  }, [user]);
 
   // Lógica de filtragem
   const filteredActions = useMemo(() => {

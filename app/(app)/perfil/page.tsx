@@ -1,25 +1,40 @@
 'use client';
 
 import { User as UserIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import PersonalInfoForm from '@/components/perfil/personalInfoForm';
 import AdditionalInfoCard from '@/components/perfil/additionalInfoCard';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/user';
+import { Team } from '@/types/team';
 import { Loader2 } from 'lucide-react';
-
-const teamInfoMock = {
-  teamName: 'Mídia Paga',
-  plan: 'Free Trial',
-  actionsRemaining: {
-    total: 253,
-    createContent: 50,
-    reviewContent: 50,
-    planContent: 153,
-  },
-};
 
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
+  const [teamInfo, setTeamInfo] = useState({
+    teamName: 'Sem equipe',
+    plan: '-',
+    actionsRemaining: { total: 0, createContent: 0, reviewContent: 0, planContent: 0 },
+  });
+
+  useEffect(() => {
+    if (user?.teamId) {
+      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
+      const t = teams.find((team) => team.id === user.teamId);
+      if (t) {
+        setTeamInfo({
+          teamName: t.name,
+          plan: t.plan.name,
+          actionsRemaining: {
+            total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
+            createContent: t.credits.contentSuggestions,
+            reviewContent: t.credits.contentReviews,
+            planContent: t.credits.contentPlans,
+          },
+        });
+      }
+    }
+  }, [user]);
 
   if (isLoading || !user) {
     return (
@@ -74,7 +89,7 @@ export default function PerfilPage() {
           />
         </div>
         <div className="lg:col-span-1">
-          <AdditionalInfoCard teamData={teamInfoMock} userName={user.name} />
+          <AdditionalInfoCard teamData={teamInfo} userName={user.name} />
         </div>
       </main>
     </div>

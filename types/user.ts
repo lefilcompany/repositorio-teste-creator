@@ -5,4 +5,7 @@ export interface User {
   phone?: string;
   state?: string;
   city?: string;
+  teamId?: string | null;
+  role?: 'admin' | 'member';
+  status?: 'active' | 'pending';
 }

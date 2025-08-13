@@ -1,619 +1,451 @@
 // app/api/generate-image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import OpenAI from 'openai';
+import { GoogleGenAI, Modality } from '@google/genai';
+import path from 'path';
+import fs from 'fs';
 
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+// Inicializa o cliente da OpenAI com suas configurações.
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-  // Extrai o prompt e os outros dados do corpo da requisição
-  const { prompt: imagePrompt, ...formData } = await req.json();
+const MAX_PROMPT_LENGTH = 3950;
 
-  if (!apiKey) {
-    return NextResponse.json({ error: 'A chave da API da OpenAI não foi configurada.' }, { status: 500 });
+/**
+ * Limpa o texto de entrada de forma mínima, removendo apenas caracteres
+ * que podem corromper a sintaxe do prompt e normalizando espaços em branco.
+ * NÃO remove palavras nem faz substituições, preservando a intenção original do usuário.
+ */
+function cleanInput(text: string | string[] | undefined | null): string {
+  if (!text) return '';
+  
+  // Se for um array, junta os elementos com vírgula
+  if (Array.isArray(text)) {
+    return text.map(item => cleanInput(item)).join(', ');
+  }
+  
+  // Converte para string se não for
+  const textStr = String(text);
+  
+  // Remove apenas caracteres potencialmente perigosos para a sintaxe do prompt.
+  let cleanedText = textStr.replace(/[<>{}[\]"'`]/g, '');
+  // Normaliza múltiplos espaços para apenas um e remove espaços nas pontas.
+  cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+  return cleanedText;
+}
+
+/**
+ * Constrói um prompt detalhado e otimizado para GPT-Image-1 (VERSÃO MELHORADA).
+ * Esta versão utiliza o input do usuário de forma direta, sem sanitização de palavras.
+ */
+function buildDetailedImagePrompt(formData: any): string {
+  const description = cleanInput(formData.prompt);
+  const brand = cleanInput(formData.brand);
+  const theme = cleanInput(formData.theme);
+  const objective = cleanInput(formData.objective);
+  const platform = cleanInput(formData.platform);
+  const audience = cleanInput(formData.audience);
+  const tones = Array.isArray(formData.tone) ? formData.tone : (formData.tone ? [formData.tone] : []); // Garante que seja um array
+  const persona = cleanInput(formData.persona);
+  const additionalInfo = cleanInput(formData.additionalInfo);
+
+  let promptParts: string[] = [];
+
+  // 1. Assunto Principal e Qualidade Central
+  if (description) {
+    promptParts.push(`Uma obra-prima de fotografia comercial, hiper-detalhada e fotorrealista de: ${description}`);
   }
 
-  if (!imagePrompt) {
-    return NextResponse.json({ error: 'O prompt da imagem é obrigatório.' }, { status: 400 });
+  // 2. Contexto Estratégico (Marca, Tema, Objetivo)
+  if (brand || theme || objective) {
+    let strategicContext = "A imagem deve incorporar a identidade";
+    if (brand) strategicContext += ` da marca ${brand}`;
+    if (theme) strategicContext += ` através do tema de ${theme}`;
+    if (objective) strategicContext += `, projetada para ${objective}`;
+    promptParts.push(strategicContext);
   }
 
-  // ** CORREÇÃO AQUI **
-  // Usamos formData.brand e formData.theme que agora são recebidos corretamente do frontend
+  // 3. Tom e Atmosfera
+  if (tones.length > 0) {
+    const toneMap: { [key: string]: string } = {
+      'inspirador': 'banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves',
+      'motivacional': 'energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação',
+      'profissional': 'estética corporativa limpa, com iluminação de estúdio neutra e foco nítido, transmitindo confiança e expertise',
+      'casual': 'atmosfera relaxada com iluminação natural e suave, como a de uma janela, criando um ambiente amigável e convidativo',
+      'elegante': 'estilo sofisticado com uma paleta de cores refinada, iluminação suave e composição minimalista para um toque luxuoso',
+      'moderno': 'design contemporâneo com linhas arrojadas, iluminação de alto contraste e uma estética de vanguarda',
+      'tradicional': 'apelo atemporal com cores clássicas, iluminação equilibrada e composição simétrica, transmitindo herança e confiabilidade',
+      'divertido': 'humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética',
+      'sério': 'tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade'
+    };
+    const mappedTones = tones.map(tone => {
+      const cleanTone = cleanInput(tone);
+      return toneMap[cleanTone.toLowerCase()] || `com uma estética ${cleanTone}`;
+    }).join(', ');
+    promptParts.push(`O clima da imagem é uma combinação de: ${mappedTones}`);
+  }
+
+  // 4. Detalhes Técnicos da Câmera
+  promptParts.push("Detalhes técnicos: foto tirada com uma câmera DSLR profissional (como uma Canon EOS R5) e uma lente de 85mm f/1.4, resultando em uma profundidade de campo rasa e um belo efeito bokeh no fundo");
+
+  // 5. Otimização para Plataforma
+  const platformStyles: { [key: string]: string } = {
+    'instagram': 'formato quadrado 1:1, cores vibrantes, otimizado para feed do Instagram',
+    'facebook': 'composição envolvente, focada na comunidade, otimizada para compartilhamento social',
+    'linkedin': 'estética profissional e corporativa, ideal para posts de negócios',
+    'twitter': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
+    'x': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
+    'tiktok': 'formato vertical 9:16, composição dinâmica e energia jovem, perfeito para TikTok',
+    'youtube': 'estilo thumbnail de alto contraste, otimizado para taxas de clique no YouTube'
+  };
+  if (platform && platformStyles[platform.toLowerCase()]) {
+    promptParts.push(`Otimizado para a plataforma: ${platformStyles[platform.toLowerCase()]}`);
+  }
+
+  // 6. Público-Alvo e Informações Adicionais
+  if (audience) promptParts.push(`Direcionado especificamente para ${audience}`);
+  if (persona) promptParts.push(`Conectando-se com a persona de ${persona}`);
+  if (additionalInfo) promptParts.push(`Incorporando os seguintes elementos visuais: ${additionalInfo}`);
+
+  // 7. Palavras-chave de Reforço e "Prompt Negativo"
+  promptParts.push("Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento.Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.");
+
+  const finalPrompt = promptParts.join('. ');
+  return finalPrompt.length > MAX_PROMPT_LENGTH ? finalPrompt.substring(0, MAX_PROMPT_LENGTH) : finalPrompt;
+}
+
+/**
+ * Prompt alternativo mais conservador.
+ */
+// function buildConservativePrompt(formData: any): string {
+//   const description = cleanInput(formData.prompt);
+//   const brand = cleanInput(formData.brand);
+//   const platform = cleanInput(formData.platform);
+
+//   let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
+//   if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
+//   if (brand) prompt += ` para a marca ${brand}`;
+//   if (platform) prompt += ` otimizado para a plataforma ${platform}`;
+//   prompt += ", estética moderna e visualmente agradável.";
+//   return prompt;
+// }
+
+// /**
+//  * Prompt de emergência ultra-conservador.
+//  */
+// function buildFallbackPrompt(): string {
+//   return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
+// }
+
+// /**
+//  * Interface para parâmetros específicos do GPT-Image-1
+//  */
+// interface GPTImage1Params {
+//   prompt: string;
+//   model: 'gpt-image-1';
+//   background?: 'auto' | 'transparent' | 'opaque';
+//   quality?: 'low' | 'medium' | 'high' | 'auto';
+//   size?: '1024x1024' | '1792x1024' | '1024x1792';
+//   output_format?: 'png' | 'jpeg';
+//   moderation?: 'auto' | 'low';
+//   n?: number;
+// }
+
+// /**
+//  * Função específica para gerar imagens com GPT-Image-1
+//  */
+// async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
+//   try {
+//     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
+//     const imageParams: GPTImage1Params = {
+//       model: 'gpt-image-1',
+//       prompt,
+//       background: 'transparent',
+//       n: 1,
+//       quality,
+//       size: '1024x1024',
+//       output_format: 'png',
+//       moderation: 'auto',
+//     };
+//     const response = await openai.images.generate(imageParams);
+//     return response;
+//   } catch (error) {
+//     console.error('Erro na geração com GPT-Image-1:', error);
+//     throw error;
+//   }
+// }
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_API,
+});
+
+async function generateImage(prompt: string, referenceImage?: string): Promise<any> {
+  try {
+    const fullPrompt = `${prompt}. Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento. Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.`;
+
+    const contents: any[] = [];
+    if (referenceImage) {
+      const [meta, data] = referenceImage.split(',');
+      const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
+      contents.push({
+        inlineData: {
+          data,
+          mimeType: mimeMatch ? mimeMatch[1] : 'image/png',
+        },
+      });
+    }
+    contents.push({ text: fullPrompt });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-preview-image-generation",
+      contents,
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+      },
+    });
+
+    if (response.candidates && response.candidates.length > 0) {
+      const candidate = response.candidates[0];
+
+      if (
+        candidate.content &&
+        Array.isArray(candidate.content.parts) &&
+        candidate.content.parts.length > 0
+      ) {
+        const part = candidate.content.parts.find((p) => p.inlineData);
+
+        if (part && part.inlineData) {
+          const imageData = part.inlineData.data;
+          const buffer = Buffer.from(imageData, "base64");
+
+          const imagePath = path.resolve(
+            process.cwd(),
+            "public",
+            "generated-image.png"
+          );
+          fs.writeFileSync(imagePath, buffer);
+
+          return { imageUrl: "/generated-image.png" };
+        } else {
+          throw new Error("Image data is missing in the response");
+        }
+      } else {
+        throw new Error("No valid parts found in the response");
+      }
+    } else {
+      throw new Error("No candidates returned from the model");
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+/**
+ * Tenta gerar a imagem com diferentes estratégias de prompt, usando GPT-Image-1.
+ */
+async function generateImageWithFallbacks(formData: any) {
+  const prompts = [
+    buildDetailedImagePrompt(formData),
+    // buildConservativePrompt(formData),
+    // buildFallbackPrompt()
+  ];
+
+  for (let i = 0; i < prompts.length; i++) {
+    const currentPrompt = prompts[i];
+    try {
+      const response = await generateImage(currentPrompt, formData.referenceImage);
+
+      if (response.imageUrl) {
+        return {
+          success: true,
+          imageUrl: response.imageUrl,
+          promptUsed: currentPrompt,
+          attemptNumber: i + 1,
+          model: 'gemini-2.0-flash-preview-image-generation',
+          quality: 'high',
+          size: '1080x1080',
+          output_format: 'png'
+        };
+      }
+    } catch (error) {
+      if (error.message?.includes('content policy') || error.message?.includes('safety')) {
+        continue;
+      }
+      if (error.message?.includes('quota') || error.message?.includes('limit')) {
+        throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
+      }
+      if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
+        throw new Error('Chave da API inválida ou não autorizada para Gemini.');
+      }
+      if (error.message?.includes('not found') || error.message?.includes('model')) {
+        throw new Error('Modelo Gemini não encontrado. Verifique se sua conta tem acesso.');
+      }
+
+      // Se é o último prompt, propagar o erro
+      if (i === prompts.length - 1) {
+        throw error;
+      }
+    }
+  }
+  return {
+    success: false,
+    error: 'Todos os prompts falharam. O prompt detalhado pode ter violado as políticas de conteúdo e os prompts de fallback não foram suficientes.'
+  };
+}
+
+/**
+ * Gera texto usando GPT-4o-mini
+ */
+async function generateTextContent(formData: any) {
+  // --- PROMPT APRIMORADO E MAIS SEGURO ---
+  const cleanedTones = Array.isArray(formData.tone)
+    ? formData.tone.map(cleanInput).join(', ')
+    : cleanInput(formData.tone);
+
   const textPrompt = `
-    Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-    - Marca: ${formData.brand}
-    - Tema: ${formData.theme}
-    - Objetivo do Post: ${formData.objective}
-    - Descrição da Ideia: ${formData.description}
-    - Público-alvo: ${formData.audience}
-    - Tom de Voz: ${formData.tone}
+# CONTEXTO
+- **Marca**: ${cleanInput(formData.brand)}
+- **Tema**: ${cleanInput(formData.theme)}
+- **Plataforma**: ${cleanInput(formData.platform)}
+- **Objetivo**: ${cleanInput(formData.objective)}
+- **Descrição da Imagem Associada**: ${cleanInput(formData.prompt)}
+- **Público**: ${cleanInput(formData.audience)}
+- **Persona**: ${cleanInput(formData.persona) || 'Não especificada'}
+- **Tom de Voz**: ${cleanedTones || 'Não especificado'}
 
-    Responda em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').
-  `;
+# TAREFA
+Sua missão é criar o conteúdo textual para este post.
+
+# REGRAS DE SAÍDA (MUITO IMPORTANTE)
+- Sua resposta deve ser **APENAS** um objeto JSON válido. Não inclua nenhum texto, explicação ou markdown.
+- O JSON deve conter EXATAMENTE as chaves: "title", "body", e "hashtags".
+- "title": deve ser uma string com um título chamativo (máximo 60 caracteres).
+- "body": deve ser uma string com a legenda, usando '\\n' para novas linhas e incluindo um CTA claro.
+- "hashtags": deve ser um **ARRAY JSON contendo de 6 a 8 strings**.
+- **CRÍTICO**: As strings dentro do array "hashtags" NÃO DEVEM conter o caractere '#'.
+
+# EXEMPLO DE SAÍDA CORRETA:
+{
+  "title": "Título de Exemplo Criativo",
+  "body": "Esta é uma legenda de exemplo.\\nEla tem quebras de linha.\\n\\n➡️ Compre agora!",
+  "hashtags": ["exemplo", "criativo", "marketingdigital", "socialmedia", "conteudo", "inovacao"]
+}
+`;
 
   try {
-    // Geração da Imagem (código sem alterações)
-    const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: imagePrompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'hd',
-      }),
+    const chatCompletion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: textPrompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 1000
     });
 
-    if (!imageResponse.ok) {
-      const errorData = await imageResponse.json();
-      console.error('Erro da API de Imagem da OpenAI:', errorData);
-      return NextResponse.json({ error: 'Falha ao gerar a imagem.', details: errorData }, { status: imageResponse.status });
+    const rawContent = chatCompletion.choices[0].message.content;
+
+    if (!rawContent) {
+      throw new Error("Resposta vazia do GPT-4o-mini");
     }
 
-    const imageData = await imageResponse.json();
-    const imageUrl = imageData.data[0].url;
+    const postContent = JSON.parse(rawContent);
 
-    // Geração do Texto (código sem alterações)
-    const textResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model: 'gpt-4-turbo',
-            messages: [{ role: 'user', content: textPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.7,
-        }),
-    });
-
-    if (!textResponse.ok) {
-        const errorData = await textResponse.json();
-        console.error('Erro da API de Texto da OpenAI:', errorData);
-        return NextResponse.json({ imageUrl, title: "Erro ao gerar legenda", body: "Não foi possível gerar o conteúdo do post, mas sua imagem está pronta!", hashtags: [] });
+    // --- LÓGICA DE CORREÇÃO E VALIDAÇÃO ---
+    if (!postContent || typeof postContent !== 'object') {
+      throw new Error("Conteúdo não é um objeto válido");
+    }
+    
+    // Se a IA retornar uma string em vez de um array, tentamos corrigir.
+    if (typeof postContent.hashtags === 'string') {
+        postContent.hashtags = postContent.hashtags.replace(/#/g, '').split(/[\s,]+/).filter(Boolean);
     }
 
-    const textData = await textResponse.json();
-    const postContent = JSON.parse(textData.choices[0].message.content);
+    if (!Array.isArray(postContent.hashtags) || postContent.hashtags.length === 0) {
+      throw new Error("Hashtags ausentes ou em formato inválido após tentativa de correção");
+    }
+    
+    postContent.hashtags = postContent.hashtags.map((tag: any) => 
+      String(tag).replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ]/g, '').toLowerCase()
+    ).filter((tag: string) => tag.length > 0);
+    
+    return postContent;
 
-    return NextResponse.json({
-      imageUrl,
-      title: postContent.title,
-      body: postContent.body,
-      hashtags: postContent.hashtags,
-    });
-
-  } catch (error) {
-    console.error('Erro ao chamar a API da OpenAI:', error);
-    return NextResponse.json({ error: 'Ocorreu um erro interno no servidor.' }, { status: 500 });
+  } catch (error: any) {
+    // Fallback com conteúdo padrão mais personalizado
+    const brandName = cleanInput(formData.brand) || 'nossamarca';
+    const themeName = cleanInput(formData.theme) || 'novidades';
+    
+    return {
+      title: `${brandName}: ${themeName}`,
+      body: `🌟 Descubra o que preparamos especialmente para você!\n\n${cleanInput(formData.objective) || 'Conteúdo exclusivo'}.\n\n👉 Não perca essa oportunidade!`,
+      hashtags: [
+        brandName.toLowerCase().replace(/\s+/g, ''), 
+        themeName.toLowerCase().replace(/\s+/g, ''),
+        "marketingdigital", 
+        "conteudo", 
+        "estrategia",
+        "inovacao"
+      ].filter(tag => tag && tag.length > 0).slice(0, 8)
+    };
   }
 }
 
-// app/api/generate-image/route.ts
-
-// import { NextRequest, NextResponse } from 'next/server';
-// import { VertexAI } from '@google-cloud/vertexai';
-
-// export async function POST(req: NextRequest) {
-//   const gcloudProject = process.env.GCLOUD_PROJECT;
-//   const gcloudLocation = process.env.GCLOUD_LOCATION;
-//   const gcloudCredentials = process.env.GOOGLE_CREDENTIALS;
-
-//   const { prompt: imagePrompt, ...formData } = await req.json();
-
-//   if (!gcloudProject || !gcloudLocation || !gcloudCredentials) {
-//     return NextResponse.json({ error: 'As credenciais do Google Cloud não foram configuradas.' }, { status: 500 });
-//   }
-//   if (!imagePrompt) {
-//     return NextResponse.json({ error: 'O prompt da imagem é obrigatório.' }, { status: 400 });
-//   }
-
-//   let credentials;
-//   try {
-//     credentials = JSON.parse(gcloudCredentials);
-//   } catch (error) {
-//     return NextResponse.json({ error: 'Credenciais JSON inválidas.' }, { status: 500 });
-//   }
-
-//   const textPrompt = `
-//     Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-//     - Marca: ${formData.brand}
-//     - Tema: ${formData.theme}
-//     - Objetivo do Post: ${formData.objective}
-//     - Descrição da Ideia: ${formData.description}
-//     - Público-alvo: ${formData.audience}
-//     - Tom de Voz: ${formData.tone}
-//     Responda em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').
-//   `;
-
-//   try {
-//     // Configuração corrigida do VertexAI
-//     const vertex_ai = new VertexAI({
-//       project: gcloudProject,
-//       location: gcloudLocation,
-//       googleAuthOptions: {
-//         credentials: credentials,
-//       },
-//       // NÃO definir apiEndpoint - deixar que a biblioteca use o padrão
-//     });
-
-//     console.log('Configuração VertexAI criada com sucesso');
-
-//     // PRIMEIRO: Gerar o texto (mais estável)
-//     console.log('Iniciando geração de texto...');
-//     const textModel = vertex_ai.getGenerativeModel({
-//       model: 'gemini-1.5-pro', // Modelo mais estável
-//     });
-
-//     const textRequest: any = {
-//       contents: [{
-//         role: 'user',
-//         parts: [{ text: textPrompt }]
-//       }],
-//       generationConfig: {
-//         responseMimeType: 'application/json',
-//         temperature: 0.7,
-//         maxOutputTokens: 2048,
-//       },
-//       safetySettings: [
-//         { 
-//           category: 'HARM_CATEGORY_HATE_SPEECH' as any, 
-//           threshold: 'BLOCK_MEDIUM_AND_ABOVE' as any 
-//         },
-//         { 
-//           category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, 
-//           threshold: 'BLOCK_MEDIUM_AND_ABOVE' as any 
-//         },
-//         { 
-//           category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, 
-//           threshold: 'BLOCK_MEDIUM_AND_ABOVE' as any 
-//         },
-//         { 
-//           category: 'HARM_CATEGORY_HARASSMENT' as any, 
-//           threshold: 'BLOCK_MEDIUM_AND_ABOVE' as any 
-//         },
-//       ],
-//     };
-
-//     const textGenerationResponse = await textModel.generateContent(textRequest);
-//     console.log('Texto gerado com sucesso');
-
-//     if (!textGenerationResponse.response.candidates || !textGenerationResponse.response.candidates[0]) {
-//       throw new Error('Erro na geração de texto: resposta inválida da API.');
-//     }
-
-//     const textResponseData = textGenerationResponse.response.candidates[0].content.parts[0].text;
-//     let postContent;
-
-//     try {
-//       postContent = JSON.parse(textResponseData);
-//     } catch (parseError) {
-//       console.error('Erro ao fazer parse do JSON:', textResponseData);
-//       throw new Error('Erro ao processar a resposta de texto da API.');
-//     }
-
-//     // SEGUNDO: Tentar gerar a imagem (se falhar, retornar apenas o texto)
-//     let imageUrl = '';
-
-//     try {
-//       console.log('Iniciando geração de imagem...');
-
-//       // Para geração de imagem, usar um modelo diferente
-//       const imageModel = vertex_ai.getGenerativeModel({ 
-//         model: 'imagegeneration@006' // Modelo que pode trabalhar com imagens
-//       });
-
-//       // Criar um prompt mais específico para descrição de imagem
-//       const imageDescriptionPrompt = `Descreva uma imagem que represente visualmente este post: "${postContent.title}" - ${postContent.body}. Descreva em detalhes a imagem ideal para este conteúdo, incluindo cores, estilo, elementos visuais e composição.`;
-
-//       const imageDescRequest: any = {
-//         contents: [{
-//           role: 'user',
-//           parts: [{ text: imageDescriptionPrompt }]
-//         }],
-//         generationConfig: {
-//           temperature: 0.6,
-//           maxOutputTokens: 1024,
-//         },
-//       };
-
-//       const imageDescResponse = await imageModel.generateContent(imageDescRequest);
-
-//       if (imageDescResponse.response.candidates && imageDescResponse.response.candidates[0]) {
-//         const imageDescription = imageDescResponse.response.candidates[0].content.parts[0].text;
-//         console.log('Descrição da imagem gerada:', imageDescription);
-
-//         // Por enquanto, retornar uma URL placeholder ou usar um serviço de imagem alternativo
-//         imageUrl = `data:image/svg+xml;base64,${Buffer.from(
-//           `<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-//             <rect width="100%" height="100%" fill="#f0f0f0"/>
-//             <text x="50%" y="50%" font-family="Arial" font-size="16" fill="#333" text-anchor="middle" dy="0.3em">
-//               Imagem: ${postContent.title}
-//             </text>
-//           </svg>`
-//         ).toString('base64')}`;
-//       }
-
-//     } catch (imageError) {
-//       console.warn('Falha na geração de imagem, continuando apenas com texto:', imageError);
-//       // Criar uma imagem placeholder simples
-//       imageUrl = `data:image/svg+xml;base64,${Buffer.from(
-//         `<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-//           <rect width="100%" height="100%" fill="#e3f2fd"/>
-//           <circle cx="200" cy="150" r="50" fill="#2196f3"/>
-//           <text x="200" y="250" font-family="Arial" font-size="14" fill="#1976d2" text-anchor="middle">
-//             ${postContent.title || 'Post Gerado'}
-//           </text>
-//           <text x="200" y="280" font-family="Arial" font-size="12" fill="#666" text-anchor="middle">
-//             Conteúdo para ${formData.platform}
-//           </text>
-//         </svg>`
-//       ).toString('base64')}`;
-//     }
-
-//     console.log('Processo concluído com sucesso');
-
-//     return NextResponse.json({
-//       imageUrl,
-//       title: postContent.title,
-//       body: postContent.body,
-//       hashtags: postContent.hashtags,
-//     });
-
-//   } catch (error: any) {
-//     console.error('Erro detalhado:', error);
-
-//     let errorMessage = 'Ocorreu um erro interno no servidor.';
-
-//     // Tratamento específico para diferentes tipos de erro
-//     if (error.message?.includes('ENOTFOUND')) {
-//       errorMessage = 'Erro de conectividade com o Google Cloud. Verifique sua conexão com a internet e as configurações de região.';
-//     } else if (error.message?.includes('authentication')) {
-//       errorMessage = 'Erro de autenticação. Verifique suas credenciais do Google Cloud.';
-//     } else if (error.message?.includes('quota')) {
-//       errorMessage = 'Cota da API excedida. Tente novamente mais tarde.';
-//     } else if (error.code) {
-//       switch (error.code) {
-//         case 7: // PERMISSION_DENIED
-//           errorMessage = 'Permissão negada. Verifique as credenciais e permissões do Google Cloud.';
-//           break;
-//         case 8: // RESOURCE_EXHAUSTED
-//           errorMessage = 'Cota da API excedida. Tente novamente mais tarde.';
-//           break;
-//         case 3: // INVALID_ARGUMENT
-//           errorMessage = 'Argumentos inválidos na requisição.';
-//           break;
-//         case 14: // UNAVAILABLE
-//           errorMessage = 'Serviço temporariamente indisponível. Tente novamente.';
-//           break;
-//         default:
-//           errorMessage = error.message || errorMessage;
-//       }
-//     } else {
-//       errorMessage = error.message || errorMessage;
-//     }
-
-//     return NextResponse.json({ 
-//       error: errorMessage,
-//       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-//     }, { status: 500 });
-//   }
-// }
-
-// import { NextRequest, NextResponse } from 'next/server';
-
-// interface GeminiTextResponse {
-//   candidates: Array<{
-//     content: {
-//       parts: Array<{
-//         text: string;
-//       }>;
-//     };
-//     finishReason: string;
-//   }>;
-// }
-
-// interface GeminiImageResponse {
-//   candidates: Array<{
-//     content: {
-//       parts: Array<{
-//         inlineData: {
-//           mimeType: string;
-//           data: string;
-//         };
-//       }>;
-//     };
-//   }>;
-// }
-
-// // Função para fazer requisições com retry melhorada
-// async function fetchWithRetry(
-//   url: string, 
-//   options: RequestInit, 
-//   maxRetries = 5,
-//   initialDelay = 2000
-// ): Promise<Response> {
-//   let lastError;
-
-//   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-//     try {
-//       console.log(`Tentativa ${attempt}/${maxRetries} para ${url.includes('imagegeneration') ? 'Imagen' : 'Gemini Text'}...`);
-      
-//       const response = await fetch(url, {
-//         ...options,
-//         signal: AbortSignal.timeout(45000) // Timeout de 45 segundos para imagem
-//       });
-
-//       if (response.ok) {
-//         console.log(`✅ Sucesso na tentativa ${attempt}`);
-//         return response;
-//       }
-
-//       // Status codes que indicam sobrecarga ou erro temporário
-//       const retryableStatuses = [503, 429, 500, 502, 504];
-//       const errorData = await response.json().catch(() => ({ 
-//         error: { message: `HTTP ${response.status}` } 
-//       }));
-
-//       lastError = new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
-
-//       if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
-//         // Backoff exponencial com jitter
-//         const baseDelay = initialDelay * Math.pow(1.5, attempt - 1);
-//         const jitter = Math.random() * 1000;
-//         const delay = Math.min(baseDelay + jitter, 30000);
-        
-//         console.log(`⚠️ Status ${response.status}. Aguardando ${Math.round(delay)}ms antes da próxima tentativa...`);
-//         await new Promise(resolve => setTimeout(resolve, delay));
-//         continue;
-//       }
-
-//       if (!retryableStatuses.includes(response.status)) {
-//         throw lastError;
-//       }
-
-//     } catch (error: any) {
-//       lastError = error;
-      
-//       if (attempt < maxRetries && (
-//         error.name === 'TimeoutError' || 
-//         error.name === 'AbortError' ||
-//         error.code === 'ECONNRESET' ||
-//         error.code === 'ENOTFOUND'
-//       )) {
-//         const delay = initialDelay * Math.pow(1.5, attempt - 1) + Math.random() * 1000;
-//         console.log(`🔄 Erro de conexão. Tentando novamente em ${Math.round(delay)}ms...`);
-//         await new Promise(resolve => setTimeout(resolve, delay));
-//         continue;
-//       }
-
-//       if (attempt === maxRetries) {
-//         break;
-//       }
-//     }
-//   }
-
-//   throw lastError || new Error('Falhou em obter resposta após todas as tentativas');
-// }
-
-// // Função para gerar conteúdo de fallback
-// function generateFallbackContent(formData: any) {
-//   return {
-//     title: `Post para ${formData.brand || 'sua marca'}`,
-//     body: `Conteúdo criativo para ${formData.platform || 'redes sociais'}!\n\n${formData.description || 'Confira nossa novidade!'}\n\n#${formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca'}`,
-//     hashtags: [
-//       formData.brand?.toLowerCase().replace(/\s+/g, '') || 'marca',
-//       formData.theme?.toLowerCase().replace(/\s+/g, '') || 'conteudo',
-//       formData.platform?.toLowerCase() || 'social',
-//       'marketing',
-//       'digital'
-//     ].filter(Boolean).slice(0, 5)
-//   };
-// }
-
-// export async function POST(req: NextRequest) {
-//   const geminiApiKey = process.env.GEMINI_API_KEY;
-
-//   if (!geminiApiKey) {
-//     return NextResponse.json({
-//       error: 'A chave da API do Gemini não foi configurada.'
-//     }, { status: 500 });
-//   }
-
-//   try {
-//     const { prompt: imagePrompt, ...formData } = await req.json();
-
-//     if (!imagePrompt) {
-//       return NextResponse.json({
-//         error: 'O prompt da imagem é obrigatório.'
-//       }, { status: 400 });
-//     }
-
-//     console.log('🚀 Iniciando geração de conteúdo...');
-
-//     // Prompt para geração de texto baseado no padrão OpenAI que funcionava
-//     const textPrompt = `
-// Com base nas seguintes informações, crie um post para a plataforma ${formData.platform}:
-// - Marca: ${formData.brand}
-// - Tema: ${formData.theme}
-// - Objetivo do Post: ${formData.objective}
-// - Descrição da Ideia: ${formData.description}
-// - Público-alvo: ${formData.audience}
-// - Tom de Voz: ${formData.tone}
-// - Informações adicionais: ${formData.additionalInfo}
-
-// Responda EXCLUSIVAMENTE em formato JSON com as seguintes chaves: "title" (um título criativo e curto), "body" (a legenda do post, com quebras de linha representadas por \\n), e "hashtags" (um array de 5 a 7 hashtags relevantes, sem o caractere '#').`;
-
-//     // Geração do Texto usando Gemini
-//     let postContent = generateFallbackContent(formData);
-//     let textWarning: string | null = null;
-
-//     try {
-//       console.log('📝 Gerando texto...');
-//       const textResponse = await fetchWithRetry(
-//         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
-//         {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//           },
-//           body: JSON.stringify({
-//             contents: [{
-//               parts: [{
-//                 text: textPrompt
-//               }]
-//             }],
-//             generationConfig: {
-//               temperature: 0.7,
-//               topK: 40,
-//               topP: 0.95,
-//               maxOutputTokens: 1024,
-//               responseMimeType: "application/json"
-//             }
-//           })
-//         },
-//         4, // 4 tentativas para texto
-//         1500
-//       );
-
-//       const textData: GeminiTextResponse = await textResponse.json();
-
-//       if (textData.candidates && textData.candidates[0]?.content?.parts?.[0]?.text) {
-//         try {
-//           const generatedText = textData.candidates[0].content.parts[0].text.trim();
-          
-//           // Parse do JSON - similar ao padrão OpenAI
-//           let parsedContent;
-//           try {
-//             parsedContent = JSON.parse(generatedText);
-//           } catch {
-//             const jsonMatch = generatedText.match(/\{[\s\S]*?\}/);
-//             if (jsonMatch) {
-//               parsedContent = JSON.parse(jsonMatch[0]);
-//             } else {
-//               const cleanJson = generatedText.replace(/```json|```/g, '').trim();
-//               parsedContent = JSON.parse(cleanJson);
-//             }
-//           }
-
-//           if (parsedContent.title && parsedContent.body && Array.isArray(parsedContent.hashtags)) {
-//             postContent = parsedContent;
-//             console.log('✅ Texto gerado com sucesso via IA');
-//           } else {
-//             throw new Error('Estrutura JSON inválida');
-//           }
-
-//         } catch (parseError: any) {
-//           console.error('❌ Erro ao processar resposta do texto:', parseError.message);
-//           textWarning = "Falha ao processar resposta da IA para texto. Usando conteúdo padrão.";
-//         }
-//       }
-//     } catch (textError: any) {
-//       console.error('❌ Erro na geração de texto:', textError.message);
-//       textWarning = `Não foi possível gerar texto via IA: ${textError.message}. Usando conteúdo padrão.`;
-//     }
-
-//     // Geração da Imagem usando a API REST correta do Gemini
-//     let imageUrl: string | null = null;
-//     let imageWarning: string | null = null;
-
-//     console.log('🎨 Iniciando geração de imagem...');
-
-//     try {
-//       // Prompt otimizado para Imagen
-//       const optimizedImagePrompt = `Create a professional, high-quality image for social media post about "${formData.theme}" for brand "${formData.brand}". 
-// Platform: ${formData.platform}
-// Objective: ${formData.objective}
-// Visual description: ${imagePrompt}
-// Target audience: ${formData.audience}
-// Visual tone: ${formData.tone}
-// Additional context: ${formData.additionalInfo}
-
-// Style requirements: Modern digital art, professional quality, vibrant colors, engaging composition, social media optimized, high resolution, visually appealing, brand-appropriate.`;
-
-//       // Usando a API REST correta para geração de imagens
-//       const imageResponse = await fetchWithRetry(
-//         `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-generate-001:generateContent?key=${geminiApiKey}`,
-//         {
-//           method: 'POST',
-//           headers: {
-//             'Content-Type': 'application/json',
-//           },
-//           body: JSON.stringify({
-//             contents: [{
-//               parts: [{
-//                 text: optimizedImagePrompt
-//               }]
-//             }],
-//             generationConfig: {
-//               temperature: 0.4,
-//               topK: 32,
-//               topP: 0.95,
-//               maxOutputTokens: 4096,
-//             }
-//           })
-//         },
-//         3, // 3 tentativas para imagem
-//         3000
-//       );
-
-//       const imageData: GeminiImageResponse = await imageResponse.json();
-
-//       if (imageData.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-//         const imageBase64 = imageData.candidates[0].content.parts[0].inlineData.data;
-//         const mimeType = imageData.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
-//         imageUrl = `data:${mimeType};base64,${imageBase64}`;
-//         console.log('✅ Imagem gerada com sucesso');
-//       } else {
-//         console.log('⚠️ Resposta inesperada da API Imagen:', imageData);
-//         imageWarning = "A API do Imagen retornou uma resposta inesperada.";
-//       }
-//     } catch (imageError: any) {
-//       console.error('❌ Erro na geração de imagem:', imageError.message);
-//       imageWarning = `Não foi possível gerar a imagem: ${imageError.message}`;
-      
-//       // Se a imagem falhou, pelo menos retornamos o texto - similar ao padrão OpenAI
-//       if (!textWarning) {
-//         console.log('📝 Retornando apenas o conteúdo de texto gerado');
-//       }
-//     }
-
-//     // Preparar resposta - mesmo padrão da OpenAI
-//     const warnings = [textWarning, imageWarning].filter(Boolean);
-//     const warningMessage = warnings.length > 0 ? warnings.join(' ') : undefined;
-
-//     const response = {
-//       imageUrl,
-//       title: postContent.title,
-//       body: postContent.body,
-//       hashtags: postContent.hashtags,
-//       ...(warningMessage && { warning: warningMessage })
-//     };
-
-//     console.log('🎉 Processamento concluído:', {
-//       textoGerado: !textWarning,
-//       imagemGerada: Boolean(imageUrl),
-//       warnings: warnings.length
-//     });
-
-//     return NextResponse.json(response);
-
-//   } catch (error: any) {
-//     console.error('💥 Erro crítico na rota /api/generate-image:', error);
-
-//     // Fallback final - mesmo padrão da OpenAI
-//     try {
-//       const { ...formData } = await req.json().catch(() => ({}));
-//       const fallbackContent = generateFallbackContent(formData);
-      
-//       return NextResponse.json({
-//         imageUrl: null,
-//         title: fallbackContent.title,
-//         body: fallbackContent.body,
-//         hashtags: fallbackContent.hashtags,
-//         warning: 'Houve um problema com as APIs. Conteúdo gerado como fallback.'
-//       });
-//     } catch {
-//       return NextResponse.json({
-//         error: error.message || 'Ocorreu um erro interno no servidor.'
-//       }, { status: 500 });
-//     }
-//   }
-// }
+/**
+ * Handler da rota POST
+ */
+export async function POST(req: NextRequest) {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Chave da API OpenAI não configurada no servidor.' }, { status: 500 });
+    }
+
+    const formData = await req.json();
+
+    if (!formData.prompt) {
+      return NextResponse.json({ error: 'A descrição da imagem é obrigatória.' }, { status: 400 });
+    }
+
+    // --- 1. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS ---
+    const imageResult = await generateImageWithFallbacks(formData);
+
+    if (!imageResult.success) {
+      return NextResponse.json({
+        error: imageResult.error || 'Não foi possível gerar a imagem com Gemini. Tente uma descrição diferente.'
+      }, { status: 400 });
+    }
+
+    // --- 2. GERAÇÃO DO TEXTO COM GPT-4O-MINI ---
+    const postContent = await generateTextContent(formData);
+
+    // --- 3. RETORNO DA RESPOSTA COMPLETA ---
+    return NextResponse.json({
+      imageUrl: imageResult.imageUrl,
+      title: postContent.title,
+      body: postContent.body,
+      hashtags: postContent.hashtags,
+      debug: {
+        model: imageResult.model,
+        quality: imageResult.quality,
+        size: imageResult.size,
+        output_format: imageResult.output_format,
+        promptUsed: imageResult.promptUsed,
+        attemptNumber: imageResult.attemptNumber,
+        originalData: formData
+      }
+    });
+
+  } catch (error) {
+    let errorMessage = "Ocorreu um erro interno no servidor.";
+    let statusCode = 500;
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if (error.message.includes('Limite de requisições')) statusCode = 429;
+      else if (error.message.includes('não autorizada') || error.message.includes('inválida')) statusCode = 401;
+      else if (error.message.includes('não encontrado')) statusCode = 404;
+    }
+    return NextResponse.json({
+      error: errorMessage,
+      model: 'gemini-2.0-flash-preview-image-generation',
+      timestamp: new Date().toISOString()
+    }, { status: statusCode });
+  }
+}
