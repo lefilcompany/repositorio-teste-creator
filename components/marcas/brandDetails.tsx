@@ -142,7 +142,7 @@ export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsPr
             <AlertDialogHeader>
               <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
               <AlertDialogDescription>
-                Essa ação não pode ser desfeita. Isso irá deletar permanentemente a marca "{brand.name}".
+                Essa ação não pode ser desfeita. Isso irá deletar permanentemente a marca &quot;{brand.name}&quot;.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

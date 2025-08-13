@@ -28,24 +28,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // useEffect para carregar dados (sem alterações)
-  useEffect(() => {
+  const loadTeam = async (teamId: string | undefined | null) => {
+    if (!teamId) return;
     try {
-      const token = localStorage.getItem('authToken');
-      if (token && token.length >= 32) {
-        const storedUser = localStorage.getItem('authUser');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        } else {
-          logout();
-        }
+      const res = await fetch(`/api/teams/${teamId}`);
+      if (res.ok) {
+        const team = await res.json();
+        localStorage.setItem('creator-teams', JSON.stringify([team]));
       }
     } catch (error) {
-      console.error('Failed to parse auth data from localStorage', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to load team data', error);
     }
-  }, []);
+  };
+
+  // useEffect para carregar dados (sem alterações)
+  useEffect(() => {
+      const init = async () => {
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token && token.length >= 32) {
+            const storedUser = localStorage.getItem('authUser');
+            if (storedUser) {
+              const parsedUser: User = JSON.parse(storedUser);
+              setUser(parsedUser);
+              await loadTeam(parsedUser.teamId);
+            } else {
+              logout();
+            }
+          }
+        } catch (error) {
+          console.error('Failed to parse auth data from localStorage', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      init();
+    }, []);
 
   const login = async (
     data: Omit<User, 'name'>
@@ -62,19 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userToAuth);
       const token = generateToken();
       localStorage.setItem('authToken', token);
-      localStorage.setItem('authUser', JSON.stringify(userToAuth));
-      router.push('/home');
-      return 'success';
-    } catch (error) {
-      console.error('Login failed', error);
-      return 'invalid';
-    }
-  };
+        localStorage.setItem('authUser', JSON.stringify(userToAuth));
+        await loadTeam(userToAuth.teamId);
+        router.push('/home');
+        return 'success';
+      } catch (error) {
+        console.error('Login failed', error);
+        return 'invalid';
+      }
+    };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
+    localStorage.removeItem('creator-teams');
     router.push('/login');
   };
 

@@ -97,7 +97,7 @@ export default function ThemeDetails({ theme, onEdit, onDelete, brands }: ThemeD
             <AlertDialogHeader>
               <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
               <AlertDialogDescription>
-                Essa ação não pode ser desfeita. Isso irá deletar permanentemente o tema "{theme.title}".
+                Essa ação não pode ser desfeita. Isso irá deletar permanentemente o tema &quot;{theme.title}&quot;.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
