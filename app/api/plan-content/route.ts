@@ -1,5 +1,7 @@
 // app/api/plan-content/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { ActionType } from '@prisma/client';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -9,9 +11,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { brand, theme, platform, quantity, objective, additionalInfo } = await req.json();
+    const body = await req.json();
+    const {
+      brand,
+      theme,
+      platform,
+      quantity,
+      objective,
+      additionalInfo,
+      teamId,
+      brandId,
+      userId,
+    } = body;
 
-    if (!brand || !theme || !platform || !quantity || !objective) {
+    if (!brand || !theme || !platform || !quantity || !objective || !teamId || !brandId || !userId) {
       return NextResponse.json({ error: 'Todos os campos são obrigatórios.' }, { status: 400 });
     }
 
@@ -72,7 +85,18 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const planContent = data.choices[0].message.content;
 
-    return NextResponse.json({ plan: planContent });
+    const action = await prisma.action.create({
+      data: {
+        type: ActionType.PLANEJAR_CONTEUDO,
+        teamId,
+        brandId,
+        userId,
+        details: { brand, theme, platform, quantity, objective, additionalInfo },
+        result: { plan: planContent },
+      },
+    });
+
+    return NextResponse.json({ plan: planContent, actionId: action.id });
 
   } catch (error) {
     console.error('Erro ao chamar a API da OpenAI:', error);
