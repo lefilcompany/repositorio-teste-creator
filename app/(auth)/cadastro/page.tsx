@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from '@/types/user';
-import { Team } from '@/types/team';
 import { Loader2, User as UserIcon, Mail, Lock, Phone } from 'lucide-react';
 import {
   AlertDialog,
@@ -105,41 +104,34 @@ export default function CadastroPage() {
     setFormData(updatedData);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
-    setTimeout(() => {
-      try {
-        const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-        const userExists = storedUsers.some(user => user.email === formData.email);
-
-        if (userExists) {
-          setError('Este e-mail já está em uso.');
-          setIsLoading(false);
-          return;
-        }
-
-        setPendingUser(formData as User);
-        setTeamStep('choice');
-      } catch (err) {
-        setError('Ocorreu um erro ao tentar se cadastrar.');
-      } finally {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Ocorreu um erro ao tentar se cadastrar.');
         setIsLoading(false);
+        return;
       }
-    }, 1000);
+      const user = await res.json();
+      setPendingUser(user);
+      setTeamStep('choice');
+    } catch (err) {
+      setError('Ocorreu um erro ao tentar se cadastrar.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const saveUser = (user: User) => {
-    const storedUsers = JSON.parse(localStorage.getItem('creator-users') || '[]') as User[];
-    storedUsers.push(user);
-    localStorage.setItem('creator-users', JSON.stringify(storedUsers));
-  };
-
-  const handleCreateTeam = () => {
+  const handleCreateTeam = async () => {
     if (!pendingUser) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
     const freePlan = {
       name: 'Free',
       limits: {
@@ -152,55 +144,36 @@ export default function CadastroPage() {
         contentReviews: 20,
       },
     };
-    const newTeam: Team = {
-      id: crypto.randomUUID(),
-      name: teamName,
-      code: teamCode,
-      admin: pendingUser.email!,
-      members: [pendingUser.email!],
-      pending: [],
-      plan: freePlan,
-      credits: {
-        contentSuggestions: freePlan.limits.contentSuggestions,
-        contentReviews: freePlan.limits.contentReviews,
-        contentPlans: freePlan.limits.calendars,
-      },
-    };
-    teams.push(newTeam);
-    localStorage.setItem('creator-teams', JSON.stringify(teams));
-    const userWithTeam: User = {
-      ...pendingUser,
-      teamId: newTeam.id,
-      role: 'admin',
-      status: 'active',
-    };
-    saveUser(userWithTeam);
+    await fetch('/api/teams/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: pendingUser.id,
+        name: teamName,
+        code: teamCode,
+        plan: freePlan,
+        credits: {
+          contentSuggestions: freePlan.limits.contentSuggestions,
+          contentReviews: freePlan.limits.contentReviews,
+          contentPlans: freePlan.limits.calendars,
+        },
+      }),
+    });
     router.push('/login');
   };
 
-  const handleJoinTeam = () => {
+  const handleJoinTeam = async () => {
     if (!pendingUser) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-    const team = teams.find(t => t.code === joinCode);
-    if (!team) {
-      setTeamError('Equipe não encontrada.');
+    const res = await fetch('/api/teams/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: pendingUser.id, code: joinCode }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setTeamError(data.error || 'Falha ao entrar na equipe.');
       return;
     }
-    if (team.members.length + team.pending.length >= team.plan.limits.members) {
-      setTeamError('Limite de membros do plano atingido.');
-      return;
-    }
-    if (!team.pending.includes(pendingUser.email!)) {
-      team.pending.push(pendingUser.email!);
-      localStorage.setItem('creator-teams', JSON.stringify(teams));
-    }
-    const userWithTeam: User = {
-      ...pendingUser,
-      teamId: team.id,
-      role: 'member',
-      status: 'pending',
-    };
-    saveUser(userWithTeam);
     setTeamStep('pending');
   };
 
