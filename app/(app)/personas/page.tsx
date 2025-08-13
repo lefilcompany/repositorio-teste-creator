@@ -10,7 +10,6 @@ import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
 
 type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
 
@@ -18,80 +17,74 @@ export default function PersonasPage() {
   const { user } = useAuth();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
-
   useEffect(() => {
-    try {
-      const storedPersonas = JSON.parse(localStorage.getItem('creator-personas') || '[]') as Persona[];
-      const storedBrands = JSON.parse(localStorage.getItem('creator-brands') || '[]') as Brand[];
-      if (user?.teamId) {
-        setPersonas(storedPersonas.filter(p => p.teamId === user.teamId));
-        setBrands(storedBrands.filter(b => b.teamId === user.teamId));
-      }
-    } catch (error) {
-      console.error('Falha ao carregar dados do localStorage', error);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (isLoaded) {
+    const load = async () => {
+      if (!user?.teamId) return;
       try {
-        const all = JSON.parse(localStorage.getItem('creator-personas') || '[]') as Persona[];
-        const others = all.filter(p => p.teamId !== user?.teamId);
-        localStorage.setItem('creator-personas', JSON.stringify([...others, ...personas]));
+        const [personasRes, brandsRes] = await Promise.all([
+          fetch(`/api/personas?teamId=${user.teamId}`),
+          fetch(`/api/brands?teamId=${user.teamId}`),
+        ]);
+        if (personasRes.ok) {
+          const data: Persona[] = await personasRes.json();
+          setPersonas(data);
+        }
+        if (brandsRes.ok) {
+          const data: Brand[] = await brandsRes.json();
+          setBrands(data);
+        }
       } catch (error) {
-        console.error('Falha ao salvar as personas no localStorage', error);
+        console.error('Falha ao carregar personas ou marcas', error);
       }
-    }
-  }, [personas, isLoaded, user?.teamId]);
+    };
+    load();
+  }, [user]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
   }, []);
 
-  const handleSavePersona = useCallback((formData: PersonaFormData) => {
-    if (!user) return;
-    const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-    const team = teams.find(t => t.id === user.teamId);
-    if (!team) return;
-    const now = new Date().toISOString();
-    if (!personaToEdit && personas.length >= team.plan.limits.personas) {
-      alert('Limite de personas do plano atingido.');
-      return;
-    }
-    setPersonas(prevPersonas => {
-      if (personaToEdit) {
-        const updatedPersonas = prevPersonas.map(p =>
-          p.id === personaToEdit.id ? { ...p, ...formData, updatedAt: now } : p
+  const handleSavePersona = useCallback(
+    async (formData: PersonaFormData) => {
+      if (!user?.teamId || !user.id) return;
+      try {
+        const method = personaToEdit ? 'PATCH' : 'POST';
+        const url = personaToEdit ? `/api/personas/${personaToEdit.id}` : '/api/personas';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
+        });
+        if (!res.ok) throw new Error('Falha ao salvar persona');
+        const saved: Persona = await res.json();
+        setPersonas(prev =>
+          personaToEdit ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
         );
-        if (selectedPersona?.id === personaToEdit.id) {
-          setSelectedPersona(prev => (prev ? { ...prev, ...formData, updatedAt: now } : null));
+        if (personaToEdit && selectedPersona?.id === saved.id) {
+          setSelectedPersona(saved);
         }
-        return updatedPersonas;
-      } else {
-        const newPersona: Persona = {
-          id: now,
-          teamId: user.teamId!,
-          userEmail: user.email,
-          ...formData,
-          createdAt: now,
-          updatedAt: now,
-        };
-        return [...prevPersonas, newPersona];
+      } catch (error) {
+        console.error(error);
       }
-    });
-  }, [personaToEdit, personas.length, selectedPersona?.id, user]);
+    },
+    [personaToEdit, selectedPersona?.id, user]
+  );
 
-  const handleDeletePersona = useCallback(() => {
+  const handleDeletePersona = useCallback(async () => {
     if (!selectedPersona) return;
-    setPersonas(prevPersonas => prevPersonas.filter(p => p.id !== selectedPersona.id));
-    setSelectedPersona(null);
+    try {
+      const res = await fetch(`/api/personas/${selectedPersona.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPersonas(prev => prev.filter(p => p.id !== selectedPersona.id));
+        setSelectedPersona(null);
+      }
+    } catch (error) {
+      console.error('Falha ao deletar persona', error);
+    }
   }, [selectedPersona]);
 
   return (
