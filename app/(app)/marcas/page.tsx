@@ -8,6 +8,7 @@ import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
 type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
@@ -30,9 +31,11 @@ export default function MarcasPage() {
         } else {
           const error = await res.json();
           console.error('Falha ao carregar marcas:', error.error);
+          toast.error('Erro ao carregar marcas da equipe');
         }
       } catch (error) {
         console.error('Falha ao carregar marcas', error);
+        toast.error('Erro de conexão ao carregar marcas');
       }
     };
     load();
@@ -57,6 +60,7 @@ export default function MarcasPage() {
       if (!res.ok) {
         const error = await res.json();
         console.error('Falha ao salvar marca:', error.error);
+        toast.error(error.error || 'Erro ao salvar marca');
         throw new Error(error.error || 'Falha ao salvar marca');
       }
       
@@ -67,8 +71,11 @@ export default function MarcasPage() {
       if (brandToEdit && selectedBrand?.id === saved.id) {
         setSelectedBrand(saved);
       }
+      
+      toast.success(brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar marca:', error);
+      toast.error('Erro ao salvar marca. Tente novamente.');
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
@@ -81,12 +88,15 @@ export default function MarcasPage() {
       if (res.ok) {
         setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
         setSelectedBrand(null);
+        toast.success('Marca deletada com sucesso!');
       } else {
         const error = await res.json();
         console.error('Falha ao deletar marca:', error.error);
+        toast.error(error.error || 'Erro ao deletar marca');
       }
     } catch (error) {
       console.error('Falha ao deletar marca', error);
+      toast.error('Erro ao deletar marca. Tente novamente.');
     }
   }, [selectedBrand, user]);
 

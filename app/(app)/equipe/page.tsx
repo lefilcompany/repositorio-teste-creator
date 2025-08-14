@@ -136,14 +136,14 @@ export default function EquipePage() {
 
       // Update local state immediately for better UX
       setPendingRequests(prev => prev.filter(req => req.id !== requestId));
-      
+
       if (action === 'approve') {
         // Add to members list if approved
         const requestUser = pendingRequests.find(req => req.id === requestId)?.user;
         if (requestUser) {
-          const newMember = { 
-            id: userId, 
-            name: userName, 
+          const newMember = {
+            id: userId,
+            name: userName,
             email: requestUser.email
           };
           setMembersDetails(prev => [...prev, newMember]);
@@ -165,11 +165,11 @@ export default function EquipePage() {
 
     } catch (error: any) {
       console.error('Erro ao processar solicitação:', error);
-      
+
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
       toast.error(error.message || 'Ocorreu um erro ao processar a solicitação.');
-      
+
       // Refresh data on error to ensure consistency
       await fetchTeamData();
     }
@@ -196,7 +196,7 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col gap-8 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+    <div className="h-full flex flex-col gap-8">
       <header>
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0 bg-gradient-to-br from-primary to-secondary text-white rounded-lg p-3 shadow-lg">

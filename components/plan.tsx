@@ -12,6 +12,7 @@ import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
 import type { Team } from '@/types/team';
+import { toast } from 'sonner';
 
 interface FormData {
   brand: string;
@@ -55,20 +56,27 @@ export default function Plan() {
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
         }
         
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
+        } else {
+          toast.error('Erro ao carregar temas estratégicos');
         }
         
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
           if (currentTeam) setTeam(currentTeam);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
         console.error('Failed to load data from API', error);
+        toast.error('Erro de conexão ao carregar dados para planejamento');
       }
     };
     
@@ -99,10 +107,14 @@ export default function Plan() {
 
 
   const handleGeneratePlan = async () => {
-    if (!team) return;
+    if (!team) {
+      toast.error('Dados da equipe não encontrados');
+      return;
+    }
     if (team.credits.contentPlans <= 0) {
       setError('Seus créditos para calendário de conteúdo acabaram.');
       setIsResultView(false);
+      toast.error('Créditos insuficientes para gerar planejamento');
       return;
     }
     setLoading(true);
@@ -124,6 +136,7 @@ export default function Plan() {
 
       const data = await response.json();
       setPlannedContent(data.plan);
+      toast.success('Planejamento gerado com sucesso!');
 
       // Atualizar créditos no banco de dados
       if (team && user?.id) {
@@ -138,9 +151,12 @@ export default function Plan() {
           if (updateRes.ok) {
             const updatedTeam = await updateRes.json();
             setTeam(updatedTeam);
+          } else {
+            toast.error('Erro ao atualizar créditos da equipe');
           }
         } catch (error) {
           console.error('Failed to update team credits', error);
+          toast.error('Erro ao atualizar créditos da equipe');
         }
       }
 
@@ -164,10 +180,12 @@ export default function Plan() {
           }
         } catch (error) {
           console.error('Failed to save action', error);
+          toast.error('Erro ao salvar no histórico');
         }
       }
     } catch (err: any) {
       setError(err.message);
+      toast.error(err.message || 'Erro ao gerar planejamento');
     } finally {
       setLoading(false);
     }

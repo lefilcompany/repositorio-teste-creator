@@ -7,14 +7,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const data = await req.json();
     const { result, status, approved, revisions } = data;
     
+    console.log('Atualizando ação:', actionId, { result, status, approved, revisions });
+    
     // Verificar se a ação existe
     const existingAction = await prisma.action.findUnique({
       where: { id: actionId }
     });
     
     if (!existingAction) {
+      console.log('Ação não encontrada:', actionId);
       return NextResponse.json({ error: 'Action not found' }, { status: 404 });
     }
+    
+    console.log('Ação existente encontrada:', existingAction.id);
     
     // Atualizar a ação
     const updatedAction = await prisma.action.update({
@@ -37,6 +42,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     });
     
+    console.log('Ação atualizada com sucesso:', updatedAction.id);
     return NextResponse.json(updatedAction);
   } catch (error) {
     console.error('Update action error', error);

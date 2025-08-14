@@ -104,22 +104,30 @@ export default function Creator() {
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
         }
         
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
+        } else {
+          toast.error('Erro ao carregar temas estratégicos');
         }
         
         if (personasRes.ok) {
           const personasData: Persona[] = await personasRes.json();
           setPersonas(personasData);
+        } else {
+          toast.error('Erro ao carregar personas');
         }
         
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
           if (currentTeam) setTeam(currentTeam);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
         }
       } catch (e) {
         console.error('Falha ao carregar dados da API', e);
@@ -206,20 +214,36 @@ export default function Creator() {
       toast.error('Por favor, preencha todos os campos obrigatórios (*).');
       return;
     }
+    if (!user?.teamId || !user?.id) {
+      toast.error('Dados do usuário não encontrados. Faça login novamente.');
+      return;
+    }
 
     setLoading(true);
 
     try {
       const base64Image = await fileToBase64(referenceImage);
 
+      // Busca o brandId baseado no nome da marca selecionada
+      const selectedBrand = brands.find(b => b.name === formData.brand);
+      if (!selectedBrand) {
+        toast.error('Marca selecionada não encontrada.');
+        return;
+      }
+
+      const requestData = {
+        prompt: formData.description,
+        ...formData,
+        referenceImage: base64Image,
+        teamId: user?.teamId,
+        brandId: selectedBrand.id,
+        userId: user?.id,
+      };
+
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: formData.description,
-          ...formData,
-          referenceImage: base64Image,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
@@ -269,11 +293,7 @@ export default function Creator() {
         localStorage.setItem('generatedContent', JSON.stringify(resultData));
       }
 
-      // Salva no histórico via API
-      await saveActionToHistory({
-        details: { ...formData },
-        result: { ...data, id: actionId, originalId: actionId },
-      }, user?.teamId, user?.id, formData.brand, brands);
+      // NÃO salva no histórico aqui - apenas quando aprovado na página de resultados
 
       // Atualiza os créditos da equipe
       await updateTeamCredits();
@@ -290,34 +310,34 @@ export default function Creator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 max-w-7xl">
-        {/* Fixed Header */}
-        <header className="py-6 border-b border-border/10 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Card */}
+        <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/20 shadow-lg shadow-black/5 p-6 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-sm opacity-30"></div>
-                <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-2xl p-4">
-                  <Sparkles className="h-8 w-8" />
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-md opacity-30"></div>
+                <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-2xl p-3">
+                  <Sparkles className="h-6 w-6" />
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                   Criar Conteúdo Estratégico
                 </h1>
-                <p className="text-muted-foreground text-lg mt-1">
+                <p className="text-muted-foreground text-base mt-1">
                   Preencha os campos para gerar um post completo com IA
                 </p>
               </div>
             </div>
             {team && (
-              <div className="flex items-center gap-4">
-                <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-30"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                         <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
                           <Zap className="h-4 w-4" />
                         </div>
@@ -328,7 +348,7 @@ export default function Creator() {
                             {team.credits.contentSuggestions}
                           </span>
                         </div>
-                        <span className="text-xs text-muted-foreground font-medium">créditos restantes</span>
+                        <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
                       </div>
                     </div>
                   </CardContent>
@@ -336,99 +356,98 @@ export default function Creator() {
               </div>
             )}
           </div>
-        </header>
+        </div>
 
         {/* Main Content with proper padding */}
-        <main className="py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6 lg:gap-8">
-            {/* Left Panel - Configuration */}
-            <div className="lg:col-span-1 xl:col-span-2 space-y-6">
-            <Card className="backdrop-blur-sm bg-card/50 border-0 shadow-xl shadow-black/5">
-              <CardHeader className="pb-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6">
+          {/* Left Panel - Configuration */}
+          <div className="lg:col-span-1 xl:col-span-2 space-y-6">
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   Configuração Básica
                 </h2>
-                <p className="text-sm text-muted-foreground">Defina marca, tema e público</p>
+                <p className="text-muted-foreground text-sm">Defina marca, tema e público</p>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-5 p-6">
                 <div className="space-y-3">
-                  <Label htmlFor="brand" className="text-sm font-medium text-foreground/80">Marca *</Label>
+                  <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
                   <Select onValueChange={(value) => handleSelectChange('brand', value)} value={formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
                       <SelectValue placeholder="Selecione a marca" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {brands.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+                    <SelectContent className="rounded-xl border-border/20">
+                      {brands.map(b => <SelectItem key={b.id} value={b.name} className="rounded-lg">{b.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-3">
-                  <Label htmlFor="theme" className="text-sm font-medium text-foreground/80">Tema Estratégico *</Label>
+                  <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
                   <Select onValueChange={(value) => handleSelectChange('theme', value)} value={formData.theme} disabled={!formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-colors disabled:opacity-50">
+                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
                       <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione o tema"} />
                     </SelectTrigger>
-                    <SelectContent>
-                      {filteredThemes.map(t => <SelectItem key={t.id} value={t.title}>{t.title}</SelectItem>)}
+                    <SelectContent className="rounded-xl border-border/20">
+                      {filteredThemes.map(t => <SelectItem key={t.id} value={t.title} className="rounded-lg">{t.title}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="persona" className="text-sm font-medium text-foreground/80">Persona (Opcional)</Label>
+                  <Label htmlFor="persona" className="text-sm font-semibold text-foreground">Persona (Opcional)</Label>
                   <Select onValueChange={(value) => handleSelectChange('persona', value)} value={formData.persona} disabled={!formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-colors disabled:opacity-50">
+                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
                       <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione uma persona"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl border-border/20">
                       {personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p => 
-                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                        <SelectItem key={p.id} value={p.name} className="rounded-lg">{p.name}</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="platform" className="text-sm font-medium text-foreground/80">Plataforma *</Label>
+                  <Label htmlFor="platform" className="text-sm font-semibold text-foreground">Plataforma *</Label>
                   <Select onValueChange={(value) => handleSelectChange('platform', value)} value={formData.platform}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
                       <SelectValue placeholder="Onde será postado?" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Instagram">Instagram</SelectItem>
-                      <SelectItem value="Facebook">Facebook</SelectItem>
-                      <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                      <SelectItem value="Twitter">Twitter (X)</SelectItem>
+                    <SelectContent className="rounded-xl border-border/20">
+                      <SelectItem value="Instagram" className="rounded-lg">Instagram</SelectItem>
+                      <SelectItem value="Facebook" className="rounded-lg">Facebook</SelectItem>
+                      <SelectItem value="LinkedIn" className="rounded-lg">LinkedIn</SelectItem>
+                      <SelectItem value="Twitter" className="rounded-lg">Twitter (X)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-3">
-                  <Label htmlFor="audience" className="text-sm font-medium text-foreground/80">Público-Alvo *</Label>
+                  <Label htmlFor="audience" className="text-sm font-semibold text-foreground">Público-Alvo *</Label>
                   <Input 
                     id="audience" 
                     placeholder="Ex: Jovens de 18-25 anos" 
                     value={formData.audience} 
                     onChange={handleInputChange} 
-                    className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-colors" 
+                    className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20" 
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="referenceImage" className="text-sm font-medium text-foreground/80">Imagem de Referência *</Label>
+                  <Label htmlFor="referenceImage" className="text-sm font-semibold text-foreground">Imagem de Referência *</Label>
                   <div className="relative">
                     <Input
                       id="referenceImage"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
-                      className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-colors file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                      className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                     />
                   </div>
                   {referenceImage && (
-                    <div className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                    <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       ✓ Arquivo selecionado: {referenceImage.name}
                     </div>
                   )}
@@ -439,62 +458,62 @@ export default function Creator() {
 
           {/* Right Panel - Content Details */}
           <div className="lg:col-span-1 xl:col-span-3 space-y-6">
-            <Card className="backdrop-blur-sm bg-card/50 border-0 shadow-xl shadow-black/5">
-              <CardHeader className="pb-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
                   <div className="w-2 h-2 bg-secondary rounded-full"></div>
                   Detalhes do Conteúdo
                 </h2>
-                <p className="text-sm text-muted-foreground">Descreva o objetivo e características do post</p>
+                <p className="text-muted-foreground text-sm">Descreva o objetivo e características do post</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 p-6">
                 <div className="space-y-3">
-                  <Label htmlFor="objective" className="text-sm font-medium text-foreground/80">Objetivo do Post *</Label>
+                  <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo do Post *</Label>
                   <Textarea 
                     id="objective" 
                     placeholder="Ex: Gerar engajamento, anunciar um novo produto, educar o público..." 
                     value={formData.objective} 
                     onChange={handleInputChange} 
-                    className="min-h-[120px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-colors resize-none" 
+                    className="min-h-[120px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="description" className="text-sm font-medium text-foreground/80">Descrição Visual da Imagem *</Label>
+                  <Label htmlFor="description" className="text-sm font-semibold text-foreground">Descrição Visual da Imagem *</Label>
                   <Textarea 
                     id="description" 
                     placeholder="Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição..." 
                     value={formData.description} 
                     onChange={handleInputChange} 
-                    className="min-h-[140px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-colors resize-none" 
+                    className="min-h-[140px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="tone" className="text-sm font-medium text-foreground/80">Tom de Voz * (máximo 4)</Label>
+                  <Label htmlFor="tone" className="text-sm font-semibold text-foreground">Tom de Voz * (máximo 4)</Label>
                   <Select onValueChange={handleToneSelect} value="">
-                    <SelectTrigger className="h-12 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-colors">
+                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
                       <SelectValue placeholder="Adicionar tom de voz..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl border-border/20">
                       {toneOptions.map(option => (
-                        <SelectItem key={option} value={option} disabled={formData.tone.includes(option)}>
+                        <SelectItem key={option} value={option} disabled={formData.tone.includes(option)} className="rounded-lg">
                           {option.charAt(0).toUpperCase() + option.slice(1)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   
-                  <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
+                  <div className="flex flex-wrap gap-2 min-h-[50px] p-3 rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
                     {formData.tone.length === 0 ? (
-                      <span className="text-sm text-muted-foreground italic">Nenhum tom selecionado</span>
+                      <span className="text-sm text-muted-foreground italic self-center">Nenhum tom selecionado</span>
                     ) : (
                       formData.tone.map(tone => (
-                        <div key={tone} className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-primary text-sm font-medium px-3 py-1.5 rounded-full">
+                        <div key={tone} className="flex items-center gap-2 bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-primary text-sm font-semibold px-3 py-1.5 rounded-xl transition-all duration-300 hover:scale-105">
                           {tone.charAt(0).toUpperCase() + tone.slice(1)}
                           <button 
                             onClick={() => handleToneRemove(tone)} 
-                            className="ml-1 text-primary hover:text-destructive transition-colors"
+                            className="ml-1 text-primary hover:text-destructive transition-colors p-0.5 rounded-full hover:bg-destructive/10"
                           >
                             <X size={14} />
                           </button>
@@ -505,13 +524,13 @@ export default function Creator() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="additionalInfo" className="text-sm font-medium text-foreground/80">Informações Extras</Label>
+                  <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Extras</Label>
                   <Textarea 
                     id="additionalInfo" 
                     placeholder="Cores específicas, elementos obrigatórios, estilo preferido, referências..." 
                     value={formData.additionalInfo} 
                     onChange={handleInputChange} 
-                    className="min-h-[100px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-colors resize-none" 
+                    className="min-h-[100px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
                   />
                 </div>
               </CardContent>
@@ -520,37 +539,40 @@ export default function Creator() {
         </div>
         
         {/* Action Button Section */}
-        <div className="py-8 border-t border-border/10 bg-background/50 backdrop-blur-sm mt-8">
-          <div className="flex flex-col items-center gap-4">
-            <Button 
-              onClick={handleGenerateContent} 
-              disabled={loading || !isFormValid()} 
-              className="w-full max-w-md h-14 rounded-2xl text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader className="animate-spin mr-3 h-5 w-5" /> 
-                  <span>Gerando conteúdo...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-3 h-5 w-5" /> 
-                  <span>Gerar Conteúdo</span>
-                </>
-              )}
-            </Button>
+        <div className="mt-8">
+          <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex flex-col items-center gap-4">
+                <Button 
+                  onClick={handleGenerateContent} 
+                  disabled={loading || !isFormValid()} 
+                  className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 hover:via-purple-600/90 hover:to-secondary/90 shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border-2 border-white/20"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="animate-spin mr-3 h-5 w-5" /> 
+                      <span>Gerando conteúdo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-3 h-5 w-5" /> 
+                      <span>Gerar Conteúdo</span>
+                    </>
+                  )}
+                </Button>
 
-            {/* Form validation indicator */}
-            {!isFormValid() && (
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  Complete todos os campos obrigatórios (*) para gerar o conteúdo
-                </p>
+                {/* Form validation indicator */}
+                {!isFormValid() && (
+                  <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
+                    <p className="text-muted-foreground text-sm">
+                      Complete todos os campos obrigatórios (*) para gerar o conteúdo
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
-        </main>
       </div>
     </div>
   );

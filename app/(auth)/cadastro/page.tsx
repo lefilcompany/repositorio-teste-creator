@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from '@/types/user';
 import { Loader2, User as UserIcon, Mail, Lock, Phone } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -70,6 +71,7 @@ export default function CadastroPage() {
       .catch(err => {
         console.error("Erro ao buscar estados:", err);
         setLoadingStates(false);
+        toast.error('Erro ao carregar estados');
       });
   }, []);
 
@@ -87,6 +89,7 @@ export default function CadastroPage() {
         .catch(err => {
           console.error("Erro ao buscar cidades:", err);
           setLoadingCities(false);
+          toast.error('Erro ao carregar cidades');
         });
     }
   }, [formData.state]);
@@ -117,14 +120,17 @@ export default function CadastroPage() {
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || 'Ocorreu um erro ao tentar se cadastrar.');
+        toast.error(data.error || 'Erro no cadastro');
         setIsLoading(false);
         return;
       }
       const user = await res.json();
       setPendingUser(user);
       setTeamStep('choice');
+      toast.success('Cadastro realizado com sucesso!');
     } catch (err) {
       setError('Ocorreu um erro ao tentar se cadastrar.');
+      toast.error('Erro de conexão durante o cadastro');
     } finally {
       setIsLoading(false);
     }
@@ -132,49 +138,78 @@ export default function CadastroPage() {
 
   const handleCreateTeam = async () => {
     if (!pendingUser) return;
-    const freePlan = {
-      name: 'Free',
-      limits: {
-        members: 5,
-        brands: 1,
-        themes: 3,
-        personas: 2,
-        calendars: 1,
-        contentSuggestions: 20,
-        contentReviews: 20,
-      },
-    };
-    await fetch('/api/teams/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: pendingUser.id,
-        name: teamName,
-        code: teamCode,
-        plan: freePlan,
-        credits: {
-          contentSuggestions: freePlan.limits.contentSuggestions,
-          contentReviews: freePlan.limits.contentReviews,
-          contentPlans: freePlan.limits.calendars,
+    
+    if (!teamName.trim() || !teamCode.trim()) {
+      toast.error('Por favor, preencha o nome e código da equipe');
+      return;
+    }
+    
+    try {
+      const freePlan = {
+        name: 'Free',
+        limits: {
+          members: 5,
+          brands: 1,
+          themes: 3,
+          personas: 2,
+          calendars: 1,
+          contentSuggestions: 20,
+          contentReviews: 20,
         },
-      }),
-    });
-    router.push('/login');
+      };
+      const res = await fetch('/api/teams/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: pendingUser.id,
+          name: teamName,
+          code: teamCode,
+          plan: freePlan,
+          credits: {
+            contentSuggestions: freePlan.limits.contentSuggestions,
+            contentReviews: freePlan.limits.contentReviews,
+            contentPlans: freePlan.limits.calendars,
+          },
+        }),
+      });
+      
+      if (res.ok) {
+        toast.success('Equipe criada com sucesso!');
+        router.push('/login');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Erro ao criar equipe');
+      }
+    } catch (error) {
+      toast.error('Erro de conexão ao criar equipe');
+    }
   };
 
   const handleJoinTeam = async () => {
     if (!pendingUser) return;
-    const res = await fetch('/api/teams/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: pendingUser.id, code: joinCode }),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      setTeamError(data.error || 'Falha ao entrar na equipe.');
+    
+    if (!joinCode.trim()) {
+      toast.error('Por favor, digite o código da equipe');
       return;
     }
-    setTeamStep('pending');
+    
+    try {
+      const res = await fetch('/api/teams/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: pendingUser.id, code: joinCode }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setTeamError(data.error || 'Falha ao entrar na equipe.');
+        toast.error(data.error || 'Código de equipe inválido');
+        return;
+      }
+      setTeamStep('pending');
+      toast.success('Solicitação enviada! Aguarde aprovação do administrador.');
+    } catch (error) {
+      toast.error('Erro de conexão ao solicitar entrada na equipe');
+    }
   };
 
   return (

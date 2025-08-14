@@ -105,20 +105,21 @@ export async function POST(req: NextRequest) {
 
     const result = await generateImage(revisionPrompt, base64Image, mimeType);
 
-    const action = await prisma.action.create({
-      data: {
-        type: ActionType.REVISAR_CONTEUDO,
-        teamId,
-        brandId,
-        userId,
-        details: { prompt, brand, theme, originalImage: dataURI },
-        result: { imageUrl: result.imageUrl },
-      },
-    });
+    // Não salva mais no histórico aqui, pois será salvo apenas quando aprovado
+    // const action = await prisma.action.create({
+    //   data: {
+    //     type: ActionType.REVISAR_CONTEUDO,
+    //     teamId,
+    //     brandId,
+    //     userId,
+    //     details: { prompt, brand, theme, originalImage: dataURI },
+    //     result: { imageUrl: result.imageUrl },
+    //   },
+    // });
 
     return NextResponse.json({
       imageUrl: result.imageUrl,
-      actionId: action.id,
+      // actionId: action.id,
       debug: {
         promptUsed: revisionPrompt,
         model: 'gemini-2.0-flash-preview-image-generation',

@@ -13,6 +13,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle, FaApple, FaFacebook } from 'react-icons/fa';
+import { toast } from 'sonner';
 
 // Use imagens locais para garantir o carregamento
 // Crie uma pasta 'assets' dentro da pasta 'public' e coloque suas imagens lá.
@@ -47,11 +48,22 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    
+    if (!email || !password) {
+      toast.error('Por favor, preencha todos os campos');
+      setIsLoading(false);
+      return;
+    }
+    
     const result = await login({ email, password });
     if (result === 'invalid') {
       setError('E-mail ou senha inválidos.');
+      toast.error('E-mail ou senha inválidos');
     } else if (result === 'pending') {
       setError('Aguardando aprovação do administrador da equipe.');
+      toast.warning('Aguardando aprovação do administrador da equipe');
+    } else if (result === 'success') {
+      toast.success('Login realizado com sucesso!');
     }
     setIsLoading(false);
   };

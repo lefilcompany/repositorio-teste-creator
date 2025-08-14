@@ -9,6 +9,7 @@ import ActionList from '@/components/historico/actionList';
 import ActionDetails from '@/components/historico/actionDetails';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function HistoricoPage() {
   const { user } = useAuth();
@@ -34,14 +35,19 @@ export default function HistoricoPage() {
         if (actionsRes.ok) {
           const actionsData: Action[] = await actionsRes.json();
           setActions(actionsData);
+        } else {
+          toast.error('Erro ao carregar histórico de ações');
         }
         
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas para filtros');
         }
       } catch (error) {
         console.error("Falha ao carregar dados da API", error);
+        toast.error('Erro de conexão ao carregar dados do histórico');
       }
     };
     

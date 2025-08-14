@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Brand, MoodboardFile } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
@@ -89,10 +90,12 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
           setMembers(data);
         } else {
           setMembers([]);
+          toast.error('Erro ao carregar membros da equipe');
         }
       } catch (error) {
         console.error('Failed to load team members', error);
         setMembers([]);
+        toast.error('Erro de conexão ao carregar membros da equipe');
       }
     };
     loadMembers();

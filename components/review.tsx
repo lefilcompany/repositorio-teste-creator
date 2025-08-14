@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote } from 'lucide-react';
+import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote, ThumbsUp } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
 import type { Team } from '@/types/team';
+import { toast } from 'sonner';
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -141,18 +142,17 @@ export default function Revisar() {
       const data = await response.json();
       setRevisedText(data.feedback);
 
-      // ADICIONAR ESTA PARTE: Salvar no histórico via API
-      const originalImageBase64 = await fileToBase64(imageFile);
-      await saveActionToHistory({
-        details: {
-          prompt: adjustmentsPrompt,
-          theme: theme,
-        },
-        result: {
-          feedback: data.feedback,
-          originalImage: originalImageBase64,
-        },
-      }, team.id, user?.id || '', brand, brands);
+      // NÃO salva automaticamente no histórico - será salvo apenas quando o usuário aprovar
+      // await saveActionToHistory({
+      //   details: {
+      //     prompt: adjustmentsPrompt,
+      //     theme: theme,
+      //   },
+      //   result: {
+      //     feedback: data.feedback,
+      //     originalImage: originalImageBase64,
+      //   },
+      // }, team.id, user?.id || '', brand, brands);
 
       // Atualizar créditos no banco de dados
       if (team && user?.id) {
@@ -188,6 +188,31 @@ export default function Revisar() {
     setBrand('');
     setTheme('');
     setAdjustmentsPrompt('');
+  };
+
+  const handleApproveReview = async () => {
+    if (!revisedText || !previewUrl) return;
+    
+    try {
+      const originalImageBase64 = await fileToBase64(imageFile!);
+      await saveActionToHistory({
+        details: {
+          prompt: adjustmentsPrompt,
+          brand: brand,
+          theme: theme,
+        },
+        result: {
+          feedback: revisedText,
+          originalImage: originalImageBase64,
+        },
+      }, team!.id, user?.id || '', brand, brands);
+      
+      toast.success('Análise aprovada e salva no histórico!');
+      handleGoBackToForm();
+    } catch (error) {
+      console.error('Erro ao aprovar análise:', error);
+      toast.error('Erro ao salvar no histórico');
+    }
   };
 
   if (!isResultView) {
@@ -299,12 +324,18 @@ export default function Revisar() {
           {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
         </div>
       </div>
-      {/* Botão de Voltar */}
-      <div className="col-span-1 lg:col-span-2">
-        <Button onClick={handleGoBackToForm} variant="outline" className="w-full rounded-full text-lg px-8 py-6">
+      {/* Botões de Ação */}
+      <div className="col-span-1 lg:col-span-2 flex flex-col sm:flex-row gap-4">
+        <Button onClick={handleGoBackToForm} variant="outline" className="flex-1 rounded-full text-lg px-8 py-6">
           <ArrowLeft className="mr-2" />
           Analisar Outra Imagem
         </Button>
+        {revisedText && !loading && (
+          <Button onClick={handleApproveReview} className="flex-1 rounded-full text-lg px-8 py-6 bg-green-600 hover:bg-green-700 text-white">
+            <ThumbsUp className="mr-2" />
+            Aprovar e Salvar
+          </Button>
+        )}
       </div>
     </div>
   );

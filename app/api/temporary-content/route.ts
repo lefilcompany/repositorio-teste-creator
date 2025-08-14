@@ -68,11 +68,20 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
     
-    // Remove conteúdo temporário anterior do mesmo usuário
+    // Remove conteúdo temporário anterior do mesmo usuário para evitar acúmulo
     await prisma.temporaryContent.deleteMany({
       where: {
         userId,
         teamId
+      }
+    });
+    
+    // Remove também conteúdos expirados de todos os usuários para limpeza automática
+    await prisma.temporaryContent.deleteMany({
+      where: {
+        expiresAt: {
+          lt: new Date()
+        }
       }
     });
     
@@ -97,6 +106,7 @@ export async function POST(req: Request) {
       }
     });
     
+    console.log('Conteúdo temporário criado:', temporaryContent.id);
     return NextResponse.json(temporaryContent);
   } catch (error) {
     console.error('Create temporary content error', error);

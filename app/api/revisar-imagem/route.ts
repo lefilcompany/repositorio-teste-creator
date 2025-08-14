@@ -93,18 +93,19 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const analysisContent = data.choices[0].message.content;
 
-    const action = await prisma.action.create({
-      data: {
-        type: ActionType.REVISAR_CONTEUDO,
-        teamId,
-        brandId,
-        userId,
-        details: { prompt, brand, theme },
-        result: { feedback: analysisContent, originalImage: dataURI },
-      },
-    });
+    // Não salva mais no histórico aqui, pois será salvo apenas quando aprovado
+    // const action = await prisma.action.create({
+    //   data: {
+    //     type: ActionType.REVISAR_CONTEUDO,
+    //     teamId,
+    //     brandId,
+    //     userId,
+    //     details: { prompt, brand, theme },
+    //     result: { feedback: analysisContent, originalImage: dataURI },
+    //   },
+    // });
 
-    return NextResponse.json({ feedback: analysisContent, actionId: action.id });
+    return NextResponse.json({ feedback: analysisContent }); // , actionId: action.id
 
   } catch (error) {
     console.error('Erro ao chamar a API da OpenAI:', error);

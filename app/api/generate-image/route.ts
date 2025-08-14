@@ -399,11 +399,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Chave da API OpenAI não configurada no servidor.' }, { status: 500 });
     }
 
+    if (!process.env.GOOGLE_API) {
+      return NextResponse.json({ error: 'Chave da API Google não configurada no servidor.' }, { status: 500 });
+    }
+
     const formData = await req.json();
     const { teamId, brandId, userId, ...actionDetails } = formData;
 
-    if (!actionDetails.prompt || !teamId || !brandId || !userId) {
-      return NextResponse.json({ error: 'Dados obrigatórios ausentes.' }, { status: 400 });
+    // Validação mais detalhada
+    const missingFields = [];
+    if (!actionDetails.prompt) missingFields.push('prompt');
+    if (!teamId) missingFields.push('teamId');
+    if (!brandId) missingFields.push('brandId');
+    if (!userId) missingFields.push('userId');
+
+    if (missingFields.length > 0) {
+      return NextResponse.json({ 
+        error: `Dados obrigatórios ausentes: ${missingFields.join(', ')}` 
+      }, { status: 400 });
     }
 
     // --- 1. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS ---

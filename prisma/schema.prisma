@@ -18,6 +18,7 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   PENDING
+  INACTIVE
 }
 
 enum ActionType {

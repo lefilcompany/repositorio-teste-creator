@@ -10,6 +10,7 @@ import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
@@ -31,13 +32,18 @@ export default function PersonasPage() {
         if (personasRes.ok) {
           const data: Persona[] = await personasRes.json();
           setPersonas(data);
+        } else {
+          toast.error('Erro ao carregar personas');
         }
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
           setBrands(data);
+        } else {
+          toast.error('Erro ao carregar marcas');
         }
       } catch (error) {
         console.error('Falha ao carregar personas ou marcas', error);
+        toast.error('Erro de conexão ao carregar dados');
       }
     };
     load();
@@ -59,7 +65,11 @@ export default function PersonasPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
         });
-        if (!res.ok) throw new Error('Falha ao salvar persona');
+        if (!res.ok) {
+          const error = await res.json();
+          toast.error(error.error || 'Erro ao salvar persona');
+          throw new Error('Falha ao salvar persona');
+        }
         const saved: Persona = await res.json();
         setPersonas(prev =>
           personaToEdit ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
@@ -67,8 +77,10 @@ export default function PersonasPage() {
         if (personaToEdit && selectedPersona?.id === saved.id) {
           setSelectedPersona(saved);
         }
+        toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
       } catch (error) {
         console.error(error);
+        toast.error('Erro ao salvar persona. Tente novamente.');
       }
     },
     [personaToEdit, selectedPersona?.id, user]
@@ -81,9 +93,14 @@ export default function PersonasPage() {
       if (res.ok) {
         setPersonas(prev => prev.filter(p => p.id !== selectedPersona.id));
         setSelectedPersona(null);
+        toast.success('Persona deletada com sucesso!');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Erro ao deletar persona');
       }
     } catch (error) {
       console.error('Falha ao deletar persona', error);
+      toast.error('Erro ao deletar persona. Tente novamente.');
     }
   }, [selectedPersona]);
 

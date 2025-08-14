@@ -65,6 +65,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Brand not found or not part of the team' }, { status: 403 });
     }
     
+    console.log('Criando nova ação:', { type, teamId, userId, brandId, details: details || null, result: result || null });
+    
     // Criar a ação
     const action = await prisma.action.create({ 
       data: {
@@ -87,6 +89,7 @@ export async function POST(req: Request) {
       }
     });
     
+    console.log('Ação criada com sucesso:', action.id);
     return NextResponse.json(action);
   } catch (error) {
     console.error('Create action error', error);

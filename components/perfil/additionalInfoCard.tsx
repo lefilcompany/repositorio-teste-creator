@@ -1,83 +1,136 @@
 // components/perfil/additionalInfoCard.tsx
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users, Star, Zap, Sparkles, CheckCircle, Calendar } from 'lucide-react';
-import LeaveTeamDialog from './leaveTeamDialog';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Users, Shield, Crown, Activity } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface AdditionalInfoCardProps {
-  userName: string; // <-- ADICIONAR ESTA LINHA
-  teamData: {
-    teamName: string;
-    plan: string;
-    actionsRemaining: {
-      total: number;
-      createContent: number;
-      reviewContent: number;
-      planContent: number;
+  userData: {
+    team?: {
+      name: string;
     };
+    role?: 'ADMIN' | 'MEMBER';
   };
 }
 
-export default function AdditionalInfoCard({ userName, teamData }: AdditionalInfoCardProps) { // <-- RECEBER userName AQUI
-  const [isLeaveTeamDialogOpen, setIsLeaveTeamDialogOpen] = useState(false);
+export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps) {
+  const { user, team } = useAuth();
+  const [totalActions, setTotalActions] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
+    const fetchTeamActions = async () => {
+      if (!user?.teamId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/actions?teamId=${user.teamId}`);
+        if (response.ok) {
+          const actions = await response.json();
+          setTotalActions(actions.length);
+        } else {
+          toast.error('Erro ao carregar histórico de ações da equipe');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar ações da equipe:', error);
+        toast.error('Erro de conexão ao carregar dados da equipe');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTeamActions();
+  }, [user?.teamId]);
+
+  // Calcular progresso baseado nos créditos da equipe
+  const creditosUsados = team ? {
+    total: (team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0),
+    restantes: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0)
+  } : { total: 0, restantes: 0 };
+
+  const acoesUsadas = creditosUsados.total - creditosUsados.restantes;
+  const progressoPercentual = creditosUsados.total > 0 ? (acoesUsadas / creditosUsados.total) * 100 : 0;
   return (
-    <>
-      <Card className="h-full shadow-lg bg-gradient-to-br from-secondary to-primary text-secondary-foreground">
-        <CardHeader>
-          {/* USAR a prop userName AQUI */}
-          <CardTitle className="text-2xl text-white">Olá, {userName}!</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <InfoItem icon={Users} label="Equipe" value={teamData.teamName} />
-            <InfoItem icon={Star} label="Assinatura da Equipe" value={teamData.plan} />
-            <InfoItem icon={Zap} label="Ações Restantes" value={teamData.actionsRemaining.total.toString()} />
+    <Card className="shadow-xl border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
+      <CardHeader className="bg-gradient-to-r from-secondary/10 to-accent/10 rounded-t-lg border-b border-secondary/20 p-6">
+        <CardTitle className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-3">
+          <div className="p-2 bg-secondary/15 rounded-xl shadow-sm">
+            <Users className="h-6 w-6 text-secondary" />
           </div>
-          <div className="pt-4 border-t border-white/20 space-y-3">
-             <ActionDetail icon={Sparkles} label="Criar conteúdo:" value={teamData.actionsRemaining.createContent} />
-             <ActionDetail icon={Calendar} label="Planejar conteúdo:" value={teamData.actionsRemaining.planContent} />
-             <ActionDetail icon={CheckCircle} label="Revisar conteúdo:" value={teamData.actionsRemaining.reviewContent} />
+          Informações da Equipe
+        </CardTitle>
+        <CardDescription className="text-muted-foreground text-base">
+          Dados da sua equipe e função
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 p-6">
+        {userData?.team && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <div className="p-1.5 bg-accent/15 rounded-lg">
+                <Users className="h-4 w-4 text-accent" />
+              </div>
+              Equipe
+            </h3>
+            <p className="text-foreground font-medium text-lg pl-8">{userData.team.name.toUpperCase()}</p>
           </div>
-          <div className="pt-6">
-            <Button 
-              variant="outline" 
-              className="w-full bg-transparent border-white text-white hover:bg-white/10"
-              onClick={() => setIsLeaveTeamDialogOpen(true)}
-            >
-              Sair da equipe
-            </Button>
+        )}
+        {userData?.role && (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <div className="p-1.5 bg-primary/15 rounded-lg">
+                {userData.role === 'ADMIN' ? (
+                  <Crown className="h-4 w-4 text-primary" />
+                ) : (
+                  <Shield className="h-4 w-4 text-primary" />
+                )}
+              </div>
+              Função
+            </h3>
+            <div className="pl-8 space-y-1">
+              <p className={`font-semibold text-lg ${
+                userData.role === 'ADMIN' ? 'text-yellow-600' : 'text-blue-600'
+              }`}>
+                {userData.role === 'ADMIN' ? 'Administrador' : 'Membro'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {userData.role === 'ADMIN' 
+                  ? 'Controle total sobre a equipe' 
+                  : 'Acesso aos projetos da equipe'
+                }
+              </p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-      <LeaveTeamDialog isOpen={isLeaveTeamDialogOpen} onOpenChange={setIsLeaveTeamDialogOpen} />
-    </>
+        )}
+
+        {/* Progresso das Ações da Equipe */}
+        {team && (
+          <div className="space-y-3 border-t border-muted/20 pt-6">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <div className="p-1.5 bg-green-500/15 rounded-lg">
+                <Activity className="h-4 w-4 text-green-600" />
+              </div>
+              Ações Restantes
+            </h3>
+            <div className="pl-8 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-foreground">{creditosUsados.restantes}</span>
+                <span className="text-sm text-muted-foreground">de {creditosUsados.total} disponíveis</span>
+              </div>
+              <Progress value={progressoPercentual} className="h-3" />
+              <p className="text-xs text-muted-foreground">
+                {acoesUsadas} ações utilizadas ({totalActions} conteúdos gerados)
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
-
-// Componente auxiliar para os itens de informação
-const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) => (
-  <div className="flex items-center gap-4">
-    <div className="p-2 bg-white/10 rounded-full">
-      <Icon className="h-5 w-5 text-white" />
-    </div>
-    <div>
-      <p className="text-sm font-light text-white/80">{label}</p>
-      <p className="font-semibold text-white">{value}</p>
-    </div>
-  </div>
-);
-
-// Componente auxiliar para os detalhes das ações
-const ActionDetail = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) => (
-    <div className="flex justify-between items-center text-white/90">
-        <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4" />
-            <span className="text-sm">{label}</span>
-        </div>
-        <span className="font-semibold">{value}</span>
-    </div>
-);

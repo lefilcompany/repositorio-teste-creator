@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { Brand } from '@/types/brand';
 import type { Action } from '@/types/action';
 import type { Team } from '@/types/team';
+import { toast } from 'sonner';
 
 
 export default function HomePage() {
@@ -47,23 +48,27 @@ export default function HomePage() {
         if (brandsResponse.ok) {
           const brandsData: Brand[] = await brandsResponse.json();
           setStats(prev => ({ ...prev, marcasGerenciadas: brandsData.length }));
+        } else {
+          toast.error('Erro ao carregar marcas para o dashboard');
         }
 
         if (actionsResponse.ok) {
           const actionsData: Action[] = await actionsResponse.json();
-          // Assuming the API can also provide a total count or we fetch all and count
-          // For simplicity, we'll assume another call or header provides total count if needed.
-          // Here, we'll just set the recent actions.
           setAtividadesRecentes(actionsData);
           // A more robust solution would be a dedicated stats endpoint
           const totalActionsRes = await fetch(`/api/actions?teamId=${user.teamId}`);
           if (totalActionsRes.ok) {
             const allActions: Action[] = await totalActionsRes.json();
             setStats(prev => ({ ...prev, conteudosGerados: allActions.length }));
+          } else {
+            toast.error('Erro ao carregar estatísticas de conteúdo');
           }
+        } else {
+          toast.error('Erro ao carregar atividades recentes');
         }
       } catch (error) {
         console.error('Falha ao carregar dados do dashboard via API', error);
+        toast.error('Erro de conexão ao carregar dados do dashboard');
       } finally {
         setIsLoading(false);
       }

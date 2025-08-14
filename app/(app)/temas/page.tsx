@@ -10,6 +10,7 @@ import ThemeDialog from '@/components/temas/themeDialog';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
@@ -31,13 +32,18 @@ export default function TemasPage() {
         if (themesRes.ok) {
           const data: StrategicTheme[] = await themesRes.json();
           setThemes(data);
+        } else {
+          toast.error('Erro ao carregar temas estratégicos');
         }
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
           setBrands(data);
+        } else {
+          toast.error('Erro ao carregar marcas');
         }
       } catch (error) {
         console.error('Falha ao carregar temas ou marcas', error);
+        toast.error('Erro de conexão ao carregar dados');
       }
     };
     load();
@@ -59,7 +65,11 @@ export default function TemasPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
         });
-        if (!res.ok) throw new Error('Falha ao salvar tema');
+        if (!res.ok) {
+          const error = await res.json();
+          toast.error(error.error || 'Erro ao salvar tema');
+          throw new Error('Falha ao salvar tema');
+        }
         const saved: StrategicTheme = await res.json();
         setThemes(prev =>
           themeToEdit ? prev.map(t => (t.id === saved.id ? saved : t)) : [...prev, saved]
@@ -67,8 +77,10 @@ export default function TemasPage() {
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
         }
+        toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
       } catch (error) {
         console.error(error);
+        toast.error('Erro ao salvar tema. Tente novamente.');
       }
     },
     [themeToEdit, selectedTheme?.id, user]
@@ -81,9 +93,14 @@ export default function TemasPage() {
       if (res.ok) {
         setThemes(prev => prev.filter(t => t.id !== selectedTheme.id));
         setSelectedTheme(null);
+        toast.success('Tema deletado com sucesso!');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Erro ao deletar tema');
       }
     } catch (error) {
       console.error('Falha ao deletar tema', error);
+      toast.error('Erro ao deletar tema. Tente novamente.');
     }
   }, [selectedTheme]);
 

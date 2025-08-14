@@ -44,6 +44,7 @@ export default function ResultPage() {
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [revisionType, setRevisionType] = useState<'image' | 'text' | null>(null);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [brandId, setBrandId] = useState<string>('');
 
   useEffect(() => {
     const loadContent = async () => {
@@ -75,6 +76,22 @@ export default function ResultPage() {
 
             setContent(parsedContent);
 
+            // Busca o brandId baseado no nome da marca
+            if (tempContent.brand && user?.teamId) {
+              try {
+                const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+                if (brandsRes.ok) {
+                  const brands = await brandsRes.json();
+                  const brand = brands.find((b: any) => b.name === tempContent.brand);
+                  if (brand) {
+                    setBrandId(brand.id);
+                  }
+                }
+              } catch (error) {
+                console.error('Erro ao buscar brandId:', error);
+              }
+            }
+
             // Inicializa as versões com a versão original
             const initialVersion: ContentVersion = {
               id: `version-${Date.now()}`,
@@ -86,56 +103,10 @@ export default function ResultPage() {
             setVersions([initialVersion]);
             setCurrentVersionIndex(0);
           } else {
-            // Fallback para localStorage se não encontrar no banco
-            const storedContent = localStorage.getItem('generatedContent');
-            if (storedContent) {
-              const parsedContent = JSON.parse(storedContent);
-
-              // Garante que temos um ID único se não existir
-              if (!parsedContent.id) {
-                parsedContent.id = `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-              }
-
-              setContent(parsedContent);
-
-              // Inicializa as versões com a versão original
-              const initialVersion: ContentVersion = {
-                id: `version-${Date.now()}`,
-                content: parsedContent,
-                timestamp: new Date().toISOString(),
-                type: 'original'
-              };
-
-              setVersions([initialVersion]);
-              setCurrentVersionIndex(0);
-            } else {
-              throw new Error('Nenhum conteúdo gerado encontrado.');
-            }
+            throw new Error('Nenhum conteúdo gerado encontrado no banco de dados.');
           }
         } else {
-          // Fallback para localStorage se a API falhar
-          const storedContent = localStorage.getItem('generatedContent');
-          if (storedContent) {
-            const parsedContent = JSON.parse(storedContent);
-
-            if (!parsedContent.id) {
-              parsedContent.id = `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            }
-
-            setContent(parsedContent);
-
-            const initialVersion: ContentVersion = {
-              id: `version-${Date.now()}`,
-              content: parsedContent,
-              timestamp: new Date().toISOString(),
-              type: 'original'
-            };
-
-            setVersions([initialVersion]);
-            setCurrentVersionIndex(0);
-          } else {
-            throw new Error('Nenhum conteúdo gerado encontrado.');
-          }
+          throw new Error('Nenhum conteúdo gerado encontrado.');
         }
 
         if (user?.teamId) {
@@ -154,7 +125,7 @@ export default function ResultPage() {
           loadTeam();
         }
       } catch (e: any) {
-        toast.error(e.message, { description: "Você será redirecionado." });
+        toast.error(e.message, { description: "Você será redirecionado para criar novo conteúdo." });
         router.push('/content');
       } finally {
         setLoading(false);
@@ -188,136 +159,56 @@ export default function ResultPage() {
   }, [user?.teamId, team]);
 
   const saveToHistory = async (finalContent: GeneratedContent, approved = false) => {
-    if (!user?.teamId || !user?.email || !finalContent) return;
+    if (!user?.teamId || !user?.email || !finalContent || !brandId) return;
 
     try {
-      // Busca a marca pelo nome para obter o ID
-      const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
-      if (!brandsRes.ok) {
-        throw new Error('Erro ao buscar marcas');
-      }
-      
-      const brands = await brandsRes.json();
-      const brand = brands.find((b: any) => b.name === finalContent.brand);
-      
-      if (!brand) {
-        throw new Error('Marca não encontrada');
-      }
-
       // Usa o ID original se existir, senão cria um novo
       const actionId = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      // Procura por uma ação existente com o mesmo ID
-      const existingActionsRes = await fetch(`/api/actions?teamId=${user.teamId}`);
-      let existingAction = null;
-      
-      if (existingActionsRes.ok) {
-        const actions = await existingActionsRes.json();
-        existingAction = actions.find((action: any) => 
-          action.id === actionId || 
-          (action.result && action.result.originalId === actionId)
-        );
-      }
-
+      // Sempre cria uma nova ação no histórico quando aprovado
+      // Não verifica se já existe para evitar sobrescrever outras ações
       const actionData = {
         type: 'CRIAR_CONTEUDO',
         teamId: user.teamId,
         userId: user.id,
-        brandId: brand.id,
+        brandId: brandId,
         details: {
           brand: finalContent.brand,
-          theme: finalContent.theme
+          theme: finalContent.theme,
+          platform: 'Social Media', // Valor padrão
+          objective: 'Conteúdo aprovado pelo usuário'
         },
         result: {
-          ...finalContent,
+          id: actionId,
+          imageUrl: finalContent.imageUrl,
+          title: finalContent.title,
+          body: finalContent.body,
+          hashtags: finalContent.hashtags,
           approved,
-          originalId: actionId
+          originalId: actionId,
+          revisions: finalContent.revisions || 0
         },
         status: approved ? 'Aprovado' : 'Em revisão',
         approved,
         revisions: finalContent.revisions || 0
       };
 
-      if (existingAction) {
-        // Atualiza a ação existente
-        const updateRes = await fetch(`/api/actions/${existingAction.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            result: actionData.result,
-            status: actionData.status,
-            approved: actionData.approved,
-            revisions: actionData.revisions
-          })
-        });
-        
-        if (!updateRes.ok) {
-          throw new Error('Erro ao atualizar ação no histórico');
-        }
-        
-        console.log('Ação atualizada no histórico:', actionId);
-      } else {
-        // Cria uma nova ação
-        const createRes = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(actionData)
-        });
-        
-        if (!createRes.ok) {
-          throw new Error('Erro ao criar ação no histórico');
-        }
-        
-        console.log('Nova ação criada no histórico:', actionId);
+      // Sempre cria uma nova ação
+      const createRes = await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(actionData)
+      });
+      
+      if (!createRes.ok) {
+        throw new Error('Erro ao salvar ação no histórico');
       }
-
-      console.log('Histórico salvo com sucesso');
+      
+      console.log('Ação salva no histórico com ID:', actionId);
 
     } catch (e) {
       console.error("Erro ao salvar no histórico:", e);
       toast.error("Erro ao salvar no histórico");
-      
-      // Fallback para localStorage
-      try {
-        const history = JSON.parse(localStorage.getItem('creator-action-history') || '[]');
-        const actionId = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        
-        const existingIndex = history.findIndex((action: any) =>
-          action.id === actionId || (action.result && action.result.originalId === actionId)
-        );
-
-        const updatedResult = {
-          ...finalContent,
-          approved,
-          originalId: actionId
-        };
-
-        if (existingIndex > -1) {
-          history[existingIndex].result = updatedResult;
-          history[existingIndex].status = approved ? 'Aprovado' : 'Em revisão';
-          history[existingIndex].updatedAt = new Date().toISOString();
-        } else {
-          const newHistoryEntry = {
-            id: actionId,
-            createdAt: new Date().toISOString(),
-            teamId: user.teamId,
-            userId: user.id,
-            type: 'Criar conteúdo',
-            brand: finalContent.brand || '',
-            theme: finalContent.theme || '',
-            details: {},
-            result: updatedResult,
-            status: approved ? 'Aprovado' : 'Em revisão'
-          };
-
-          history.unshift(newHistoryEntry);
-        }
-
-        localStorage.setItem('creator-action-history', JSON.stringify(history));
-        console.log('Fallback: Histórico salvo no localStorage');
-      } catch (fallbackError) {
-        console.error('Erro no fallback do localStorage:', fallbackError);
-      }
     }
   };
 
@@ -356,9 +247,8 @@ export default function ResultPage() {
         }
       }
     } catch (error) {
-      console.error('Erro ao atualizar no banco de dados, usando localStorage como fallback:', error);
-      // Fallback para localStorage se a API falhar
-      localStorage.setItem('generatedContent', JSON.stringify(updatedContent));
+      console.error('Erro ao atualizar no banco de dados:', error);
+      toast.error('Erro ao atualizar conteúdo no banco de dados');
     }
 
     console.log('Conteúdo atual atualizado:', updatedContent);
@@ -388,9 +278,6 @@ export default function ResultPage() {
           console.error('Erro ao remover conteúdo temporário do banco:', error);
         }
       }
-
-      // Limpa o localStorage como fallback
-      localStorage.removeItem('generatedContent');
 
       router.push('/historico');
     } catch (error) {
@@ -440,9 +327,9 @@ export default function ResultPage() {
       // Atualiza o conteúdo atual
       await updateCurrentContent(contentWithRevision);
 
-      // Salva temporariamente no histórico como "Em revisão"
-      await saveToHistory(contentWithRevision, false);
-
+      // NÃO salva revisões intermediárias no histórico
+      // O histórico será atualizado apenas quando o conteúdo for aprovado
+      
       setShowRevisionForm(false);
       setRevisionType(null);
 
@@ -521,6 +408,8 @@ export default function ResultPage() {
           setShowRevisionForm(false);
           setRevisionType(null);
         }}
+        teamId={user?.teamId}
+        brandId={brandId}
       />
     );
   }
