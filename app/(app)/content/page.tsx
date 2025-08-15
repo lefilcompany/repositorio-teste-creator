@@ -2,9 +2,5 @@
 import Creator from '@/components/content/content';
 
 export default function CreatorPage() {
-  return (
-    <div className="p-4 md:p-8 flex items-center justify-center h-full">
-      <Creator />
-    </div>
-  );
+  return <Creator />;
 }

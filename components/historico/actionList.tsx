@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import type { Action } from '@/types/action';
-import { ACTION_STYLE_MAP } from '@/types/action';
+import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 
 interface ActionListProps {
   actions: Action[];
@@ -18,13 +18,14 @@ const formatDate = (dateString: string) => {
 
 export default function ActionList({ actions, selectedAction, onSelectAction }: ActionListProps) {
   return (
-    <div className="lg:col-span-2 bg-card p-4 md:p-6 rounded-2xl border-2 border-primary/10 flex flex-col h-full overflow-hidden">
+    <div className="lg:col-span-2 bg-card p-4 md:p-6 rounded-2xl border-2 border-primary/10 flex flex-col h-full max-h-[calc(100vh-16rem)]">
       <h2 className="text-2xl font-semibold text-foreground mb-4 px-2 flex-shrink-0">Ações Recentes</h2>
-      <div className="overflow-y-auto pr-2 flex-grow">
+      <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         {actions.length > 0 ? (
           <ul className="space-y-3">
             {actions.map((action) => {
-              const style = ACTION_STYLE_MAP[action.type];
+              const displayType = ACTION_TYPE_DISPLAY[action.type];
+              const style = ACTION_STYLE_MAP[displayType];
               const Icon = style.icon;
               return (
                 <li key={action.id}>
@@ -42,8 +43,8 @@ export default function ActionList({ actions, selectedAction, onSelectAction }: 
                         <Icon className={cn("h-5 w-5", style.color)} />
                       </div>
                       <div className="overflow-hidden">
-                        <p className="font-semibold text-lg text-foreground truncate">{action.type}</p>
-                        <p className="text-sm text-muted-foreground truncate">Marca: {action.brand || 'Não especificada'}</p>
+                        <p className="font-semibold text-lg text-foreground truncate">{ACTION_TYPE_DISPLAY[action.type]}</p>
+                        <p className="text-sm text-muted-foreground truncate">Marca: {action.brand?.name || 'Não especificada'}</p>
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground hidden md:block flex-shrink-0">

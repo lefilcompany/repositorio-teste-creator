@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader, Wand2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RevisionFormProps {
   content: {
@@ -22,17 +23,26 @@ interface RevisionFormProps {
   revisionType: 'image' | 'text';
   onRevisionComplete: (updatedContent: any) => void;
   onCancel: () => void;
+  teamId?: string;
+  brandId?: string;
 }
 
-export default function RevisionForm({ content, revisionType, onRevisionComplete, onCancel }: RevisionFormProps) {
+export default function RevisionForm({ content, revisionType, onRevisionComplete, onCancel, teamId, brandId }: RevisionFormProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleSubmit = async () => {
     if (!prompt) {
       toast.error('Por favor, descreva os ajustes desejados.');
       return;
     }
+
+    if (!user?.id || !user?.teamId) {
+      toast.error('Dados do usuário não encontrados. Faça login novamente.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -46,13 +56,19 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
         formData.append('prompt', prompt);
         formData.append('brand', content.brand || '');
         formData.append('theme', content.theme || '');
+        formData.append('teamId', teamId || user.teamId || '');
+        formData.append('brandId', brandId || '');
+        formData.append('userId', user.id || '');
 
         const response = await fetch('/api/refatorar-image', {
           method: 'POST',
           body: formData,
         });
         
-        if (!response.ok) throw new Error((await response.json()).error || 'Falha ao revisar imagem.');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Falha ao revisar imagem.');
+        }
         
         const data = await response.json();
         updatedContent = { ...content, imageUrl: data.imageUrl, revisions: content.revisions + 1 };
@@ -68,10 +84,16 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
             originalHashtags: content.hashtags,
             brand: content.brand,
             theme: content.theme,
+            teamId: teamId || user.teamId,
+            brandId: brandId,
+            userId: user.id,
           }),
         });
 
-        if (!response.ok) throw new Error((await response.json()).error || 'Falha ao revisar legenda.');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Falha ao revisar legenda.');
+        }
         
         const data = await response.json();
         updatedContent = { ...content, ...data, revisions: content.revisions + 1 };

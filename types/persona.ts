@@ -1,7 +1,7 @@
 export type Persona = {
   id: string;
   teamId: string;
-  userEmail: string;
+  userId: string;
   brandId: string; 
   name: string;
   gender: string;

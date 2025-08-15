@@ -32,12 +32,14 @@ export default function AppLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-muted/10">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
-        <main className="flex-1 overflow-y-auto">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-background/50 to-background">
+          <div className="max-w-8xl mx-auto">
+            {children}
+          </div>
         </main>
         <Toaster richColors /> 
       </div>

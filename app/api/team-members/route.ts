@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const members = await prisma.user.findMany({
       where: { teamId },
-      select: { email: true, name: true },
+      select: { id: true, email: true, name: true },
     });
     return NextResponse.json(members);
   } catch (error) {

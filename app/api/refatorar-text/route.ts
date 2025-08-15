@@ -91,18 +91,19 @@ export async function POST(req: NextRequest) {
             throw new Error(`Falha ao refatorar texto após ${maxRetries} tentativas. O modelo pode estar sobrecarregado.`);
         }
 
-        const action = await prisma.action.create({
-            data: {
-                type: ActionType.REVISAR_CONTEUDO,
-                teamId,
-                brandId,
-                userId,
-                details: { prompt, originalTitle, originalBody, originalHashtags, brand, theme },
-                result: revisedContent,
-            },
-        });
+        // Não salva mais no histórico aqui, pois será salvo apenas quando aprovado
+        // const action = await prisma.action.create({
+        //     data: {
+        //         type: ActionType.REVISAR_CONTEUDO,
+        //         teamId,
+        //         brandId,
+        //         userId,
+        //         details: { prompt, originalTitle, originalBody, originalHashtags, brand, theme },
+        //         result: revisedContent,
+        //     },
+        // });
 
-        return NextResponse.json({ ...revisedContent, actionId: action.id });
+        return NextResponse.json({ ...revisedContent }); // , actionId: action.id
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro desconhecido';

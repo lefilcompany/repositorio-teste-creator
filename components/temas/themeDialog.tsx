@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/dialog';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
+import { toast } from 'sonner';
 
-type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 interface ThemeDialogProps {
   isOpen: boolean;

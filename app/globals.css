@@ -23,7 +23,7 @@
     --destructive-foreground: 0 0% 98%;
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 0 0% 100%;
-    
+
     --border: 269 66% 48%;
     --input: 228 21% 17%;
     --ring: 269 66% 48%;
@@ -31,7 +31,7 @@
   }
 
   .dark {
-     --background: 227 18% 15%;
+    --background: 227 18% 15%;
     --foreground: 0 0% 100%;
     --card: 227 18% 15%;
     --card-foreground: 0 0% 100%;
@@ -47,10 +47,8 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    /* ADICIONAR ESTAS CORES */
     --success: 142.1 70.2% 41.3%;
     --success-foreground: 0 0% 100%;
-
     --border: 271 72% 31%;
     --input: 228 21% 17%;
     --ring: 330 100% 38%;
@@ -61,8 +59,11 @@
   * {
     @apply border-border;
   }
+
   body {
+    /* ✨ ALTERADO: Adicionado um gradiente sutil ao fundo */
     @apply bg-background text-foreground;
+    background-image: linear-gradient(to top right, hsl(var(--background)), hsl(var(--muted)/0.5));
     font-family: 'Inter', sans-serif;
   }
 }

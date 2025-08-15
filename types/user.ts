@@ -8,5 +8,5 @@ export interface User {
   city?: string;
   teamId?: string | null;
   role?: 'ADMIN' | 'MEMBER';
-  status?: 'ACTIVE' | 'PENDING';
+  status?: 'ACTIVE' | 'PENDING' | 'INACTIVE';
 }

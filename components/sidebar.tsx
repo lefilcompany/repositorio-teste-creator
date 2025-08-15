@@ -3,9 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Team } from '@/types/team';
 import {
   Home,
   Sparkles,
@@ -138,7 +136,6 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: 
       <Icon className="h-6 w-6 flex-shrink-0" />
       <div className="flex flex-col items-start leading-tight">
         <span className="font-bold text-sm">Equipe: {teamName || 'Sem equipe'}</span>
-        {/* ** CORREÇÃO AQUI: Exibe o nome do plano recebido via prop ** */}
         <span className="text-xs text-primary-foreground/80">Plano: {planName || 'Nenhum'}</span>
       </div>
     </>
@@ -161,16 +158,7 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: 
 }
 
 export default function Sidebar() {
-  const { user } = useAuth();
-  const [team, setTeam] = useState<Team | null>(null);
-
-  useEffect(() => {
-    if (user?.teamId) {
-      const teams = JSON.parse(localStorage.getItem('creator-teams') || '[]') as Team[];
-      const t = teams.find((team) => team.id === user.teamId);
-      if (t) setTeam(t);
-    }
-  }, [user]);
+  const { user, team } = useAuth();
 
   const teamName = team?.name || '';
   const isAdmin = user && team ? user.email === team.admin : false;

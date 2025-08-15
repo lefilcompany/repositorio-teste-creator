@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Tag } from 'lucide-react';
 import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
-type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function MarcasPage() {
   const { user } = useAuth();
@@ -27,9 +29,14 @@ export default function MarcasPage() {
         if (res.ok) {
           const data: Brand[] = await res.json();
           setBrands(data);
+        } else {
+          const error = await res.json();
+          console.error('Falha ao carregar marcas:', error.error);
+          toast.error('Erro ao carregar marcas da equipe');
         }
       } catch (error) {
         console.error('Falha ao carregar marcas', error);
+        toast.error('Erro de conexão ao carregar marcas');
       }
     };
     load();
@@ -50,7 +57,14 @@ export default function MarcasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
       });
-      if (!res.ok) throw new Error('Falha ao salvar marca');
+      
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Falha ao salvar marca:', error.error);
+        toast.error(error.error || 'Erro ao salvar marca');
+        throw new Error(error.error || 'Falha ao salvar marca');
+      }
+      
       const saved: Brand = await res.json();
       setBrands(prev =>
         brandToEdit ? prev.map(b => (b.id === saved.id ? saved : b)) : [...prev, saved]
@@ -58,47 +72,62 @@ export default function MarcasPage() {
       if (brandToEdit && selectedBrand?.id === saved.id) {
         setSelectedBrand(saved);
       }
+      
+      toast.success(brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!');
     } catch (error) {
-      console.error(error);
+      console.error('Erro ao salvar marca:', error);
+      toast.error('Erro ao salvar marca. Tente novamente.');
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
   const handleDeleteBrand = useCallback(async () => {
-    if (!selectedBrand) return;
+    if (!selectedBrand || !user?.teamId || !user?.id) return;
     try {
-      const res = await fetch(`/api/brands/${selectedBrand.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, { 
+        method: 'DELETE' 
+      });
       if (res.ok) {
         setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
         setSelectedBrand(null);
+        toast.success('Marca deletada com sucesso!');
+      } else {
+        const error = await res.json();
+        console.error('Falha ao deletar marca:', error.error);
+        toast.error(error.error || 'Erro ao deletar marca');
       }
     } catch (error) {
       console.error('Falha ao deletar marca', error);
+      toast.error('Erro ao deletar marca. Tente novamente.');
     }
-  }, [selectedBrand]);
+  }, [selectedBrand, user]);
 
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col gap-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <Tag className="h-8 w-8" />
+    <div className="min-h-full flex flex-col gap-6">
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                <Tag className="h-8 w-8" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  Suas Marcas
+                </CardTitle>
+                <p className="text-muted-foreground">
+                  Gerencie, edite ou crie novas marcas para seus projetos.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+              <Plus className="mr-2 h-5 w-5" />
+              Nova marca
+            </Button>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">
-              Suas Marcas
-            </h1>
-            <p className="text-muted-foreground">
-              Gerencie, edite ou crie novas marcas para seus projetos.
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => handleOpenDialog()} className="mt-4 md:mt-0 rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
-          <Plus className="mr-2 h-5 w-5" />
-          Nova marca
-        </Button>
-      </header>
+        </CardHeader>
+      </Card>
 
-      <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 flex-1">
         <BrandList
           brands={brands}
           selectedBrand={selectedBrand}

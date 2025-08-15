@@ -18,8 +18,9 @@ import {
 } from '@/components/ui/dialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
+import { toast } from 'sonner';
 
-type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userEmail'>;
+type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 interface PersonaDialogProps {
   isOpen: boolean;
