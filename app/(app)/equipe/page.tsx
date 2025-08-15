@@ -177,7 +177,7 @@ export default function EquipePage() {
 
   if (isLoading || isAuthLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
+      <div className="flex h-full w-full items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground">Carregando equipe...</p>
@@ -196,7 +196,7 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col gap-8">
+    <div className="h-[calc(100vh-8rem)] flex flex-col gap-6">
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
@@ -213,7 +213,7 @@ export default function EquipePage() {
         </CardHeader>
       </Card>
 
-      <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 overflow-hidden">
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0 overflow-hidden">
         <div className="lg:col-span-1 space-y-6">
           <Card className="shadow-lg border-2 border-primary/20 bg-gradient-to-br from-card via-primary/5 to-secondary/10 backdrop-blur-sm">
             <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-t-lg">

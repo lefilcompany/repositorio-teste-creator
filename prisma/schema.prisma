@@ -165,6 +165,7 @@ model Action {
   status    String   @default("Em revisão") // "Em revisão", "Aprovado", "Rejeitado"
   approved  Boolean  @default(false)
   revisions Int      @default(0)
+  temporaryContents TemporaryContent[]
 }
 
 model TemporaryContent {
@@ -174,6 +175,7 @@ model TemporaryContent {
   teamId      String
   team        Team     @relation(fields: [teamId], references: [id])
   actionId    String?  // Referência à ação que gerou este conteúdo
+  action      Action?  @relation(fields: [actionId], references: [id])
   imageUrl    String
   title       String
   body        String
@@ -185,6 +187,9 @@ model TemporaryContent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   expiresAt   DateTime // Conteúdo temporário expira após um tempo
+
+  @@index([actionId])
+  @@index([userId, teamId])
 }
 
 model Notification {

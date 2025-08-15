@@ -94,7 +94,7 @@ export default function HomePage() {
   }));
 
   return (
-    <div className="flex flex-col min-h-full space-y-8 pb-8">
+    <div className="flex flex-col h-[calc(100vh-8rem)] space-y-6 pb-6 overflow-y-auto">
       {/* Cabeçalho */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
         <CardHeader className="pb-4">

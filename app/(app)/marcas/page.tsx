@@ -102,7 +102,7 @@ export default function MarcasPage() {
   }, [selectedBrand, user]);
 
   return (
-    <div className="h-full flex flex-col gap-8">
+    <div className="min-h-full flex flex-col gap-6">
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -127,7 +127,7 @@ export default function MarcasPage() {
         </CardHeader>
       </Card>
 
-      <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 flex-1">
         <BrandList
           brands={brands}
           selectedBrand={selectedBrand}

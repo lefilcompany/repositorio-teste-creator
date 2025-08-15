@@ -5,22 +5,40 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
   const teamId = searchParams.get('teamId');
+  const actionId = searchParams.get('actionId');
   
   if (!userId || !teamId) {
     return NextResponse.json({ error: 'userId and teamId are required' }, { status: 400 });
   }
   
   try {
+    let whereClause: any = { 
+      userId,
+      teamId,
+      expiresAt: {
+        gt: new Date()
+      }
+    };
+
+    // Se actionId for fornecido, filtra por ele
+    if (actionId) {
+      whereClause.actionId = actionId;
+    }
+
     // Busca conteúdo temporário não expirado
     const content = await prisma.temporaryContent.findFirst({
-      where: { 
-        userId,
-        teamId,
-        expiresAt: {
-          gt: new Date()
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        action: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            approved: true
+          }
         }
-      },
-      orderBy: { createdAt: 'desc' }
+      }
     });
     
     return NextResponse.json(content || null);

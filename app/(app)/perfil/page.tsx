@@ -112,7 +112,7 @@ export default function PerfilPage() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
       <header className="pb-6">
         <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 p-6 rounded-xl border border-primary/20 shadow-md backdrop-blur-sm">
           <div className="flex items-center gap-6">

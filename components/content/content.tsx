@@ -253,47 +253,90 @@ export default function Creator() {
 
       const data = await response.json();
 
-      // Gera um ID único para esta ação/conteúdo
-      const actionId = generateUniqueId();
-
-      const resultData = {
-        id: actionId,
-        imageUrl: data.imageUrl,
-        title: data.title,
-        body: data.body,
-        hashtags: data.hashtags,
-        revisions: 0,
-        brand: formData.brand,
-        theme: formData.theme,
-        originalId: actionId // Mantém referência ao ID original
-      };
-
-      // Salva o conteúdo temporariamente no banco de dados para a página de resultados
+      // Primeiro cria a ação no banco de dados
       try {
-        await fetch('/api/temporary-content', {
+        const actionResponse = await fetch('/api/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: user?.id,
+            type: 'CRIAR_CONTEUDO',
             teamId: user?.teamId,
-            actionId: actionId,
-            imageUrl: data.imageUrl,
-            title: data.title,
-            body: data.body,
-            hashtags: data.hashtags,
-            brand: formData.brand,
-            theme: formData.theme,
-            originalId: actionId,
-            revisions: 0
+            userId: user?.id,
+            brandId: selectedBrand.id,
+            details: {
+              brand: formData.brand,
+              theme: formData.theme,
+              platform: formData.platform,
+              objective: formData.objective,
+              description: formData.description,
+              audience: formData.audience,
+              tone: formData.tone,
+              additionalInfo: formData.additionalInfo
+            },
+            createTemporaryContent: {
+              imageUrl: data.imageUrl,
+              title: data.title,
+              body: data.body,
+              hashtags: data.hashtags,
+              theme: formData.theme
+            }
           })
         });
-      } catch (error) {
-        console.error('Erro ao salvar conteúdo temporário:', error);
-        // Fallback para localStorage se a API falhar
-        localStorage.setItem('generatedContent', JSON.stringify(resultData));
-      }
 
-      // NÃO salva no histórico aqui - apenas quando aprovado na página de resultados
+        if (!actionResponse.ok) {
+          throw new Error('Erro ao criar ação no banco de dados');
+        }
+
+        const { action, temporaryContent } = await actionResponse.json();
+        
+        console.log('Ação e conteúdo temporário criados:', action.id, temporaryContent?.id);
+
+        // Redireciona para a página de resultados
+        router.push('/content/result');
+
+      } catch (error) {
+        console.error('Erro ao salvar ação/conteúdo temporário:', error);
+        
+        // Fallback: criar conteúdo temporário diretamente se a criação da ação falhar
+        const fallbackId = generateUniqueId();
+        const resultData = {
+          id: fallbackId,
+          imageUrl: data.imageUrl,
+          title: data.title,
+          body: data.body,
+          hashtags: data.hashtags,
+          revisions: 0,
+          brand: formData.brand,
+          theme: formData.theme,
+          originalId: fallbackId
+        };
+
+        try {
+          await fetch('/api/temporary-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user?.id,
+              teamId: user?.teamId,
+              actionId: null, // Sem ação vinculada no fallback
+              imageUrl: data.imageUrl,
+              title: data.title,
+              body: data.body,
+              hashtags: data.hashtags,
+              brand: formData.brand,
+              theme: formData.theme,
+              originalId: fallbackId,
+              revisions: 0
+            })
+          });
+        } catch (fallbackError) {
+          console.error('Erro no fallback de conteúdo temporário:', fallbackError);
+          // Último recurso: localStorage
+          localStorage.setItem('generatedContent', JSON.stringify(resultData));
+        }
+
+        router.push('/content/result');
+      }
 
       // Atualiza os créditos da equipe
       await updateTeamCredits();

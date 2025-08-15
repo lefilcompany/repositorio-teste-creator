@@ -42,8 +42,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
   const Icon = style.icon;
 
   return (
-    <div className="lg:col-span-1 h-full overflow-hidden">
-      <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border-2 border-secondary/20 h-full flex flex-col">
+    <div className="lg:col-span-1 h-full max-h-[calc(100vh-16rem)]">
+      <div className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border-2 border-secondary/20 h-full flex flex-col">
         <div className="flex items-center mb-6 flex-shrink-0">
           <div className={cn("flex-shrink-0 rounded-xl w-16 h-16 flex items-center justify-center mr-4", style.background)}>
             <Icon className={cn("h-8 w-8", style.color)} />
@@ -54,7 +54,7 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
           </div>
         </div>
 
-        <div className="space-y-4 text-left overflow-y-auto flex-grow pr-2 -mr-4">
+        <div className="space-y-4 text-left overflow-y-auto flex-1 min-h-0 pr-2">
           <DetailItem label="Marca" value={action.brand?.name || 'N/A'} />
 
           {action.type === 'CRIAR_CONTEUDO' && (

@@ -71,7 +71,7 @@ export default function ResultPage() {
               revisions: tempContent.revisions,
               brand: tempContent.brand,
               theme: tempContent.theme,
-              originalId: tempContent.originalId || tempContent.actionId
+              originalId: tempContent.actionId || tempContent.originalId // Prioriza actionId
             };
 
             setContent(parsedContent);
@@ -162,11 +162,33 @@ export default function ResultPage() {
     if (!user?.teamId || !user?.email || !finalContent || !brandId) return;
 
     try {
-      // Usa o ID original se existir, senão cria um novo
-      const actionId = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      // Verifica se existe uma ação vinculada ao conteúdo
+      const actionId = finalContent.originalId;
+      
+      if (actionId && approved) {
+        // Se temos actionId e estamos aprovando, usar a API específica de aprovação
+        const approveRes = await fetch(`/api/actions/${actionId}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            temporaryContentId: finalContent.id,
+            requesterUserId: user.id
+          })
+        });
+        
+        if (!approveRes.ok) {
+          console.error('Erro na API de aprovação, usando fallback');
+          // Se a API específica falhar, continua com o método original
+        } else {
+          const approvedAction = await approveRes.json();
+          console.log('Ação aprovada via API específica:', approvedAction.id);
+          return;
+        }
+      }
 
-      // Sempre cria uma nova ação no histórico quando aprovado
-      // Não verifica se já existe para evitar sobrescrever outras ações
+      // Fallback: método original para conteúdos legados ou quando a API específica falha
+      const actionIdFallback = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       const actionData = {
         type: 'CRIAR_CONTEUDO',
         teamId: user.teamId,
@@ -175,17 +197,17 @@ export default function ResultPage() {
         details: {
           brand: finalContent.brand,
           theme: finalContent.theme,
-          platform: 'Social Media', // Valor padrão
+          platform: 'Social Media',
           objective: 'Conteúdo aprovado pelo usuário'
         },
         result: {
-          id: actionId,
+          id: actionIdFallback,
           imageUrl: finalContent.imageUrl,
           title: finalContent.title,
           body: finalContent.body,
           hashtags: finalContent.hashtags,
           approved,
-          originalId: actionId,
+          originalId: actionIdFallback,
           revisions: finalContent.revisions || 0
         },
         status: approved ? 'Aprovado' : 'Em revisão',
@@ -193,7 +215,6 @@ export default function ResultPage() {
         revisions: finalContent.revisions || 0
       };
 
-      // Sempre cria uma nova ação
       const createRes = await fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +225,7 @@ export default function ResultPage() {
         throw new Error('Erro ao salvar ação no histórico');
       }
       
-      console.log('Ação salva no histórico com ID:', actionId);
+      console.log('Ação salva no histórico com ID:', actionIdFallback);
 
     } catch (e) {
       console.error("Erro ao salvar no histórico:", e);
@@ -436,7 +457,7 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col gap-6">
+    <div className="p-4 md:p-8 h-[calc(100vh-8rem)] flex flex-col gap-6">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
