@@ -44,7 +44,7 @@ export default function ChangePasswordDialog({ isOpen, onOpenChange, onSavePassw
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-gradient-to-br from-background to-muted/20 border border-primary/30 shadow-xl">
+      <DialogContent className="sm:max-w-md bg-gradient-to-br from-background to-muted/20 border border-primary/30 shadow-md">
         <DialogHeader className="text-center space-y-4">
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Alterar Senha

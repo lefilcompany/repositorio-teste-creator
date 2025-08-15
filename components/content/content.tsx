@@ -311,33 +311,31 @@ export default function Creator() {
 
   return (
     <div className="min-h-full">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Card */}
-        <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/20 shadow-lg shadow-black/5 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-md opacity-30"></div>
-                <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-2xl p-3">
-                  <Sparkles className="h-6 w-6" />
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                  <Sparkles className="h-8 w-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">
+                    Criar Conteúdo Estratégico
+                  </h1>
+                  <p className="text-muted-foreground text-base">
+                    Preencha os campos para gerar um post completo com IA
+                  </p>
                 </div>
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Criar Conteúdo Estratégico
-                </h1>
-                <p className="text-muted-foreground text-base mt-1">
-                  Preencha os campos para gerar um post completo com IA
-                </p>
-              </div>
-            </div>
-            {team && (
-              <div className="flex items-center gap-3">
-                <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
+              {team && (
+                <div className="flex items-center gap-3">
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                         <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
                           <Zap className="h-4 w-4" />
                         </div>
@@ -356,7 +354,8 @@ export default function Creator() {
               </div>
             )}
           </div>
-        </div>
+        </CardHeader>
+      </Card>
 
         {/* Main Content with proper padding */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6">

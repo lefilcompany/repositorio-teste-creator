@@ -85,7 +85,7 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
 
   return (
     <>
-      <Card className="shadow-xl border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
+      <Card className="shadow-md border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
         <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-t-lg border-b border-primary/20 p-6">
           <CardTitle className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="p-2 bg-primary/15 rounded-xl shadow-sm">
@@ -166,7 +166,7 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
             </div>
             <div className="space-y-3">
               <Label htmlFor="city" className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
+                <div className="w-2 h-2 bg-secondary rounded-full"></div>
                 Cidade
               </Label>
               <Select 

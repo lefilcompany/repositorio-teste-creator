@@ -113,8 +113,8 @@ export default function PerfilPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <header className="px-6 md:px-8 pt-6 md:pt-8 pb-6">
-        <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 p-6 rounded-xl border border-primary/20 shadow-lg backdrop-blur-sm">
+      <header className="pb-6">
+        <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 p-6 rounded-xl border border-primary/20 shadow-md backdrop-blur-sm">
           <div className="flex items-center gap-6">
             <div className="flex-shrink-0 bg-gradient-to-br from-primary to-secondary text-white rounded-xl p-3 shadow-md">
               <UserIcon className="h-8 w-8" />
@@ -131,7 +131,7 @@ export default function PerfilPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-6 md:px-8 pb-6 md:pb-8 overflow-y-auto">
+      <main className="flex-1 pb-6 md:pb-8 overflow-y-auto">
         <div className="space-y-8">
           {/* Seção: Informações Pessoais e da Equipe */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

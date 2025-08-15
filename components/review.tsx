@@ -5,6 +5,7 @@ import { useState, ChangeEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote, ThumbsUp } from 'lucide-react';
 import type { Brand } from '@/types/brand';
@@ -58,28 +59,29 @@ export default function Revisar() {
   const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId || !user.id) return;
-      
+
       try {
         const [brandsRes, themesRes, teamsRes] = await Promise.all([
           fetch(`/api/brands?teamId=${user.teamId}`),
           fetch(`/api/themes?teamId=${user.teamId}`),
           fetch(`/api/teams?userId=${user.id}`)
         ]);
-        
+
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
         }
-        
+
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
         }
-        
+
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
@@ -89,9 +91,28 @@ export default function Revisar() {
         console.error('Failed to load data from API', error);
       }
     };
-    
+
     loadData();
   }, [user]);
+
+  // Filtrar temas quando a marca for selecionada
+  useEffect(() => {
+    if (brand && brands.length > 0 && themes.length > 0) {
+      const selectedBrand = brands.find(b => b.name === brand);
+      if (selectedBrand) {
+        const brandThemes = themes.filter(theme => theme.brandId === selectedBrand.id);
+        setFilteredThemes(brandThemes);
+      }
+    } else {
+      setFilteredThemes([]);
+      setTheme(''); // Limpar tema selecionado quando marca mudar
+    }
+  }, [brand, brands, themes]);
+
+  const handleBrandChange = (value: string) => {
+    setBrand(value);
+    setTheme(''); // Resetar tema quando marca mudar
+  };
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,7 +184,7 @@ export default function Revisar() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: team.id, credits: updatedCredits }),
           });
-          
+
           if (updateRes.ok) {
             const updatedTeam = await updateRes.json();
             setTeam(updatedTeam);
@@ -192,7 +213,7 @@ export default function Revisar() {
 
   const handleApproveReview = async () => {
     if (!revisedText || !previewUrl) return;
-    
+
     try {
       const originalImageBase64 = await fileToBase64(imageFile!);
       await saveActionToHistory({
@@ -206,7 +227,7 @@ export default function Revisar() {
           originalImage: originalImageBase64,
         },
       }, team!.id, user?.id || '', brand, brands);
-      
+
       toast.success('Análise aprovada e salva no histórico!');
       handleGoBackToForm();
     } catch (error) {
@@ -217,124 +238,283 @@ export default function Revisar() {
 
   if (!isResultView) {
     return (
-      <div className="w-full max-w-4xl p-4 sm:p-6 md:p-8 rounded-2xl shadow-2xl bg-card border-2 border-primary/20 flex flex-col">
-        <div className="flex items-start gap-4 mb-8">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <CheckCircle className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Revisar Conteúdo</h1>
-            <p className="text-muted-foreground">
-              Receba sugestões da IA para aprimorar sua imagem.
-            </p>
-          </div>
-        </div>
-
-        {/* Corpo do Formulário */}
-        <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
-          <div className='flex flex-col md:flex-row justify-between items-center md:col-span-2 gap-6'>
-            <div className="w-full space-y-2">
-              <Label htmlFor="brand">Marca</Label>
-              <Select onValueChange={setBrand} value={brand}>
-                <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.name}>{brand.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full space-y-2">
-              <Label htmlFor="theme">Tema Estratégico</Label>
-              <Select onValueChange={setTheme} value={theme}>
-                <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
-                <SelectContent>
-                  {themes.map((theme) => (
-                    <SelectItem key={theme.id} value={theme.title}>{theme.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-2 flex flex-col">
-              <Label htmlFor="file-upload">Sua Imagem</Label>
-              <div className="relative mt-2 flex flex-grow justify-center rounded-lg border border-dashed border-border p-6 h-full items-center">
-                <div className="text-center">
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Pré-visualização" className="mx-auto h-40 w-auto rounded-lg object-contain" />
-                  ) : (
-                    <>
-                      <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                      <p className="mt-2 text-sm text-muted-foreground">Arraste e solte a imagem aqui</p>
-                    </>
-                  )}
-                  <input id="file-upload" name="file-upload" type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png, image/jpeg" onChange={handleImageChange} />
+      <div className="min-h-full w-full">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header Card */}
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                    <CheckCircle className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold">
+                      Revisar Conteúdo
+                    </h1>
+                    <p className="text-muted-foreground text-base">
+                      Receba sugestões da IA para aprimorar sua imagem
+                    </p>
+                  </div>
                 </div>
+                {team && (
+                  <div className="flex items-center gap-3">
+                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
+                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center gap-1">
+                              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                                {team.credits.contentReviews}
+                              </span>
+                            </div>
+                            <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="space-y-2 flex flex-col">
-              <Label htmlFor="adjustmentsPrompt">O que você gostaria de ajustar?</Label>
-              <Textarea
-                id="adjustmentsPrompt"
-                placeholder="Descreva o objetivo e o que você espera da imagem. Ex: 'Quero que a imagem transmita mais energia e seja mais vibrante'"
-                value={adjustmentsPrompt}
-                onChange={(e) => setAdjustmentsPrompt(e.target.value)}
-                className="flex-grow min-h-[220px] resize-none"
-              />
-            </div>
+            </CardHeader>
+          </Card>
+
+          {/* Main Content with vertical layout */}
+          <div className="space-y-6">
+            {/* Configuration Section */}
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  Configuração Básica
+                </h2>
+                <p className="text-muted-foreground text-sm">Defina marca e tema</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca</Label>
+                    <Select onValueChange={handleBrandChange} value={brand}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Selecione a marca" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {brands.map((brand) => (
+                          <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico</Label>
+                    <Select onValueChange={setTheme} value={theme} disabled={!brand || filteredThemes.length === 0}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder={!brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {filteredThemes.map((theme) => (
+                          <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Image Analysis Section */}
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                  Análise da Imagem
+                </h2>
+                <p className="text-muted-foreground text-sm">Upload e descrição dos ajustes</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="file-upload" className="text-sm font-semibold text-foreground">Sua Imagem *</Label>
+                    <div className="relative mt-2 flex justify-center rounded-xl border-2 border-dashed border-border/50 p-8 h-64 items-center hover:border-primary/50 transition-all duration-300">
+                      <div className="text-center">
+                        {previewUrl ? (
+                          <img src={previewUrl} alt="Pré-visualização" className="mx-auto h-48 w-auto rounded-lg object-contain" />
+                        ) : (
+                          <>
+                            <ImageIcon className="mx-auto h-16 w-16 text-muted-foreground/50" />
+                            <p className="mt-4 text-base text-muted-foreground">Arraste e solte a imagem aqui</p>
+                          </>
+                        )}
+                        <input
+                          id="file-upload"
+                          name="file-upload"
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          accept="image/png, image/jpeg"
+                          onChange={handleImageChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="adjustmentsPrompt" className="text-sm font-semibold text-foreground">O que você gostaria de ajustar? *</Label>
+                    <Textarea
+                      id="adjustmentsPrompt"
+                      placeholder="Descreva o objetivo e o que você espera da imagem. Ex: 'Quero que a imagem transmita mais energia e seja mais vibrante'"
+                      value={adjustmentsPrompt}
+                      onChange={(e) => setAdjustmentsPrompt(e.target.value)}
+                      className="h-64 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-        <div className="mt-8 flex-shrink-0">
-          <Button onClick={handleGenerateReview} disabled={loading || !imageFile || !adjustmentsPrompt} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-            {loading ? <><Loader className="animate-spin mr-2" /> Analisando...</> : <><Sparkles className="mr-2" />Analisar Imagem</>}
-          </Button>
-          {error && <p className="text-destructive mt-4 text-center">{error}</p>}
+
+          {/* Action Button Section */}
+          <div className="mt-8">
+            <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center gap-4">
+                  <Button
+                    onClick={handleGenerateReview}
+                    disabled={loading || !imageFile || !adjustmentsPrompt}
+                    className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 hover:via-purple-600/90 hover:to-secondary/90 shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border-2 border-white/20"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader className="animate-spin mr-2 h-5 w-5" />
+                        Analisando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Analisar Imagem
+                      </>
+                    )}
+                  </Button>
+                  {error && <p className="text-destructive mt-4 text-center text-base">{error}</p>}
+                  {(!imageFile || !adjustmentsPrompt) && (
+                    <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
+                      <p className="text-sm text-muted-foreground">
+                        Preencha todos os campos obrigatórios (*) para continuar
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Tela de Resultados com o Feedback em Texto
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-7xl mx-auto h-full">
-      {/* Coluna da Imagem Original */}
-      <div className="space-y-4 flex flex-col h-full">
-        <h3 className="text-center text-lg font-semibold text-muted-foreground">Sua Imagem</h3>
-        <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
-          {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
-        </div>
-      </div>
-      {/* Coluna do Feedback da IA */}
-      <div className="space-y-4 flex flex-col h-full">
-        <h3 className="text-center text-lg font-semibold text-primary">Sugestões da IA</h3>
-        <div className="w-full h-full bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col">
-          {loading && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
-              <p className="mt-4 text-muted-foreground">Analisando sua imagem...</p>
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Card */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                  <CheckCircle className="h-8 w-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">
+                    Análise Completa
+                  </h1>
+                  <p className="text-muted-foreground text-base">
+                    Veja as sugestões da IA para sua imagem
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleGoBackToForm}
+                variant="outline"
+                className="rounded-xl px-6 py-3 border-2 border-primary/30 hover:bg-primary/5 transition-all duration-300"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Analisar Outra Imagem
+              </Button>
             </div>
-          )}
-          {revisedText && !loading && (
-            <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto h-full">
-              {/* Usamos 'whitespace-pre-line' para respeitar as quebras de linha (\n) */}
-              <p className="whitespace-pre-line">{revisedText}</p>
-            </div>
-          )}
-          {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
+          </CardHeader>
+        </Card>
+
+        {/* Content - Using vertical layout */}
+        <div className="space-y-6">
+          {/* Image and Feedback Section */}
+          <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+              <h2 className="text-xl font-semibold flex items-center gap-3">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                Resultado da Análise
+              </h2>
+              <p className="text-muted-foreground text-sm">Sua imagem e as sugestões da IA</p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left: Original Image */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                    Sua Imagem
+                  </h3>
+                  <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
+                    {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
+                  </div>
+                </div>
+
+                {/* Right: AI Feedback */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    Sugestões da IA
+                  </h3>
+                  <div className="w-full min-h-[400px] bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col overflow-hidden">
+                    {loading && (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
+                        <p className="mt-4 text-muted-foreground text-lg">Analisando sua imagem...</p>
+                      </div>
+                    )}
+                    {revisedText && !loading && (
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto">
+                        <p className="whitespace-pre-line text-base leading-relaxed">{revisedText}</p>
+                      </div>
+                    )}
+                    {error && !loading && <p className="text-destructive p-4 text-center text-base">{error}</p>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-      {/* Botões de Ação */}
-      <div className="col-span-1 lg:col-span-2 flex flex-col sm:flex-row gap-4">
-        <Button onClick={handleGoBackToForm} variant="outline" className="flex-1 rounded-full text-lg px-8 py-6">
-          <ArrowLeft className="mr-2" />
-          Analisar Outra Imagem
-        </Button>
+
+        {/* Action Button Section */}
         {revisedText && !loading && (
-          <Button onClick={handleApproveReview} className="flex-1 rounded-full text-lg px-8 py-6 bg-green-600 hover:bg-green-700 text-white">
-            <ThumbsUp className="mr-2" />
-            Aprovar e Salvar
-          </Button>
+          <div className="mt-8">
+            <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center gap-4">
+                  <Button
+                    onClick={handleApproveReview}
+                    className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-green-500 via-green-600 to-green-700 hover:from-green-600 hover:via-green-700 hover:to-green-800 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] border-2 border-white/20 text-white"
+                  >
+                    <ThumbsUp className="mr-2 h-5 w-5" />
+                    Aprovar e Salvar no Histórico
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

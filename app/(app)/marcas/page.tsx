@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Tag } from 'lucide-react';
 import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
@@ -101,26 +102,30 @@ export default function MarcasPage() {
   }, [selectedBrand, user]);
 
   return (
-    <div className="p-4 md:p-8 h-full flex flex-col gap-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <Tag className="h-8 w-8" />
+    <div className="h-full flex flex-col gap-8">
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                <Tag className="h-8 w-8" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  Suas Marcas
+                </CardTitle>
+                <p className="text-muted-foreground">
+                  Gerencie, edite ou crie novas marcas para seus projetos.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+              <Plus className="mr-2 h-5 w-5" />
+              Nova marca
+            </Button>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">
-              Suas Marcas
-            </h1>
-            <p className="text-muted-foreground">
-              Gerencie, edite ou crie novas marcas para seus projetos.
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => handleOpenDialog()} className="mt-4 md:mt-0 rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
-          <Plus className="mr-2 h-5 w-5" />
-          Nova marca
-        </Button>
-      </header>
+        </CardHeader>
+      </Card>
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow overflow-hidden">
         <BrandList

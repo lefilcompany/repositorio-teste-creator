@@ -57,7 +57,7 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
   const acoesUsadas = creditosUsados.total - creditosUsados.restantes;
   const progressoPercentual = creditosUsados.total > 0 ? (acoesUsadas / creditosUsados.total) * 100 : 0;
   return (
-    <Card className="shadow-xl border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
+    <Card className="shadow-md border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
       <CardHeader className="bg-gradient-to-r from-secondary/10 to-accent/10 rounded-t-lg border-b border-secondary/20 p-6">
         <CardTitle className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-3">
           <div className="p-2 bg-secondary/15 rounded-xl shadow-sm">
@@ -71,14 +71,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
       </CardHeader>
       <CardContent className="space-y-6 p-6">
         {userData?.team && (
-          <div className="space-y-3">
-            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <div className="p-1.5 bg-accent/15 rounded-lg">
-                <Users className="h-4 w-4 text-accent" />
-              </div>
-              Equipe
-            </h3>
-            <p className="text-foreground font-medium text-lg pl-8">{userData.team.name.toUpperCase()}</p>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-accent/15 rounded-lg">
+              <Users className="h-6 w-6 text-accent" />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-base font-semibold text-foreground">
+                Equipe
+              </h3>
+              <p className="text-foreground font-medium text-md">{userData.team.name.charAt(0).toUpperCase() + userData.team.name.slice(1).toLowerCase()}</p>
+            </div>
           </div>
         )}
         {userData?.role && (
@@ -86,16 +88,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <div className="p-1.5 bg-primary/15 rounded-lg">
                 {userData.role === 'ADMIN' ? (
-                  <Crown className="h-4 w-4 text-primary" />
+                  <Crown className="h-6 w-6 text-primary" />
                 ) : (
-                  <Shield className="h-4 w-4 text-primary" />
+                  <Shield className="h-6 w-6 text-primary" />
                 )}
               </div>
               Função
             </h3>
             <div className="pl-8 space-y-1">
               <p className={`font-semibold text-lg ${
-                userData.role === 'ADMIN' ? 'text-yellow-600' : 'text-blue-600'
+                userData.role === 'ADMIN' ? 'text-yellow-600' : 'text-accent'
               }`}>
                 {userData.role === 'ADMIN' ? 'Administrador' : 'Membro'}
               </p>
@@ -109,12 +111,11 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
           </div>
         )}
 
-        {/* Progresso das Ações da Equipe */}
         {team && (
           <div className="space-y-3 border-t border-muted/20 pt-6">
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <div className="p-1.5 bg-green-500/15 rounded-lg">
-                <Activity className="h-4 w-4 text-green-600" />
+                <Activity className="h-6 w-6 text-green-600" />
               </div>
               Ações Restantes
             </h3>

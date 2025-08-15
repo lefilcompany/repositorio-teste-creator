@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader, Calendar, ArrowLeft, MessageSquareQuote } from 'lucide-react';
 import type { Brand } from '@/types/brand';
@@ -37,6 +38,7 @@ export default function Plan() {
   const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,13 +85,29 @@ export default function Plan() {
     loadData();
   }, [user]);
 
+  // Filtrar temas baseado na marca selecionada
+  useEffect(() => {
+    if (!formData.brand || !brands.length) {
+      setFilteredThemes([]);
+      return;
+    }
+
+    const selectedBrand = brands.find(brand => brand.name === formData.brand);
+    if (selectedBrand) {
+      const filtered = themes.filter(theme => theme.brandId === selectedBrand.id);
+      setFilteredThemes(filtered);
+    } else {
+      setFilteredThemes([]);
+    }
+  }, [formData.brand, brands, themes]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleBrandChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, brand: value }));
+    setFormData((prev) => ({ ...prev, brand: value, theme: '' })); // Reset theme when brand changes
   };
 
   const handleThemeChange = (value: string) => {
@@ -199,99 +217,256 @@ export default function Plan() {
 
   if (!isResultView) {
     return (
-      <div className="w-full max-w-4xl h-full mx-auto p-4 sm:p-6 md:p-8 rounded-2xl shadow-2xl bg-card border-2 border-primary/20 flex flex-col">
-        <div className="flex items-start gap-4 mb-8">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <Calendar className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">
-              Planejar Conteúdo
-            </h1>
-            <p className="text-muted-foreground">
-              Preencha os campos abaixo para gerar seu planejamento de posts.
-            </p>
-          </div>
-        </div>
+      <div className="min-h-full w-full">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header Card */}
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                    <Calendar className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold">
+                      Planejar Conteúdo
+                    </h1>
+                    <p className="text-muted-foreground text-base">
+                      Preencha os campos para gerar seu planejamento de posts
+                    </p>
+                  </div>
+                </div>
+                {team && (
+                  <div className="flex items-center gap-3">
+                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
+                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
+                              <Calendar className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center gap-1">
+                              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                                {team.credits.contentPlans}
+                              </span>
+                            </div>
+                            <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+          </Card>
 
-        <div className="overflow-y-auto flex-grow pr-2 -mr-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="w-full md:col-span-1 space-y-2">
-              <Label htmlFor="brand">Marca</Label>
-              <Select onValueChange={handleBrandChange} value={formData.brand}>
-                <SelectTrigger><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.name}>{brand.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full md:col-span-1 space-y-2">
-              <Label htmlFor="theme">Tema Estratégico</Label>
-              <Select onValueChange={handleThemeChange} value={formData.theme}>
-                <SelectTrigger><SelectValue placeholder="Selecione o tema" /></SelectTrigger>
-                <SelectContent>
-                  {themes.map((theme) => (
-                    <SelectItem key={theme.id} value={theme.title}>{theme.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="platform">Plataforma Digital</Label>
-              <Select onValueChange={handlePlatformChange} value={formData.platform}>
-                <SelectTrigger><SelectValue placeholder="Selecione a plataforma" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="instagram">Instagram</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="twitter">Twitter (X)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantidade de Posts</Label>
-              <Input id="quantity" type="number" min="1" placeholder="Ex: 5" value={formData.quantity} onChange={handleQuantityChange} />
-            </div>
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="objective">Objetivo dos Posts</Label>
-              <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto..." value={formData.objective} onChange={handleInputChange} />
-            </div>
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="additionalInfo">Informações Adicionais</Label>
-              <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista..." value={formData.additionalInfo} onChange={handleInputChange} />
-            </div>
+          {/* Main Content with vertical layout */}
+          <div className="space-y-6">
+            {/* Configuration Section */}
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  Configuração Básica
+                </h2>
+                <p className="text-muted-foreground text-sm">Defina marca, tema e plataforma</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
+                    <Select onValueChange={handleBrandChange} value={formData.brand}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Selecione a marca" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {brands.map((brand) => (
+                          <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
+                    <Select onValueChange={handleThemeChange} value={formData.theme} disabled={!formData.brand || filteredThemes.length === 0}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {filteredThemes.map((theme) => (
+                          <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="platform" className="text-sm font-semibold text-foreground">Plataforma *</Label>
+                    <Select onValueChange={handlePlatformChange} value={formData.platform}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Selecione a plataforma" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        <SelectItem value="instagram" className="rounded-lg">Instagram</SelectItem>
+                        <SelectItem value="facebook" className="rounded-lg">Facebook</SelectItem>
+                        <SelectItem value="linkedin" className="rounded-lg">LinkedIn</SelectItem>
+                        <SelectItem value="twitter" className="rounded-lg">Twitter (X)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">Quantidade de Posts *</Label>
+                    <Input 
+                      id="quantity" 
+                      type="number" 
+                      min="1" 
+                      placeholder="Ex: 5" 
+                      value={formData.quantity} 
+                      onChange={handleQuantityChange}
+                      className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20" 
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Details Section */}
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                  Detalhes do Planejamento
+                </h2>
+                <p className="text-muted-foreground text-sm">Descreva os objetivos e informações adicionais</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo dos Posts *</Label>
+                    <Textarea 
+                      id="objective" 
+                      placeholder="Ex: Gerar engajamento sobre o novo produto, educar o público, aumentar vendas..." 
+                      value={formData.objective} 
+                      onChange={handleInputChange}
+                      className="h-64 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Adicionais</Label>
+                    <Textarea 
+                      id="additionalInfo" 
+                      placeholder="Ex: Usar as cores da marca, estilo minimalista, focar em jovens de 18-25 anos..." 
+                      value={formData.additionalInfo} 
+                      onChange={handleInputChange}
+                      className="h-64 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Action Button Section */}
+          <div className="mt-8">
+            <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center gap-4">
+                  <Button 
+                    onClick={handleGeneratePlan} 
+                    disabled={loading || !formData.brand || !formData.theme || !formData.platform || !formData.objective}
+                    className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 hover:via-purple-600/90 hover:to-secondary/90 shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border-2 border-white/20"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader className="animate-spin mr-2 h-5 w-5" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="mr-2 h-5 w-5" />
+                        Gerar Planejamento
+                      </>
+                    )}
+                  </Button>
+                  {error && <p className="text-destructive mt-4 text-center">{error}</p>}
+                  {(!formData.brand || !formData.theme || !formData.platform || !formData.objective) && (
+                    <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
+                      <p className="text-sm text-muted-foreground">
+                        Preencha todos os campos obrigatórios (*) para continuar
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <div className="mt-8 flex-shrink-0">
-          <Button onClick={handleGeneratePlan} className="w-full rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-            {loading ? <><Loader className="animate-spin mr-2" /> Gerando...</> : <><Calendar className="mr-2" />Gerar Planejamento</>}
-          </Button>
-          {error && <p className="text-destructive mt-4 text-center">{error}</p>}
-        </div>
-      </div >
+      </div>
     );
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto h-full p-4 sm:p-6 md:p-8">
-      <div className="space-y-4 flex flex-col h-full">
-        <h3 className="text-center text-lg font-semibold text-primary">Planejamento Gerado pela IA</h3>
-        <div className="w-full h-full bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col">
-          {loading && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
-              <p className="mt-4 text-muted-foreground">Gerando seu planejamento...</p>
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Card */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-secondary/10 text-secondary rounded-lg p-3">
+                  <MessageSquareQuote className="h-8 w-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">
+                    Planejamento Gerado pela IA
+                  </h1>
+                  <p className="text-muted-foreground text-base">
+                    Seu calendário de conteúdo estratégico está pronto
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleGoBackToForm} 
+                variant="outline" 
+                className="rounded-xl px-6 py-3 border-2 border-primary/30 hover:bg-primary/5 transition-all duration-300"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Criar Novo Planejamento
+              </Button>
             </div>
-          )}
-          {plannedContent && !loading && (
-            <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto h-full">
-              <p className="whitespace-pre-line">{plannedContent}</p>
-            </div>
-          )}
-          {error && !loading && <p className="text-destructive p-4 text-center">{error}</p>}
+          </CardHeader>
+        </Card>
+
+        {/* Content - Planning Result */}
+        <div className="space-y-6">
+          <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+              <h2 className="text-xl font-semibold flex items-center gap-3">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                Resultado do Planejamento
+              </h2>
+              <p className="text-muted-foreground text-sm">Conteúdo gerado com base nos seus parâmetros</p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="w-full min-h-[500px] bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col overflow-hidden">
+                {loading && (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
+                    <p className="mt-4 text-muted-foreground text-lg">Gerando seu planejamento...</p>
+                  </div>
+                )}
+                {plannedContent && !loading && (
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto">
+                    <p className="whitespace-pre-line text-base leading-relaxed">{plannedContent}</p>
+                  </div>
+                )}
+                {error && !loading && <p className="text-destructive p-4 text-center text-base">{error}</p>}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -86,7 +86,7 @@ export default function HomePage() {
     ? ((creditos.total - creditos.restantes) / creditos.total) * 100
     : 0;
 
-  const formattedAtividadesRecentes = atividadesRecentes.map(action => ({
+  const formattedAtividadesRecentes = atividadesRecentes.slice(0, 3).map(action => ({
     id: action.id,
     tipo: action.type,
     titulo: action.brand?.name || 'Marca não especificada',
@@ -94,29 +94,33 @@ export default function HomePage() {
   }));
 
   return (
-    <div className="flex flex-col min-h-full p-4 md:p-8 space-y-8 pb-8">
+    <div className="flex flex-col min-h-full space-y-8 pb-8">
       {/* Cabeçalho */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div>
-          <div className='flex items-center space-x-2 mb-2'>
-            <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-              <Home className="h-8 w-8" />
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                <Home className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">
+                  Olá, {user?.name || 'Usuário'}!
+                </h1>
+                <p className="text-muted-foreground text-base">
+                  Bem-vindo(a) de volta ao seu painel de criação
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Olá, {user?.name || 'Usuário'}!
-            </h1>
+            <Link href="/content">
+              <Button size="lg" className="rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Criar Novo Conteúdo
+              </Button>
+            </Link>
           </div>
-          <p className="text-muted-foreground">
-            Bem-vindo(a) de volta ao seu painel de criação.
-          </p>
-        </div>
-        <Link href="/content">
-          <Button size="lg" className="mt-4 md:mt-0 rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Criar Novo Conteúdo
-          </Button>
-        </Link>
-      </header>
+        </CardHeader>
+      </Card>
 
       {/* Grid de Cards de Estatísticas */}
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -167,46 +171,64 @@ export default function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Ações Rápidas */}
         <div className="lg:col-span-1 space-y-4">
-          <h3 className="text-xl font-semibold">Ações Rápidas</h3>
-          <Link href="/content" className="block">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center gap-4">
-                <Sparkles className="h-6 w-6 text-accent" />
-                <div>
-                  <p className="font-semibold">Criar Conteúdo</p>
-                  <p className="text-sm text-muted-foreground">Gerar novas imagens e textos.</p>
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-secondary/10 text-secondary rounded-lg p-3">
+                  <Sparkles className="h-6 w-6" />
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/revisar" className="block">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center gap-4">
-                <CheckCircle className="h-6 w-6 text-accent" />
-                <div>
-                  <p className="font-semibold">Revisar Imagem</p>
-                  <p className="text-sm text-muted-foreground">Receber feedback da IA.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/personas" className="block">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center gap-4">
-                <Users className="h-6 w-6 text-accent" />
-                <div>
-                  <p className="font-semibold">Gerenciar Personas</p>
-                  <p className="text-sm text-muted-foreground">Adicionar ou editar suas personas.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+                <CardTitle className="text-xl font-semibold">Ações Rápidas</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Link href="/content" className="block">
+                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Sparkles className="h-6 w-6 text-accent" />
+                    <div>
+                      <p className="font-semibold">Criar Conteúdo</p>
+                      <p className="text-sm text-muted-foreground">Gerar novas imagens e textos.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/revisar" className="block">
+                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <CheckCircle className="h-6 w-6 text-accent" />
+                    <div>
+                      <p className="font-semibold">Revisar Imagem</p>
+                      <p className="text-sm text-muted-foreground">Receber feedback da IA.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/personas" className="block">
+                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Users className="h-6 w-6 text-accent" />
+                    <div>
+                      <p className="font-semibold">Gerenciar Personas</p>
+                      <p className="text-sm text-muted-foreground">Adicionar ou editar suas personas.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Atividades Recentes */}
         <div className="lg:col-span-2">
-          <h3 className="text-xl font-semibold mb-4">Atividades Recentes</h3>
-          <Card className="shadow-lg">
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+            <CardHeader className="pb-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <CardTitle className="text-xl font-semibold">Atividades Recentes</CardTitle>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
                 {formattedAtividadesRecentes.length > 0 ? (

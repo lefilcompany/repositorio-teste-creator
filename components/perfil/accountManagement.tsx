@@ -170,7 +170,7 @@ export default function AccountManagement() {
 
   return (
     <div className="w-full">
-      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-6 rounded-xl border border-primary/20 shadow-lg backdrop-blur-sm">
+      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-6 rounded-xl border border-primary/20 shadow-md backdrop-blur-sm">
         <div className="space-y-6">
           <div className="space-y-3">
             <h3 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-3">
@@ -255,9 +255,9 @@ export default function AccountManagement() {
 
       {/* Dialog para Inativar Conta */}
       <Dialog open={isDeactivateDialogOpen} onOpenChange={setIsDeactivateDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-gradient-to-br from-background to-muted/20 border border-primary/30 shadow-xl">
+        <DialogContent className="sm:max-w-md bg-gradient-to-br from-background to-muted/20 border border-slate-300/50 shadow-xl">
           <DialogHeader className="space-y-4">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-secondary to-secondary/80 rounded-full flex items-center justify-center shadow-lg">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center shadow-lg">
               <UserMinus className="h-8 w-8 text-white" />
             </div>
             <DialogTitle className="text-center text-2xl font-bold text-foreground">
@@ -268,12 +268,12 @@ export default function AccountManagement() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-gradient-to-r from-secondary/5 to-secondary/10 p-5 rounded-xl border border-secondary/20 shadow-sm">
-            <h4 className="font-bold text-secondary mb-3 flex items-center gap-2 text-base">
-              <div className="w-2 h-2 bg-secondary rounded-full"></div>
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200/50 shadow-sm">
+            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-base">
+              <div className="w-2 h-2 bg-slate-600 rounded-full"></div>
               Como reativar:
             </h4>
-            <p className="text-secondary/80 text-sm leading-relaxed">
+            <p className="text-slate-600 text-sm leading-relaxed">
               Faça um novo cadastro usando o <strong>mesmo e-mail</strong>.
               Todos os dados serão restaurados automaticamente!
             </p>
@@ -360,7 +360,7 @@ export default function AccountManagement() {
             <Button
               onClick={handleDeactivateAccount}
               disabled={isLoading || (isUserAdmin && teamMembers.length > 0 && !selectedNewAdmin)}
-              className="flex-1 h-11 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all text-base"
+              className="flex-1 h-11 bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all text-base"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar Inativação

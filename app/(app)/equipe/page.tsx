@@ -196,20 +196,22 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="h-full flex flex-col gap-8">
-      <header>
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0 bg-gradient-to-br from-primary to-secondary text-white rounded-lg p-3 shadow-lg">
-            <Rocket className="h-8 w-8" />
+    <div className="p-4 md:p-8 h-full flex flex-col gap-8">
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+              <Rocket className="h-8 w-8" />
+            </div>
+            <div>
+              <CardTitle className="text-3xl font-bold">
+                Gerenciar Equipe
+              </CardTitle>
+              <p className="text-muted-foreground">Veja os detalhes do seu plano, membros e solicitações.</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              Gerenciar Equipe
-            </h1>
-            <p className="text-muted-foreground">Veja os detalhes do seu plano, membros e solicitações.</p>
-          </div>
-        </div>
-      </header>
+        </CardHeader>
+      </Card>
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 overflow-hidden">
         <div className="lg:col-span-1 space-y-6">
