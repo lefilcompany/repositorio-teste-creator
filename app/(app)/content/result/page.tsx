@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -34,6 +34,10 @@ interface ContentVersion {
 export default function ResultPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const actionId = searchParams.get('actionId');
+  const temporaryContentId = searchParams.get('temporaryContentId');
+  const isFallback = searchParams.get('fallback') === '1';
   const [team, setTeam] = useState<Team | null>(null);
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,15 +57,30 @@ export default function ResultPage() {
         return;
       }
 
+      if (isFallback) {
+        const local = localStorage.getItem('generatedContent');
+        if (local) {
+          setContent(JSON.parse(local));
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!actionId || !temporaryContentId) {
+        toast.error('Conteúdo não encontrado.');
+        router.push('/content');
+        setLoading(false);
+        return;
+      }
+
       try {
-        // Primeiro tenta buscar do banco de dados
-        const response = await fetch(`/api/temporary-content?userId=${user.id}&teamId=${user.teamId}`);
-        
+        // Busca conteúdo temporário específico
+        const response = await fetch(`/api/temporary-content?id=${temporaryContentId}&actionId=${actionId}&userId=${user.id}&teamId=${user.teamId}`);
+
         if (response.ok) {
           const tempContent = await response.json();
-          
+
           if (tempContent) {
-            // Converte o conteúdo temporário para o formato esperado
             const parsedContent: GeneratedContent = {
               id: tempContent.id,
               imageUrl: tempContent.imageUrl,
@@ -71,12 +90,11 @@ export default function ResultPage() {
               revisions: tempContent.revisions,
               brand: tempContent.brand,
               theme: tempContent.theme,
-              originalId: tempContent.actionId || tempContent.originalId // Prioriza actionId
+              originalId: tempContent.actionId
             };
 
             setContent(parsedContent);
 
-            // Busca o brandId baseado no nome da marca
             if (tempContent.brand && user?.teamId) {
               try {
                 const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
@@ -92,14 +110,12 @@ export default function ResultPage() {
               }
             }
 
-            // Inicializa as versões com a versão original
             const initialVersion: ContentVersion = {
               id: `version-${Date.now()}`,
               content: parsedContent,
               timestamp: new Date().toISOString(),
               type: 'original'
             };
-
             setVersions([initialVersion]);
             setCurrentVersionIndex(0);
           } else {
@@ -110,19 +126,16 @@ export default function ResultPage() {
         }
 
         if (user?.teamId) {
-          const loadTeam = async () => {
-            try {
-              const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
-              if (teamsRes.ok) {
-                const teamsData: Team[] = await teamsRes.json();
-                const currentTeam = teamsData.find(t => t.id === user.teamId);
-                setTeam(currentTeam || null);
-              }
-            } catch (error) {
-              console.error('Erro ao carregar team:', error);
+          try {
+            const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+            if (teamsRes.ok) {
+              const teamsData: Team[] = await teamsRes.json();
+              const currentTeam = teamsData.find(t => t.id === user.teamId);
+              setTeam(currentTeam || null);
             }
-          };
-          loadTeam();
+          } catch (error) {
+            console.error('Erro ao carregar team:', error);
+          }
         }
       } catch (e: any) {
         toast.error(e.message, { description: "Você será redirecionado para criar novo conteúdo." });
@@ -133,7 +146,7 @@ export default function ResultPage() {
     };
 
     loadContent();
-  }, [user, router]);
+  }, [user, router, actionId, temporaryContentId, isFallback]);
 
   const updateTeamCredits = useCallback(async (creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
     if (!user?.teamId || !team) return;
@@ -288,7 +301,7 @@ export default function ResultPage() {
       // Remove o conteúdo temporário do banco de dados
       if (user?.id && user?.teamId && finalContent.id) {
         try {
-          const response = await fetch(`/api/temporary-content?id=${finalContent.id}&userId=${user.id}&teamId=${user.teamId}`, {
+          const response = await fetch(`/api/temporary-content?id=${finalContent.id}&actionId=${finalContent.originalId}&userId=${user.id}&teamId=${user.teamId}`, {
             method: 'DELETE'
           });
           
@@ -325,37 +338,55 @@ export default function ResultPage() {
     try {
       updateTeamCredits('contentReviews');
 
-      // Incrementa o contador de revisões
-      const contentWithRevision = {
-        ...updatedContent,
-        revisions: (content?.revisions || 0) + 1,
-        originalId: content?.originalId || content?.id || updatedContent.id
+      const actionIdForReview = content?.originalId || content?.id;
+      if (!actionIdForReview) throw new Error('ActionId não encontrado');
+
+      const reviewRes = await fetch(`/api/actions/${actionIdForReview}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterUserId: user?.id,
+          newImageUrl: updatedContent.imageUrl,
+          newTitle: updatedContent.title,
+          newBody: updatedContent.body,
+          newHashtags: updatedContent.hashtags,
+        }),
+      });
+
+      if (!reviewRes.ok) {
+        throw new Error('Falha ao criar revisão');
+      }
+
+      const { action: updatedAction, temporaryContent: temp } = await reviewRes.json();
+
+      const contentWithRevision: GeneratedContent = {
+        id: temp.id,
+        imageUrl: temp.imageUrl,
+        title: temp.title,
+        body: temp.body,
+        hashtags: Array.isArray(temp.hashtags) ? temp.hashtags : [],
+        revisions: updatedAction.revisions,
+        brand: temp.brand,
+        theme: temp.theme,
+        originalId: updatedAction.id,
       };
 
-      // Cria uma nova versão
       const newVersion: ContentVersion = {
         id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         content: contentWithRevision,
         timestamp: new Date().toISOString(),
-        type: revisionType === 'image' ? 'image_revision' : 'text_revision'
+        type: revisionType === 'image' ? 'image_revision' : 'text_revision',
       };
 
-      // Adiciona a nova versão à lista
       const updatedVersions = [...versions, newVersion];
       setVersions(updatedVersions);
       setCurrentVersionIndex(updatedVersions.length - 1);
+      setContent(contentWithRevision);
 
-      // Atualiza o conteúdo atual
-      await updateCurrentContent(contentWithRevision);
-
-      // NÃO salva revisões intermediárias no histórico
-      // O histórico será atualizado apenas quando o conteúdo for aprovado
-      
       setShowRevisionForm(false);
       setRevisionType(null);
 
       toast.success(`Revisão ${revisionType === 'image' ? 'da imagem' : 'do texto'} concluída!`);
-
     } catch (error) {
       console.error('Erro ao completar revisão:', error);
       toast.error('Erro ao processar a revisão');

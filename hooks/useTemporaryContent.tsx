@@ -11,7 +11,7 @@ export function useTemporaryContent() {
   const [error, setError] = useState<string | null>(null);
 
   const saveTemporaryContent = useCallback(async (contentData: {
-    actionId?: string;
+    actionId: string;
     imageUrl: string;
     title: string;
     body: string;

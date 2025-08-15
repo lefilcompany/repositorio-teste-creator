@@ -291,8 +291,8 @@ export default function Creator() {
         
         console.log('Ação e conteúdo temporário criados:', action.id, temporaryContent?.id);
 
-        // Redireciona para a página de resultados
-        router.push('/content/result');
+        // Redireciona para a página de resultados com identificadores
+        router.push(`/content/result?actionId=${action.id}&temporaryContentId=${temporaryContent?.id}`);
 
       } catch (error) {
         console.error('Erro ao salvar ação/conteúdo temporário:', error);
@@ -311,38 +311,20 @@ export default function Creator() {
           originalId: fallbackId
         };
 
+        // Salva em localStorage como último recurso
         try {
-          await fetch('/api/temporary-content', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user?.id,
-              teamId: user?.teamId,
-              actionId: null, // Sem ação vinculada no fallback
-              imageUrl: data.imageUrl,
-              title: data.title,
-              body: data.body,
-              hashtags: data.hashtags,
-              brand: formData.brand,
-              theme: formData.theme,
-              originalId: fallbackId,
-              revisions: 0
-            })
-          });
+          localStorage.setItem('generatedContent', JSON.stringify(resultData));
         } catch (fallbackError) {
           console.error('Erro no fallback de conteúdo temporário:', fallbackError);
-          // Último recurso: localStorage
-          localStorage.setItem('generatedContent', JSON.stringify(resultData));
         }
 
-        router.push('/content/result');
+        router.push('/content/result?fallback=1');
       }
 
       // Atualiza os créditos da equipe
       await updateTeamCredits();
 
       toast.success('Conteúdo gerado com sucesso!');
-      router.push('/content/result');
 
     } catch (err: any) {
       console.error('Erro ao gerar conteúdo:', err);

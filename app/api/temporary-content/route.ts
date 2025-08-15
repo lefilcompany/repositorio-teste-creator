@@ -6,41 +6,35 @@ export async function GET(req: Request) {
   const userId = searchParams.get('userId');
   const teamId = searchParams.get('teamId');
   const actionId = searchParams.get('actionId');
-  
-  if (!userId || !teamId) {
-    return NextResponse.json({ error: 'userId and teamId are required' }, { status: 400 });
+  const tempId = searchParams.get('id');
+
+  if (!userId || !teamId || !actionId || !tempId) {
+    return NextResponse.json({ error: 'userId, teamId, actionId and id are required' }, { status: 400 });
   }
-  
+
   try {
-    let whereClause: any = { 
-      userId,
-      teamId,
-      expiresAt: {
-        gt: new Date()
-      }
-    };
-
-    // Se actionId for fornecido, filtra por ele
-    if (actionId) {
-      whereClause.actionId = actionId;
-    }
-
-    // Busca conteúdo temporário não expirado
     const content = await prisma.temporaryContent.findFirst({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
+      where: {
+        id: tempId,
+        actionId,
+        userId,
+        teamId,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
       include: {
         action: {
           select: {
             id: true,
             type: true,
             status: true,
-            approved: true
-          }
-        }
-      }
+            approved: true,
+          },
+        },
+      },
     });
-    
+
     return NextResponse.json(content || null);
   } catch (error) {
     console.error('Fetch temporary content error', error);
@@ -52,23 +46,23 @@ export async function POST(req: Request) {
   try {
     const data = await req.json();
     const { 
-      userId, 
-      teamId, 
+      userId,
+      teamId,
       actionId,
-      imageUrl, 
-      title, 
-      body, 
-      hashtags, 
-      brand, 
-      theme, 
+      imageUrl,
+      title,
+      body,
+      hashtags,
+      brand,
+      theme,
       originalId,
       revisions = 0
     } = data;
-    
+
     // Validações básicas
-    if (!userId || !teamId || !imageUrl || !title || !body) {
-      return NextResponse.json({ 
-        error: 'userId, teamId, imageUrl, title and body are required' 
+    if (!userId || !teamId || !actionId || !imageUrl || !title || !body) {
+      return NextResponse.json({
+        error: 'userId, teamId, actionId, imageUrl, title and body are required'
       }, { status: 400 });
     }
     
@@ -86,9 +80,10 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
     
-    // Remove conteúdo temporário anterior do mesmo usuário para evitar acúmulo
+    // Remove conteúdo temporário anterior desta ação para evitar acúmulo
     await prisma.temporaryContent.deleteMany({
       where: {
+        actionId,
         userId,
         teamId
       }
@@ -195,10 +190,11 @@ export async function DELETE(req: Request) {
   const id = searchParams.get('id');
   const userId = searchParams.get('userId');
   const teamId = searchParams.get('teamId');
-  
-  if (!id || !userId || !teamId) {
-    return NextResponse.json({ 
-      error: 'id, userId and teamId are required' 
+  const actionId = searchParams.get('actionId');
+
+  if (!id || !userId || !teamId || !actionId) {
+    return NextResponse.json({
+      error: 'id, userId, teamId and actionId are required'
     }, { status: 400 });
   }
   
@@ -208,7 +204,8 @@ export async function DELETE(req: Request) {
       where: {
         id,
         userId,
-        teamId
+        teamId,
+        actionId
       }
     });
     

@@ -2,7 +2,7 @@ export interface TemporaryContent {
   id: string;
   userId: string;
   teamId: string;
-  actionId?: string | null;
+  actionId: string;
   imageUrl: string;
   title: string;
   body: string;

@@ -174,8 +174,8 @@ model TemporaryContent {
   user        User     @relation(fields: [userId], references: [id])
   teamId      String
   team        Team     @relation(fields: [teamId], references: [id])
-  actionId    String?  // Referência à ação que gerou este conteúdo
-  action      Action?  @relation(fields: [actionId], references: [id])
+  actionId    String  // Referência à ação que gerou este conteúdo
+  action      Action  @relation(fields: [actionId], references: [id])
   imageUrl    String
   title       String
   body        String
