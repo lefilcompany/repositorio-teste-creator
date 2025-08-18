@@ -59,6 +59,7 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
         formData.append('teamId', teamId || user.teamId || '');
         formData.append('brandId', brandId || '');
         formData.append('userId', user.id || '');
+        formData.append('actionId', content.id || ''); // Adiciona o actionId para nomes únicos
 
         const response = await fetch('/api/refatorar-image', {
           method: 'POST',

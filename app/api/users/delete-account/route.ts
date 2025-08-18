@@ -66,12 +66,7 @@ export async function POST(req: Request) {
     await prisma.action.deleteMany({
       where: { userId }
     });
-
-    // Deletar todo conteúdo temporário do usuário
-    await prisma.temporaryContent.deleteMany({
-      where: { userId }
-    });
-
+    
     // Deletar todas as marcas do usuário
     await prisma.brand.deleteMany({
       where: { userId }

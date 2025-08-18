@@ -22,21 +22,28 @@ export default function HistoricoPage() {
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  // Carrega ações e marcas via API
+  // Carrega ações aprovadas e marcas via API
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
       
       try {
         const [actionsRes, brandsRes] = await Promise.all([
-          fetch(`/api/actions?teamId=${user.teamId}`),
+          // Busca apenas ações aprovadas para o histórico
+          fetch(`/api/actions?teamId=${user.teamId}&approved=true`),
           fetch(`/api/brands?teamId=${user.teamId}`)
         ]);
         
         if (actionsRes.ok) {
           const actionsData: Action[] = await actionsRes.json();
-          setActions(actionsData);
+          // Filtro extra para garantir que apenas ações realmente aprovadas sejam mostradas
+          const approvedActions = actionsData.filter(action => 
+            action.approved === true && action.status === 'Aprovado'
+          );
+          setActions(approvedActions);
+          console.log('Ações aprovadas carregadas:', approvedActions.length, 'de', actionsData.length, 'total');
         } else {
+          console.error('Erro ao carregar histórico:', actionsRes.status, actionsRes.statusText);
           toast.error('Erro ao carregar histórico de ações');
         }
         

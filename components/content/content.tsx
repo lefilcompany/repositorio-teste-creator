@@ -248,95 +248,22 @@ export default function Creator() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Se é um erro crítico que deve redirecionar para histórico
+        if (errorData.shouldRedirectToHistory) {
+          toast.error('Erro crítico no sistema. Redirecionando para o histórico.');
+          router.push('/historico');
+          return;
+        }
+        
+        // Outros erros são mostrados ao usuário para tentar novamente
         throw new Error(errorData.error || 'Falha ao gerar o conteúdo.');
       }
 
       const data = await response.json();
 
-      // Primeiro cria a ação no banco de dados
-      try {
-        const actionResponse = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'CRIAR_CONTEUDO',
-            teamId: user?.teamId,
-            userId: user?.id,
-            brandId: selectedBrand.id,
-            details: {
-              brand: formData.brand,
-              theme: formData.theme,
-              platform: formData.platform,
-              objective: formData.objective,
-              description: formData.description,
-              audience: formData.audience,
-              tone: formData.tone,
-              additionalInfo: formData.additionalInfo
-            },
-            createTemporaryContent: {
-              imageUrl: data.imageUrl,
-              title: data.title,
-              body: data.body,
-              hashtags: data.hashtags,
-              theme: formData.theme
-            }
-          })
-        });
-
-        if (!actionResponse.ok) {
-          throw new Error('Erro ao criar ação no banco de dados');
-        }
-
-        const { action, temporaryContent } = await actionResponse.json();
-        
-        console.log('Ação e conteúdo temporário criados:', action.id, temporaryContent?.id);
-
-        // Redireciona para a página de resultados
-        router.push('/content/result');
-
-      } catch (error) {
-        console.error('Erro ao salvar ação/conteúdo temporário:', error);
-        
-        // Fallback: criar conteúdo temporário diretamente se a criação da ação falhar
-        const fallbackId = generateUniqueId();
-        const resultData = {
-          id: fallbackId,
-          imageUrl: data.imageUrl,
-          title: data.title,
-          body: data.body,
-          hashtags: data.hashtags,
-          revisions: 0,
-          brand: formData.brand,
-          theme: formData.theme,
-          originalId: fallbackId
-        };
-
-        try {
-          await fetch('/api/temporary-content', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user?.id,
-              teamId: user?.teamId,
-              actionId: null, // Sem ação vinculada no fallback
-              imageUrl: data.imageUrl,
-              title: data.title,
-              body: data.body,
-              hashtags: data.hashtags,
-              brand: formData.brand,
-              theme: formData.theme,
-              originalId: fallbackId,
-              revisions: 0
-            })
-          });
-        } catch (fallbackError) {
-          console.error('Erro no fallback de conteúdo temporário:', fallbackError);
-          // Último recurso: localStorage
-          localStorage.setItem('generatedContent', JSON.stringify(resultData));
-        }
-
-        router.push('/content/result');
-      }
+      // A ação já foi criada dentro da API de geração
+      console.log('Conteúdo gerado com ação ID:', data.actionId);
 
       // Atualiza os créditos da equipe
       await updateTeamCredits();

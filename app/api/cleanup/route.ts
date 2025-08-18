@@ -3,18 +3,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    // Remove conteúdo temporário expirado
-    const result = await prisma.temporaryContent.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date()
-        }
-      }
-    });
-
+    // Como não usamos mais TemporaryContent, este endpoint agora serve apenas
+    // para compatibilidade. Pode ser removido futuramente.
+    
     return NextResponse.json({ 
-      message: 'Cleanup completed', 
-      deletedCount: result.count 
+      message: 'Cleanup completed - TemporaryContent table no longer used', 
+      deletedCount: 0 
     });
   } catch (error) {
     console.error('Cleanup error', error);

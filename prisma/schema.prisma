@@ -48,7 +48,6 @@ model Team {
   actions      Action[]
   notifications Notification[]
   joinRequests  JoinRequest[]
-  temporaryContents TemporaryContent[]
 }
 
 model User {
@@ -70,7 +69,6 @@ model User {
   brands   Brand[]
   themes   StrategicTheme[]
   personas Persona[]
-  temporaryContents TemporaryContent[]
 }
 
 model Brand {
@@ -165,31 +163,6 @@ model Action {
   status    String   @default("Em revisão") // "Em revisão", "Aprovado", "Rejeitado"
   approved  Boolean  @default(false)
   revisions Int      @default(0)
-  temporaryContents TemporaryContent[]
-}
-
-model TemporaryContent {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id])
-  actionId    String?  // Referência à ação que gerou este conteúdo
-  action      Action?  @relation(fields: [actionId], references: [id])
-  imageUrl    String
-  title       String
-  body        String
-  hashtags    Json     // Array de hashtags
-  revisions   Int      @default(0)
-  brand       String?
-  theme       String?
-  originalId  String?  // Para rastrear revisões
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  expiresAt   DateTime // Conteúdo temporário expira após um tempo
-
-  @@index([actionId])
-  @@index([userId, teamId])
 }
 
 model Notification {
