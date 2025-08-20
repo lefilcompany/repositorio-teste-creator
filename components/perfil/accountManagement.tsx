@@ -327,7 +327,7 @@ export default function AccountManagement() {
                                 <span className="font-medium">{member.name}</span>
                               </div>
                               <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                                {member.role === 'ADMIN' ? 'Admin' : 'Membro'}
+                                {member.role === 'ADMIN' ? 'Admin' : member.role === 'MEMBER' ? 'Membro' : 'Sem Equipe'}
                               </span>
                             </div>
                             <span className="text-xs text-muted-foreground pl-4">
@@ -447,7 +447,7 @@ export default function AccountManagement() {
                                 <span className="font-medium">{member.name}</span>
                               </div>
                               <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                                {member.role === 'ADMIN' ? 'Admin' : 'Membro'}
+                                {member.role === 'ADMIN' ? 'Admin' : member.role === 'MEMBER' ? 'Membro' : 'Sem Equipe'}
                               </span>
                             </div>
                             <span className="text-xs text-muted-foreground pl-4">

@@ -13,7 +13,7 @@ interface AdditionalInfoCardProps {
     team?: {
       name: string;
     };
-    role?: 'ADMIN' | 'MEMBER';
+    role?: 'ADMIN' | 'MEMBER' | 'WITHOUT_TEAM';
   };
 }
 
@@ -50,8 +50,10 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
 
   // Calcular progresso baseado nos créditos da equipe
   const creditosUsados = team ? {
-    total: (team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0),
-    restantes: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0)
+    total: typeof team.plan === 'object' 
+      ? ((team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0))
+      : 0,
+    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0)
   } : { total: 0, restantes: 0 };
 
   const acoesUsadas = creditosUsados.total - creditosUsados.restantes;
@@ -97,14 +99,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
             </h3>
             <div className="pl-8 space-y-1">
               <p className={`font-semibold text-lg ${
-                userData.role === 'ADMIN' ? 'text-yellow-600' : 'text-accent'
+                userData.role === 'ADMIN' ? 'text-yellow-600' : userData.role === 'MEMBER' ? 'text-accent' : 'text-muted-foreground'
               }`}>
-                {userData.role === 'ADMIN' ? 'Administrador' : 'Membro'}
+                {userData.role === 'ADMIN' ? 'Administrador' : userData.role === 'MEMBER' ? 'Membro' : 'Sem Equipe'}
               </p>
               <p className="text-sm text-muted-foreground">
                 {userData.role === 'ADMIN' 
                   ? 'Controle total sobre a equipe' 
-                  : 'Acesso aos projetos da equipe'
+                  : userData.role === 'MEMBER'
+                  ? 'Acesso aos projetos da equipe'
+                  : 'Precisa fazer parte de uma equipe'
                 }
               </p>
             </div>

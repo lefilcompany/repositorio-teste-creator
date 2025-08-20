@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader, Calendar, ArrowLeft, MessageSquareQuote } from 'lucide-react';
+import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -244,7 +244,7 @@ export default function Plan() {
                           <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                             <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                              <Calendar className="h-4 w-4" />
+                              <Zap className="h-4 w-4" />
                             </div>
                           </div>
                           <div className="text-center">
@@ -264,8 +264,8 @@ export default function Plan() {
             </CardHeader>
           </Card>
 
-          {/* Main Content with vertical layout */}
-          <div className="space-y-6">
+          {/* Main Content with proper padding */}
+          <div className="flex flex-col gap-6">
             {/* Configuration Section */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -381,17 +381,18 @@ export default function Plan() {
                   >
                     {loading ? (
                       <>
-                        <Loader className="animate-spin mr-2 h-5 w-5" />
-                        Gerando...
+                        <Loader className="animate-spin mr-3 h-5 w-5" />
+                        <span>Gerando...</span>
                       </>
                     ) : (
                       <>
-                        <Calendar className="mr-2 h-5 w-5" />
-                        Gerar Planejamento
+                        <Calendar className="mr-3 h-5 w-5" />
+                        <span>Gerar Planejamento</span>
                       </>
                     )}
                   </Button>
-                  {error && <p className="text-destructive mt-4 text-center">{error}</p>}
+
+                  {/* Form validation indicator */}
                   {(!formData.brand || !formData.theme || !formData.platform || !formData.objective) && (
                     <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
                       <p className="text-sm text-muted-foreground">
@@ -399,6 +400,8 @@ export default function Plan() {
                       </p>
                     </div>
                   )}
+
+                  {error && <p className="text-destructive mt-4 text-center text-base">{error}</p>}
                 </div>
               </CardContent>
             </Card>

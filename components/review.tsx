@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote, ThumbsUp } from 'lucide-react';
+import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote, ThumbsUp, Zap } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -265,7 +265,7 @@ export default function Revisar() {
                           <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                             <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                              <CheckCircle className="h-4 w-4" />
+                              <Zap className="h-4 w-4" />
                             </div>
                           </div>
                           <div className="text-center">
@@ -285,9 +285,9 @@ export default function Revisar() {
             </CardHeader>
           </Card>
 
-          {/* Main Content with vertical layout */}
-          <div className="space-y-6">
-            {/* Configuration Section */}
+          {/* Main Content with proper padding */}
+          <div className="flex flex-col gap-6">
+            {/* Configuration Panel */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
                 <h2 className="text-xl font-semibold flex items-center gap-3">
@@ -299,9 +299,9 @@ export default function Revisar() {
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca</Label>
+                    <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
                     <Select onValueChange={handleBrandChange} value={brand}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
                         <SelectValue placeholder="Selecione a marca" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/20">
@@ -311,10 +311,11 @@ export default function Revisar() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   <div className="space-y-3">
-                    <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico</Label>
+                    <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
                     <Select onValueChange={setTheme} value={theme} disabled={!brand || filteredThemes.length === 0}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
                         <SelectValue placeholder={!brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/20">
@@ -328,7 +329,7 @@ export default function Revisar() {
               </CardContent>
             </Card>
 
-            {/* Image Analysis Section */}
+            {/* Image Analysis Panel */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
                 <h2 className="text-xl font-semibold flex items-center gap-3">
@@ -362,6 +363,7 @@ export default function Revisar() {
                       </div>
                     </div>
                   </div>
+
                   <div className="space-y-3">
                     <Label htmlFor="adjustmentsPrompt" className="text-sm font-semibold text-foreground">O que você gostaria de ajustar? *</Label>
                     <Textarea
@@ -389,17 +391,18 @@ export default function Revisar() {
                   >
                     {loading ? (
                       <>
-                        <Loader className="animate-spin mr-2 h-5 w-5" />
-                        Analisando...
+                        <Loader className="animate-spin mr-3 h-5 w-5" />
+                        <span>Analisando...</span>
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-5 w-5" />
-                        Analisar Imagem
+                        <Sparkles className="mr-3 h-5 w-5" />
+                        <span>Analisar Imagem</span>
                       </>
                     )}
                   </Button>
-                  {error && <p className="text-destructive mt-4 text-center text-base">{error}</p>}
+
+                  {/* Form validation indicator */}
                   {(!imageFile || !adjustmentsPrompt) && (
                     <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
                       <p className="text-sm text-muted-foreground">
@@ -407,6 +410,8 @@ export default function Revisar() {
                       </p>
                     </div>
                   )}
+
+                  {error && <p className="text-destructive mt-4 text-center text-base">{error}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -448,54 +453,54 @@ export default function Revisar() {
           </CardHeader>
         </Card>
 
-        {/* Content - Using vertical layout */}
-        <div className="space-y-6">
-          {/* Image and Feedback Section */}
-          <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
-            <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
-              <h2 className="text-xl font-semibold flex items-center gap-3">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                Resultado da Análise
-              </h2>
-              <p className="text-muted-foreground text-sm">Sua imagem e as sugestões da IA</p>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left: Original Image */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <div className="w-2 h-2 bg-secondary rounded-full"></div>
-                    Sua Imagem
-                  </h3>
-                  <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
-                    {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
-                  </div>
+        {/* Content - Using grid layout like content.tsx */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Panel - Original Image */}
+          <div className="space-y-6">
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                  Sua Imagem
+                </h2>
+                <p className="text-muted-foreground text-sm">Imagem enviada para análise</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
+                  {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                {/* Right: AI Feedback */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    Sugestões da IA
-                  </h3>
-                  <div className="w-full min-h-[400px] bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col overflow-hidden">
-                    {loading && (
-                      <div className="flex flex-col items-center justify-center h-full text-center">
-                        <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
-                        <p className="mt-4 text-muted-foreground text-lg">Analisando sua imagem...</p>
-                      </div>
-                    )}
-                    {revisedText && !loading && (
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto">
-                        <p className="whitespace-pre-line text-base leading-relaxed">{revisedText}</p>
-                      </div>
-                    )}
-                    {error && !loading && <p className="text-destructive p-4 text-center text-base">{error}</p>}
-                  </div>
+          {/* Right Panel - AI Feedback */}
+          <div className="space-y-6">
+            <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
+                <h2 className="text-xl font-semibold flex items-center gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  Sugestões da IA
+                </h2>
+                <p className="text-muted-foreground text-sm">Análise e recomendações</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="min-h-[400px] bg-card rounded-2xl p-6 shadow-lg border-2 border-primary/20 flex flex-col overflow-hidden">
+                  {loading && (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <div className="animate-pulse"><MessageSquareQuote size={64} className="text-primary" /></div>
+                      <p className="mt-4 text-muted-foreground text-lg">Analisando sua imagem...</p>
+                    </div>
+                  )}
+                  {revisedText && !loading && (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto">
+                      <p className="whitespace-pre-line text-base leading-relaxed">{revisedText}</p>
+                    </div>
+                  )}
+                  {error && !loading && <p className="text-destructive p-4 text-center text-base">{error}</p>}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Action Button Section */}
@@ -508,8 +513,8 @@ export default function Revisar() {
                     onClick={handleApproveReview}
                     className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-green-500 via-green-600 to-green-700 hover:from-green-600 hover:via-green-700 hover:to-green-800 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:scale-[1.02] border-2 border-white/20 text-white"
                   >
-                    <ThumbsUp className="mr-2 h-5 w-5" />
-                    Aprovar e Salvar no Histórico
+                    <ThumbsUp className="mr-3 h-5 w-5" />
+                    <span>Aprovar e Salvar no Histórico</span>
                   </Button>
                 </div>
               </CardContent>

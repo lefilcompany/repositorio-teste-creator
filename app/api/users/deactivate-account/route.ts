@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, UserRole } from '@prisma/client';
 
 export async function POST(req: Request) {
   try {
@@ -61,12 +61,12 @@ export async function POST(req: Request) {
           data: { adminId: newAdminId }
         });
 
-        // Inativar o usuário atual e mudar seu role para MEMBER
+        // Inativar o usuário atual e mudar seu role para WITHOUT_TEAM
         await tx.user.update({
           where: { id: userId },
           data: {
             status: 'INACTIVE',
-            role: 'MEMBER'
+            role: UserRole.WITHOUT_TEAM
           }
         });
       });

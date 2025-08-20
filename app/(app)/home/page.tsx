@@ -78,8 +78,10 @@ export default function HomePage() {
   }, [user]);
 
   const creditos = team ? {
-    restantes: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0),
-    total: (team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0)
+    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
+    total: (typeof team.plan === 'object' ? 
+      ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 1)) 
+      : 41) // Valor padrão para plano FREE: 20 + 20 + 1 = 41
   } : { restantes: 0, total: 0 };
 
   const creditosUsadosPercentual = (creditos.total > 0)

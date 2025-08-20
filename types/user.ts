@@ -7,6 +7,6 @@ export interface User {
   state?: string;
   city?: string;
   teamId?: string | null;
-  role?: 'ADMIN' | 'MEMBER';
-  status?: 'ACTIVE' | 'PENDING' | 'INACTIVE';
+  role?: 'ADMIN' | 'MEMBER' | 'WITHOUT_TEAM';
+  status?: 'ACTIVE' | 'PENDING' | 'INACTIVE' | 'NO_TEAM';
 }
