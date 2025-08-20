@@ -13,12 +13,14 @@ datasource db {
 enum UserRole {
   ADMIN
   MEMBER
+  WITHOUT_TEAM
 }
 
 enum UserStatus {
   ACTIVE
   PENDING
   INACTIVE
+  NO_TEAM
 }
 
 enum ActionType {
@@ -36,7 +38,8 @@ enum RequestStatus {
 model Team {
   id           String          @id @default(cuid())
   name         String
-  code         String          @unique
+  code         String          @unique // Hash do código para verificação
+  displayCode  String          // Código original para exibição
   adminId      String
   admin        User            @relation("TeamAdmin", fields: [adminId], references: [id])
   members      User[]          @relation("TeamMembers")
@@ -58,8 +61,8 @@ model User {
   phone     String?
   state     String?
   city      String?
-  role      UserRole   @default(MEMBER)
-  status    UserStatus @default(PENDING)
+  role      UserRole   @default(WITHOUT_TEAM)
+  status    UserStatus @default(NO_TEAM)
   teamId    String?
   team      Team?      @relation("TeamMembers", fields: [teamId], references: [id])
   adminTeams Team[]    @relation("TeamAdmin")

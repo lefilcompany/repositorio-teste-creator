@@ -96,7 +96,7 @@ export async function GET(req: Request) {
     const transformedTeam = {
       id: team.id,
       name: team.name,
-      code: team.code,
+      code: team.displayCode,
       admin: team.admin.email,
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),
@@ -164,7 +164,7 @@ export async function PATCH(req: Request) {
     const transformedTeam = {
       id: updatedTeam.id,
       name: updatedTeam.name,
-      code: updatedTeam.code,
+      code: updatedTeam.displayCode,
       admin: updatedTeam.admin.email,
       members: updatedTeam.members.map(member => member.email),
       pending: updatedTeam.joinRequests.map(request => request.user.email),
