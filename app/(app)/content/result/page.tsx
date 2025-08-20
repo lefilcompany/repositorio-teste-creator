@@ -551,23 +551,24 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 h-[calc(100vh-8rem)] flex flex-col gap-6">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <Sparkles className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
-            <p className="text-muted-foreground">
-              Revise, edite, aprove ou baixe seus resultados.
-              {versions.length > 1 && (
-                <span className="block text-sm text-primary mt-1">
-                  Versão {currentVersionIndex + 1} de {versions.length} - {
-                    versions[currentVersionIndex]?.type === 'original' ? 'Original' :
-                      versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
-                        'Texto Revisado'
-                  }
+    <div className="p-4 md:p-8 min-h-full">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
+              <p className="text-muted-foreground">
+                Revise, edite, aprove ou baixe seus resultados.
+                {versions.length > 1 && (
+                  <span className="block text-sm text-primary mt-1">
+                    Versão {currentVersionIndex + 1} de {versions.length} - {
+                      versions[currentVersionIndex]?.type === 'original' ? 'Original' :
+                        versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
+                          'Texto Revisado'
+                    }
                 </span>
               )}
             </p>
@@ -607,37 +608,37 @@ export default function ResultPage() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow overflow-hidden">
-        <div className="flex flex-col gap-4 h-full overflow-hidden">
-          <Card className="flex-grow w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
-            <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
-            <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
-              {isDownloading ? <Loader className="animate-spin" /> : <Download />}
-            </Button>
-          </Card>
-        </div>
-
-        <div className="flex flex-col h-full overflow-hidden">
-          <Card className="w-full h-full bg-card rounded-2xl p-1 shadow-lg border-2 border-primary/10 flex flex-col">
-            <CardHeader className="p-4 flex-row justify-between items-center border-b border-border/10">
-              <CardTitle className="text-xl font-bold text-foreground">{content.title}</CardTitle>
-              <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                {copied ? <Check className="text-green-500" /> : <Copy />}
+        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
+              <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
+              <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
+                {isDownloading ? <Loader className="animate-spin" /> : <Download />}
               </Button>
-            </CardHeader>
-            <CardContent className="p-4 flex-grow overflow-y-auto">
-              <div className="prose prose-sm dark:prose-invert max-w-none text-left">
-                <p className="whitespace-pre-line text-base text-muted-foreground">{content.body}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {content.hashtags.map((tag) => (
-                    <span key={tag} className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">#{tag}</span>
-                  ))}
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card className="w-full bg-card rounded-2xl p-1 shadow-lg border-2 border-primary/10">
+              <CardHeader className="p-4 flex-row justify-between items-center border-b border-border/10">
+                <CardTitle className="text-xl font-bold text-foreground">{content.title}</CardTitle>
+                <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                  {copied ? <Check className="text-green-500" /> : <Copy />}
+                </Button>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                  <p className="whitespace-pre-line text-base text-muted-foreground">{content.body}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {content.hashtags.map((tag) => (
+                      <span key={tag} className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">#{tag}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
 
       {/* Dialog para escolher tipo de revisão (imagem ou texto) */}
       <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
@@ -663,6 +664,7 @@ export default function ResultPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

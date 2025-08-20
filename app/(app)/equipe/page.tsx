@@ -222,32 +222,33 @@ export default function EquipePage() {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col gap-6">
-      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-              <Rocket className="h-8 w-8" />
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                <Rocket className="h-8 w-8" />
+              </div>
+              <div>
+                <CardTitle className="text-3xl font-bold">
+                  Gerenciar Equipe
+                </CardTitle>
+                <p className="text-muted-foreground">Veja os detalhes do seu plano, membros e solicitações.</p>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-3xl font-bold">
-                Gerenciar Equipe
-              </CardTitle>
-              <p className="text-muted-foreground">Veja os detalhes do seu plano, membros e solicitações.</p>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+          </CardHeader>
+        </Card>
 
-      {/* Main Content - Fixed height layout */}
-      <main className="grid grid-cols-1 xl:grid-cols-2 gap-6 flex-1 min-h-0 overflow-hidden">
-        {/* Left Column - Team Info and Requests */}
-        <div className="flex flex-col gap-4 min-h-0">
-          {/* Team Information Card - Compact, fixed height */}
-          <Card className="shadow-lg border-2 border-primary/20 bg-gradient-to-br from-card via-primary/5 to-secondary/10 backdrop-blur-sm flex-shrink-0">
-            <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-t-lg pb-2">
-              <CardTitle className="text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                {team.name}
+        {/* Main Content - Fluid layout */}
+        <main className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* Left Column - Team Info and Requests */}
+          <div className="space-y-4">
+            {/* Team Information Card */}
+            <Card className="shadow-lg border-2 border-primary/20 bg-gradient-to-br from-card via-primary/5 to-secondary/10 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-t-lg pb-2">
+                <CardTitle className="text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  {team.name}
               </CardTitle>
               <CardDescription className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent font-medium text-sm">
                 Plano {typeof team.plan === 'object' ? team.plan.name : team.plan}
@@ -305,7 +306,7 @@ export default function EquipePage() {
               </CardTitle>
               <CardDescription className="text-sm">Aprove ou recuse as solicitações para entrar na sua equipe.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 min-h-0">
+            <CardContent className="p-4">
               {pendingRequests.length > 0 ? (
                 <div className="space-y-3">
                   {pendingRequests.map(request => (
@@ -374,7 +375,7 @@ export default function EquipePage() {
                 Usuários que foram aprovados e fazem parte da equipe
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 min-h-0">
+            <CardContent className="p-4">
               {membersDetails.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 auto-rows-max">
                   {membersDetails.map(member => (
@@ -455,6 +456,7 @@ export default function EquipePage() {
           </Card>
         </div>
       </main>
+      </div>
     </div>
   );
 }

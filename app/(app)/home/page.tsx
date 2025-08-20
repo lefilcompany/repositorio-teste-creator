@@ -96,28 +96,29 @@ export default function HomePage() {
   }));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] space-y-6 pb-6 overflow-y-auto">
-      {/* Cabeçalho */}
-      <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-                <Home className="h-8 w-8" />
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Cabeçalho */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                  <Home className="h-8 w-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">
+                    Olá, {user?.name || 'Usuário'}!
+                  </h1>
+                  <p className="text-muted-foreground text-base">
+                    Bem-vindo(a) de volta ao seu painel de criação
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">
-                  Olá, {user?.name || 'Usuário'}!
-                </h1>
-                <p className="text-muted-foreground text-base">
-                  Bem-vindo(a) de volta ao seu painel de criação
-                </p>
-              </div>
-            </div>
-            <Link href="/content">
-              <Button size="lg" className="rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Criar Novo Conteúdo
+              <Link href="/content">
+                <Button size="lg" className="rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Criar Novo Conteúdo
               </Button>
             </Link>
           </div>
@@ -261,6 +262,7 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
+    </div>
     </div>
   );
 }
