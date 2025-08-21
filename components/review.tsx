@@ -134,7 +134,7 @@ export default function Revisar() {
     }
     if (!team) return;
     if (team.credits.contentReviews <= 0) {
-      setError('Seus créditos para revisões acabaram.');
+      setError('Seus créditos para revisões de conteúdo acabaram.');
       setIsResultView(false);
       return;
     }
@@ -271,10 +271,10 @@ export default function Revisar() {
                           <div className="text-center">
                             <div className="flex items-center gap-1">
                               <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                                {team.credits.contentReviews}
+                                {team.credits?.contentReviews || 0}
                               </span>
                             </div>
-                            <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                            <span className="text-sm text-muted-foreground font-medium">revisões restantes</span>
                           </div>
                         </div>
                       </CardContent>
