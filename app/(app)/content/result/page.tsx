@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
+import { downloadImage } from '@/lib/download-utils';
 
 // Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
@@ -472,30 +473,45 @@ export default function ResultPage() {
   };
 
   /**
-   * Faz o download da imagem gerada
+   * Faz o download da imagem gerada usando o utilitário de download
    */
   const handleDownloadImage = async () => {
-    if (!content?.imageUrl) return;
+    if (!content?.imageUrl) {
+      toast.error('URL da imagem não encontrada.');
+      return;
+    }
+    
     setIsDownloading(true);
-    toast.info("O download da imagem foi iniciado.");
+    toast.info("Iniciando download da imagem...");
+    
     try {
-      const response = await fetch(`/api/download-image?url=${encodeURIComponent(content.imageUrl)}`);
-      if (!response.ok) throw new Error('Falha ao buscar a imagem.');
-
-      const blob = await response.blob();
-      const contentType = response.headers.get('Content-Type') || 'image/png';
-      const extension = contentType.includes('jpeg') ? 'jpeg' : 'png';
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `creator-ai-image.${extension}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Erro ao baixar a imagem:', err);
-      toast.error('Não foi possível baixar a imagem.');
+      console.log('Iniciando download da imagem:', content.imageUrl);
+      
+      // Determinar o nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+      const filename = `creator-ai-image-${timestamp}`;
+      
+      // Usar o utilitário de download
+      await downloadImage(content.imageUrl, {
+        filename,
+        useProxy: true,
+        timeout: 30000
+      });
+      
+      toast.success('Download concluído com sucesso!');
+      console.log('Download concluído:', filename);
+      
+    } catch (error) {
+      console.error('Erro no download:', error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Erro desconhecido ao baixar a imagem';
+        
+      toast.error(`Falha no download: ${errorMessage}`, {
+        description: 'Verifique sua conexão e tente novamente.'
+      });
+      
     } finally {
       setIsDownloading(false);
     }
