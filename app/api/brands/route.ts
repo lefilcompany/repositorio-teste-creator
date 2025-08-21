@@ -35,16 +35,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'name and responsible are required' }, { status: 400 });
     }
     
-    // Verificar se o usuário pertence à equipe
+    // Verificar se o usuário pertence à equipe e buscar dados da equipe
     const user = await prisma.user.findFirst({
       where: { 
         id: userId, 
         teamId: teamId 
+      },
+      include: {
+        team: true
       }
     });
     
-    if (!user) {
+    if (!user || !user.team) {
       return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
+    }
+
+    // Verificar limite de marcas do plano
+    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
+      const teamPlan = user.team.plan as any;
+      if (teamPlan.limits) {
+        const currentBrandsCount = await prisma.brand.count({
+          where: { teamId: teamId }
+        });
+
+        if (currentBrandsCount >= teamPlan.limits.brands) {
+          return NextResponse.json({ 
+            error: `Limite de marcas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.brands} marca(s).` 
+          }, { status: 400 });
+        }
+      }
     }
     
     // Criar a marca

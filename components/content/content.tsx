@@ -207,7 +207,7 @@ export default function Creator() {
       return;
     }
     if (team.credits.contentSuggestions <= 0) {
-      toast.error('Seus créditos para sugestões de conteúdo acabaram.');
+      toast.error('Seus créditos para criação de conteúdo acabaram.');
       return;
     }
     if (!isFormValid() || !referenceImage) {
@@ -313,10 +313,10 @@ export default function Creator() {
                       <div className="text-center">
                         <div className="flex items-center gap-1">
                           <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits.contentSuggestions}
+                            {team.credits?.contentSuggestions || 0}
                           </span>
                         </div>
-                        <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                        <span className="text-sm text-muted-foreground font-medium">criações restantes</span>
                       </div>
                     </div>
                   </CardContent>

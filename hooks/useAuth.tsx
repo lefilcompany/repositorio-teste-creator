@@ -77,13 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   members: userData.team.members?.map((member: any) => member.email) || [],
                   pending: [],
                   plan: userData.team.plan || 'FREE',
-                  credits: userData.team.credits || {
-                    contentSuggestions: 20,
-                    contentReviews: 20,
-                    contentPlans: 1
-                  }
+                  credits: userData.team.credits || {}
                 };
-                console.log('Dados da equipe:', teamData);
+                console.log('Dados da equipe (useAuth):', teamData);
+                console.log('Credits from team:', userData.team.credits);
                 setTeam(teamData);
               } else {
                 console.log('Usuário não possui equipe');

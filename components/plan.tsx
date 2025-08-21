@@ -130,7 +130,7 @@ export default function Plan() {
       return;
     }
     if (team.credits.contentPlans <= 0) {
-      setError('Seus créditos para calendário de conteúdo acabaram.');
+      setError('Seus créditos para planejamento de conteúdo acabaram.');
       setIsResultView(false);
       toast.error('Créditos insuficientes para gerar planejamento');
       return;
@@ -250,10 +250,10 @@ export default function Plan() {
                           <div className="text-center">
                             <div className="flex items-center gap-1">
                               <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                                {team.credits.contentPlans}
+                                {team.credits?.contentPlans || 0}
                               </span>
                             </div>
-                            <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                            <span className="text-sm text-muted-foreground font-medium">planejamentos restantes</span>
                           </div>
                         </div>
                       </CardContent>

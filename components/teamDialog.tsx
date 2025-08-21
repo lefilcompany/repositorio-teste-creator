@@ -70,7 +70,7 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
           brands: 1,
           themes: 3,
           personas: 2,
-          calendars: 1,
+          calendars: 5,
           contentSuggestions: 20,
           contentReviews: 20,
         },
@@ -86,7 +86,7 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
           credits: {
             contentSuggestions: freePlan.limits.contentSuggestions,
             contentReviews: freePlan.limits.contentReviews,
-            contentPlans: freePlan.limits.calendars,
+            contentPlans: freePlan.limits.calendars, // calendars = 5
           },
         }),
       });

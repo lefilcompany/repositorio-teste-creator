@@ -13,9 +13,9 @@ import {
   Users,
   Tag,
   Rocket,
-  PlusCircle,
   FileText,
-  Home
+  Home,
+  Plus
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -77,12 +77,34 @@ export default function HomePage() {
     fetchDashboardData();
   }, [user]);
 
+  // Calculando créditos corretamente - os créditos no team.credits são os créditos restantes
   const creditos = team ? {
+    // Garantir que estamos usando os valores corretos do banco
     restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
     total: (typeof team.plan === 'object' ? 
-      ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 1)) 
-      : 41) // Valor padrão para plano FREE: 20 + 20 + 1 = 41
+      ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5)) 
+      : 45) // Valor padrão para plano FREE: 20 + 20 + 5 = 45
   } : { restantes: 0, total: 0 };
+
+  // Debug logs para rastrear valores
+  console.log('Team data (home):', team);
+  console.log('Credits calculation (home):', creditos);
+  if (team?.credits) {
+    console.log('Individual credits breakdown:', {
+      contentSuggestions: team.credits.contentSuggestions,
+      contentReviews: team.credits.contentReviews,
+      contentPlans: team.credits.contentPlans,
+      total: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0)
+    });
+  }
+  if (team?.plan && typeof team.plan === 'object') {
+    console.log('Plan limits breakdown:', {
+      contentSuggestions: team.plan.limits?.contentSuggestions,
+      contentReviews: team.plan.limits?.contentReviews,
+      calendars: team.plan.limits?.calendars,
+      total: (team.plan.limits?.contentSuggestions || 0) + (team.plan.limits?.contentReviews || 0) + (team.plan.limits?.calendars || 0)
+    });
+  }
 
   const creditosUsadosPercentual = (creditos.total > 0)
     ? ((creditos.total - creditos.restantes) / creditos.total) * 100
@@ -117,7 +139,7 @@ export default function HomePage() {
               </div>
               <Link href="/content">
                 <Button size="lg" className="rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
-                  <PlusCircle className="mr-2 h-5 w-5" />
+                  <Plus className="mr-2 h-5 w-5" />
                   Criar Novo Conteúdo
               </Button>
             </Link>
@@ -139,9 +161,11 @@ export default function HomePage() {
               de {creditos.total} créditos disponíveis
             </p>
             <Progress value={creditosUsadosPercentual} className="mt-4 h-3" />
-            <Button variant="link" className="px-0 mt-2 text-primary">
-              Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
+            <Link href="/planos">
+              <Button variant="link" className="px-0 mt-2 text-primary">
+                Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
