@@ -70,6 +70,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
       console.log('Conteúdo aprovado para ação:', updated.id);
       return NextResponse.json(updated);
+    }, {
+      maxWait: 15000, // 15 segundos para aguardar conexão
+      timeout: 15000, // 15 segundos para executar a transação
     });
   } catch (error) {
     console.error('Approve content error', error);

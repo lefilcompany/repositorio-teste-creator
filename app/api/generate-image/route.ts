@@ -393,33 +393,98 @@ async function generateTextContent(formData: any) {
     : cleanInput(formData.tone);
 
   const textPrompt = `
-# CONTEXTO
-- **Marca**: ${cleanInput(formData.brand)}
-- **Tema**: ${cleanInput(formData.theme)}
-- **Plataforma**: ${cleanInput(formData.platform)}
-- **Objetivo**: ${cleanInput(formData.objective)}
-- **Descrição da Imagem Associada**: ${cleanInput(formData.prompt)}
-- **Público**: ${cleanInput(formData.audience)}
-- **Persona**: ${cleanInput(formData.persona) || 'Não especificada'}
-- **Tom de Voz**: ${cleanedTones || 'Não especificado'}
+# CONTEXTO ESTRATÉGICO
+- **Marca/Empresa**: ${cleanInput(formData.brand)}
+- **Tema Central**: ${cleanInput(formData.theme)}
+- **Plataforma de Publicação**: ${cleanInput(formData.platform)}
+- **Objetivo Estratégico**: ${cleanInput(formData.objective)}
+- **Descrição Visual da Imagem**: ${cleanInput(formData.prompt)}
+- **Público-Alvo**: ${cleanInput(formData.audience)}
+- **Persona Específica**: ${cleanInput(formData.persona) || 'Não especificada'}
+- **Tom de Voz/Comunicação**: ${cleanedTones || 'Não especificado'}
+- **Informações Complementares**: ${cleanInput(formData.additionalInfo) || 'Não informado'}
 
-# TAREFA
-Sua missão é criar o conteúdo textual para este post.
+# SUA MISSÃO COMO COPYWRITER ESPECIALISTA
+Você é um copywriter especialista em redes sociais com mais de 10 anos de experiência criando conteúdos virais e de alto engajamento. Sua tarefa é criar uma legenda COMPLETA e ENVOLVENTE que:
 
-# REGRAS DE SAÍDA (MUITO IMPORTANTE)
-- Sua resposta deve ser **APENAS** um objeto JSON válido. Não inclua nenhum texto, explicação ou markdown.
-- O JSON deve conter EXATAMENTE as chaves: "title", "body", e "hashtags".
-- "title": deve ser uma string com um título chamativo (máximo 60 caracteres).
-- "body": deve ser uma string com a legenda, usando '\\n' para novas linhas e incluindo um CTA claro.
-- "hashtags": deve ser um **ARRAY JSON contendo de 6 a 8 strings**.
-- **CRÍTICO**: As strings dentro do array "hashtags" NÃO DEVEM conter o caractere '#'.
+1. **CONECTE EMOCIONALMENTE** com o público através de storytelling
+2. **DESCREVA A IMAGEM** de forma rica e envolvente, fazendo o leitor "enxergar" mesmo sem ver
+3. **INCORPORE ELEMENTOS DE COPYWRITING** como gatilhos mentais, urgência, exclusividade
+4. **UTILIZE TÉCNICAS DE ENGAJAMENTO** como perguntas, call-to-actions, elementos interativos
+5. **SEJA OTIMIZADA PARA ALGORITMO** com linguagem natural e palavras-chave estratégicas
 
-# EXEMPLO DE SAÍDA CORRETA:
+# ESTRUTURA IDEAL DA LEGENDA (SIGA RIGOROSAMENTE)
+
+## ABERTURA IMPACTANTE (1-2 linhas)
+- Hook que desperta curiosidade ou emoção
+- Pode ser uma pergunta, declaração ousada, ou estatística impressionante
+- Deve conectar diretamente com a imagem
+
+## DESENVOLVIMENTO DO CONTEÚDO (3-5 parágrafos)
+- **Parágrafo 1**: Descreva a imagem de forma envolvente, criando uma cena mental rica
+- **Parágrafo 2**: Conecte a imagem ao contexto da marca/tema, conte uma história
+- **Parágrafo 3**: Apresente o valor/benefício/solução que está sendo oferecido
+- **Parágrafo 4**: Inclua prova social, dados, ou elementos de credibilidade
+- **Parágrafo 5**: Crie conexão emocional e identificação com o público
+
+## CALL-TO-ACTION PODEROSO (1-2 linhas)
+- Comando claro e específico
+- Use verbos de ação: "Descubra", "Experimente", "Transforme", "Acesse"
+- Inclua senso de urgência quando apropriado
+
+## ELEMENTOS VISUAIS E INTERATIVOS
+- Use emojis estrategicamente (2-3 por parágrafo máximo)
+- Inclua separadores visuais como "✨", "🔥", "💡"
+- Adicione elementos que incentivem interação
+
+# DIRETRIZES DE LINGUAGEM E ESTILO
+
+## Para Instagram/Facebook:
+- Máximo 2.200 caracteres
+- Primeiro parágrafo até 125 caracteres (antes do "ver mais")
+- Use quebras de linha estratégicas para facilitar leitura
+- Linguagem conversacional e próxima
+
+## Para LinkedIn:
+- Máximo 3.000 caracteres
+- Tom mais profissional mas ainda humano
+- Inclua insights e valor educacional
+- Use dados e estatísticas quando relevante
+
+## Para TikTok/Reels:
+- Máximo 2.200 caracteres
+- Linguagem jovem e dinâmica
+- Referências a tendências quando apropriado
+- Foco em entretenimento e valor rápido
+
+# TÉCNICAS DE COPYWRITING OBRIGATÓRIAS
+- **Storytelling**: Conte uma história, mesmo que pequena
+- **Prova Social**: Mencione resultados, depoimentos, ou números
+- **Gatilhos Mentais**: Escassez, autoridade, reciprocidade, compromisso
+- **Benefícios > Características**: Foque no que o público ganha
+- **Linguagem Sensorial**: Use palavras que ativem os 5 sentidos
+
+# REGRAS TÉCNICAS DE SAÍDA (CRÍTICAS)
+- Resposta EXCLUSIVAMENTE em JSON válido
+- ZERO texto adicional, explicações ou markdown
+- Estrutura EXATA: {"title", "body", "hashtags"}
+
+## ESPECIFICAÇÕES:
+- **"title"**: Título magnético de 45-60 caracteres que funcione como headline
+- **"body"**: Legenda completa de 800-1500 caracteres, rica em detalhes e engajamento
+- **"hashtags"**: Array com 8-12 hashtags estratégicas (MIX de nicho + populares)
+
+## FORMATAÇÃO DA LEGENDA:
+- Use '\\n\\n' para parágrafos
+- Use '\\n' para quebras simples
+- Máximo 3 emojis por parágrafo
+- Inclua pelo menos 1 pergunta para engajamento
+- Termine com CTA forte e claro
+
+# EXEMPLO DE SAÍDA PROFISSIONAL:
 {
-  "title": "Título de Exemplo Criativo",
-  "body": "Esta é uma legenda de exemplo.\\nEla tem quebras de linha.\\n\\n➡️ Compre agora!",
-  "hashtags": ["exemplo", "criativo", "marketingdigital", "socialmedia", "conteudo", "inovacao"]
-}
+  "title": "O Segredo Por Trás Desta Transformação Incrível 🚀",
+  "body": "🌟 Você já parou para observar como pequenos detalhes podem transformar completamente nossa perspectiva?\\n\\nNesta imagem, cada elemento foi cuidadosamente pensado para despertar uma sensação específica. As cores vibrantes não são apenas estética - elas representam energia, movimento e possibilidade. A composição visual conta uma história que vai muito além do que nossos olhos conseguem capturar no primeiro olhar.\\n\\n💡 Quando falamos sobre [tema], não estamos apenas apresentando um produto ou serviço. Estamos compartilhando uma filosofia, um estilo de vida, uma nova forma de enxergar as possibilidades que estão bem na nossa frente.\\n\\nMais de 10.000 pessoas já descobriram como essa abordagem transformou não apenas seus resultados, mas toda sua mentalidade. E o mais incrível? Tudo começa com uma decisão simples.\\n\\n🔥 A pergunta que não quer calar: você está pronto para dar esse próximo passo?\\n\\n👆 Comente 'QUERO' se você se identificou com essa mensagem!\\n\\n✨ Marque aquela pessoa que precisa ver isso hoje!\",\n  \"hashtags\": [\"transformacao\", \"mindset\", \"resultados\", \"inspiracao\", \"motivacao\", \"sucesso\", \"empreendedorismo\", \"crescimento\", \"foco\", \"determinacao\", \"vibesdigitais\", \"conquistadiaria\"]\n}
 `;
 
   try {
@@ -460,21 +525,48 @@ Sua missão é criar o conteúdo textual para este post.
     return postContent;
 
   } catch (error: any) {
-    // Fallback com conteúdo padrão mais personalizado
-    const brandName = cleanInput(formData.brand) || 'nossamarca';
-    const themeName = cleanInput(formData.theme) || 'novidades';
+    console.error('Erro na geração de texto:', error);
     
+    // Fallback com conteúdo personalizado mais rico e envolvente
+    const brandName = cleanInput(formData.brand) || 'nossa marca';
+    const themeName = cleanInput(formData.theme) || 'novidades';
+    const objective = cleanInput(formData.objective) || 'trazer inovação e valor';
+    const audience = cleanInput(formData.audience) || 'nosso público';
+    const platform = cleanInput(formData.platform) || 'redes sociais';
+    
+    // Cria uma legenda rica mesmo no fallback
+    const fallbackBody = `🌟 Cada imagem conta uma história, e esta não é diferente!
+
+Quando olhamos para este conteúdo visual, vemos muito mais do que cores e formas. Vemos a essência da ${brandName} se manifestando através de cada detalhe cuidadosamente pensado.
+
+💡 ${themeName.charAt(0).toUpperCase() + themeName.slice(1)} não é apenas um tema - é um convite para explorar novas possibilidades e descobrir como podemos ${objective} de forma única e autêntica.
+
+Nossa conexão com ${audience} vai além das palavras. É uma conversa visual que acontece através de cada elemento desta composição, criando uma experiência que ressoa com quem realmente importa.
+
+🔥 A pergunta é: você está pronto para fazer parte desta jornada?
+
+� Deixe seu comentário e compartilhe suas impressões!
+✨ Marque alguém que também precisa ver isso!
+
+#${platform}ready #conteudoautoral`;
+
     return {
-      title: `${brandName}: ${themeName}`,
-      body: `🌟 Descubra o que preparamos especialmente para você!\n\n${cleanInput(formData.objective) || 'Conteúdo exclusivo'}.\n\n👉 Não perca essa oportunidade!`,
+      title: `${brandName}: Descobrindo ${themeName} 🚀`,
+      body: fallbackBody,
       hashtags: [
-        brandName.toLowerCase().replace(/\s+/g, ''), 
-        themeName.toLowerCase().replace(/\s+/g, ''),
+        brandName.toLowerCase().replace(/\s+/g, '').substring(0, 15), 
+        themeName.toLowerCase().replace(/\s+/g, '').substring(0, 15),
+        "conteudovisual",
         "marketingdigital", 
-        "conteudo", 
+        "storytelling",
+        "engajamento", 
         "estrategia",
-        "inovacao"
-      ].filter(tag => tag && tag.length > 0).slice(0, 8)
+        "inspiracao",
+        "crescimento",
+        "inovacao",
+        "conexao",
+        "transformacao"
+      ].filter(tag => tag && tag.length > 2).slice(0, 12)
     };
   }
 }

@@ -78,6 +78,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ 
         action: updatedAction
       });
+    }, {
+      maxWait: 30000, // 30 segundos para aguardar uma conexão disponível
+      timeout: 30000, // 30 segundos para executar a transação
     });
   } catch (error) {
     console.error('Review content error', error);

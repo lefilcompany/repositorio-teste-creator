@@ -70,6 +70,9 @@ export async function POST(req: Request) {
             where: { id: user.adminTeams[0].id },
             data: { adminId: newAdminId }
           });
+        }, {
+          maxWait: 15000,
+          timeout: 15000,
         });
       } else if (otherActiveMembers === 0) {
         // Se não há outros membros ativos, deletar a equipe e todas suas dependências
@@ -116,6 +119,9 @@ export async function POST(req: Request) {
           await tx.team.delete({
             where: { id: teamId }
           });
+        }, {
+          maxWait: 30000, // 30 segundos - operação complexa
+          timeout: 30000,
         });
       } else {
         // Se há outros membros ativos mas não designou novo admin, só deletar dados do usuário
@@ -151,6 +157,9 @@ export async function POST(req: Request) {
           await tx.joinRequest.deleteMany({
             where: { userId }
           });
+        }, {
+          maxWait: 20000, // 20 segundos
+          timeout: 20000,
         });
       }
     } else {
@@ -187,6 +196,9 @@ export async function POST(req: Request) {
         await tx.joinRequest.deleteMany({
           where: { userId }
         });
+      }, {
+        maxWait: 20000, // 20 segundos
+        timeout: 20000,
       });
       
       // Deletar todas as notificações do usuário
