@@ -30,10 +30,19 @@ export async function GET(req: Request) {
       whereClause.status = 'Aprovado';
     }
     
+    // Definir limite padrão para evitar queries muito grandes
+    const takeLimit = limit ? Math.min(parseInt(limit, 10), 100) : 20;
+    
     const queryOptions: any = {
       where: whereClause,
       include: {
-        brand: true,
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            segment: true,
+          }
+        },
         user: {
           select: {
             id: true,
@@ -42,12 +51,9 @@ export async function GET(req: Request) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: takeLimit
     };
-    
-    if (limit) {
-      queryOptions.take = parseInt(limit, 10);
-    }
     
     const actions = await prisma.action.findMany(queryOptions);
     return NextResponse.json(actions);

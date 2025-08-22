@@ -10,10 +10,24 @@ export async function GET(req: Request) {
   }
   
   try {
+    // Query otimizada: buscar apenas campos essenciais para listagem
     const brands = await prisma.brand.findMany({ 
       where: { teamId },
-      orderBy: { createdAt: 'desc' }
+      select: {
+        id: true,
+        name: true,
+        responsible: true,
+        segment: true,
+        createdAt: true,
+        updatedAt: true,
+        // Incluir apenas campos necessários para a dashboard
+        keywords: true,
+        goals: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50 // Limitar resultados
     });
+    
     return NextResponse.json(brands);
   } catch (error) {
     console.error('Fetch brands error', error);

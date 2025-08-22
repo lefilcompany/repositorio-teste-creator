@@ -5,7 +5,7 @@ import { createJWT } from '@/lib/jwt';
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    const { userId, rememberMe } = await req.json();
 
     if (!userId) {
       return NextResponse.json({ error: 'userId é obrigatório' }, { status: 400 });
@@ -22,14 +22,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Usuário não está ativo' }, { status: 403 });
     }
 
-    // Criar JWT token
+    // Criar JWT token com duração baseada em rememberMe
     const token = await createJWT({
       userId: user.id,
       email: user.email,
       teamId: user.teamId,
       role: user.role,
       status: user.status,
-    });
+    }, rememberMe === true);
 
     const { password: _pw, ...safeUser } = user;
     

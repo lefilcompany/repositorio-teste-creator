@@ -331,7 +331,7 @@ export default function ResultPage() {
 
       // Aguarda um pouco antes de redirecionar para garantir que a ação foi salva
       setTimeout(() => {
-        router.push('/historico');
+        router.push(`/historico?actionId=${approvedAction.id}`);
       }, 500);
 
     } catch (error) {

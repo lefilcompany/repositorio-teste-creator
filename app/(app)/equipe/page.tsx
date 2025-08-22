@@ -4,7 +4,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Team } from '@/types/team';
 import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,8 +51,8 @@ export default function EquipePage() {
         api.get(`/api/teams/${team.id}/requests`)
       ]);
 
-      setMembersDetails(membersData);
-      setPendingRequests(requestsData);
+      setMembersDetails(membersData as any);
+      setPendingRequests(requestsData as any);
 
     } catch (error) {
       console.error("Falha ao carregar dados da equipe", error);

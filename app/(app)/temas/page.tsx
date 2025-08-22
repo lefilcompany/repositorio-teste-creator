@@ -24,22 +24,42 @@ export default function TemasPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
+      
       try {
-        const [themesRes, brandsRes, teamRes] = await Promise.all([
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-        
+        // Load themes
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
         if (themesRes.ok) {
           const data: StrategicTheme[] = await themesRes.json();
           setThemes(data);
         } else {
           toast.error('Erro ao carregar temas estratégicos');
         }
+      } catch (error) {
+        console.error('Falha ao carregar temas', error);
+        toast.error('Erro de conexão ao carregar temas');
+      } finally {
+        setIsLoadingThemes(false);
+      }
+    };
+    
+    load();
+  }, [user]);
+
+  useEffect(() => {
+    const loadBrandsAndTeam = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const [brandsRes, teamRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
         
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
@@ -56,11 +76,14 @@ export default function TemasPage() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar temas ou marcas', error);
+        console.error('Falha ao carregar marcas ou equipe', error);
         toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingTeam(false);
       }
     };
-    load();
+    
+    loadBrandsAndTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
@@ -171,13 +194,22 @@ export default function TemasPage() {
           brands={brands} // Passa as marcas para a lista
           selectedTheme={selectedTheme}
           onSelectTheme={setSelectedTheme}
+          isLoading={isLoadingThemes}
         />
-        <ThemeDetails
-          theme={selectedTheme}
-          brands={brands} // Passa as marcas para os detalhes
-          onEdit={handleOpenDialog}
-          onDelete={handleDeleteTheme}
-        />
+        {selectedTheme && !isLoadingThemes ? (
+          <ThemeDetails
+            theme={selectedTheme}
+            brands={brands} // Passa as marcas para os detalhes
+            onEdit={handleOpenDialog}
+            onDelete={handleDeleteTheme}
+          />
+        ) : (
+          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
+            <p className="text-muted-foreground text-center">
+              {isLoadingThemes ? 'Carregando temas...' : 'Selecione um tema para ver os detalhes'}
+            </p>
+          </div>
+        )}
       </main>
 
       <ThemeDialog

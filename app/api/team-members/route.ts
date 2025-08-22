@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/jwt';
 
+// Marcar como rota dinâmica devido ao uso de request.headers
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     // Verificar autenticação via JWT

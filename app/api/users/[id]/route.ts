@@ -9,6 +9,7 @@ export async function GET(
   try {
     const targetUserId = params.id;
 
+    // Query otimizada - buscar apenas dados essenciais
     const user = await prisma.user.findUnique({
       where: { id: targetUserId },
       select: {
@@ -28,13 +29,11 @@ export async function GET(
             displayCode: true,
             adminId: true,
             plan: true,
-            members: {
+            credits: true,
+            // Otimização: buscar apenas contagem de membros ao invés de todos os dados
+            _count: {
               select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                status: true
+                members: true
               }
             }
           }
@@ -44,6 +43,37 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+
+    // Se precisar dos membros, fazer uma query separada apenas quando necessário
+    if (user.team && user.teamId) {
+      // Query separada e otimizada para membros (apenas dados essenciais)
+      const teamMembers = await prisma.user.findMany({
+        where: { 
+          teamId: user.teamId,
+          status: 'ACTIVE' // Apenas membros ativos
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true
+        },
+        take: 50, // Limitar resultados
+        orderBy: { name: 'asc' }
+      });
+
+      // Combinar os dados
+      const userWithTeam = {
+        ...user,
+        team: {
+          ...user.team,
+          members: teamMembers
+        }
+      };
+
+      return NextResponse.json(userWithTeam);
     }
 
     return NextResponse.json(user);
