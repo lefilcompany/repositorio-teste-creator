@@ -5,7 +5,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { useRouter } from 'next/navigation';
 import { User } from '@/types/user';
 import { Team } from '@/types/team';
-import { verifyJWT, isTokenExpired } from '@/lib/jwt';
+import { isTokenExpired, getTokenPayload } from '@/lib/jwt';
 import { api } from '@/lib/api';
 
 interface AuthContextType {
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginRememberMe, setLoginRememberMe] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -57,10 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         console.log('✅ Token válido - carregando usuário...');
-        
-        // Tentar pegar dados do usuário da API
+
+        // Extrair payload sem verificar assinatura
         try {
-          const payload = await verifyJWT(token);
+          const payload = getTokenPayload(token);
+          if (!payload?.userId) {
+            throw new Error('Token payload inválido');
+          }
           const userData = await api.get(`/api/users/${payload.userId}`);
           
           console.log('✅ Usuário carregado:', userData.email);
@@ -112,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<'success' | 'pending' | 'invalid' | 'no_team'> => {
     try {
       const { rememberMe, ...loginData } = data;
+      setLoginRememberMe(rememberMe ?? false);
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,14 +172,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Erro ao carregar dados completos:', error);
           // Carregar equipe básica se falhou
           if (userToAuth.teamId) {
-            setTeam({ 
-              id: userToAuth.teamId, 
-              name: 'Loading...', 
-              code: '', 
-              displayCode: '', 
-              admin: '', 
-              members: [], 
-              pending: [], 
+            setTeam({
+              id: userToAuth.teamId,
+              name: 'Loading...',
+              code: '',
+              displayCode: '',
+              admin: '',
+              members: [],
+              pending: [],
               plan: 'FREE',
               credits: {
                 contentSuggestions: 20,
@@ -183,7 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
             });
           }
-        }      router.push('/home');
+        }
+
+        router.push('/home');
       return 'success';
     } catch (error) {
       console.error('Login failed', error);
@@ -191,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const completeLogin = async (updatedUser: User, rememberMe: boolean = false) => {
+  const completeLogin = async (updatedUser: User, rememberMe: boolean = loginRememberMe) => {
     setUser(updatedUser);
     
     // Criar novo token JWT após completar o login
@@ -261,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setTeam(null);
+      setLoginRememberMe(false);
       localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
       // Limpar caches relacionados
