@@ -8,6 +8,7 @@ import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
+import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -20,19 +21,34 @@ export default function MarcasPage() {
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
 
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
       try {
-        const res = await fetch(`/api/brands?teamId=${user.teamId}`);
-        if (res.ok) {
-          const data: Brand[] = await res.json();
+        // Carregar marcas e dados do team em paralelo
+        const [brandsRes, teamRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
+        
+        if (brandsRes.ok) {
+          const data: Brand[] = await brandsRes.json();
           setBrands(data);
         } else {
-          const error = await res.json();
+          const error = await brandsRes.json();
           console.error('Falha ao carregar marcas:', error.error);
           toast.error('Erro ao carregar marcas da equipe');
+        }
+
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        } else {
+          console.error('Falha ao carregar dados da equipe');
+          toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
         console.error('Falha ao carregar marcas', error);
@@ -43,9 +59,21 @@ export default function MarcasPage() {
   }, [user]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
+    // Verificar limite antes de abrir o diálogo para nova marca
+    if (!brand && team && typeof team.plan === 'object') {
+      const planLimits = team.plan.limits;
+      const currentBrandsCount = brands.length;
+      const maxBrands = planLimits?.brands || 1;
+      
+      if (currentBrandsCount >= maxBrands) {
+        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxBrands} marca${maxBrands > 1 ? 's' : ''}.`);
+        return;
+      }
+    }
+    
     setBrandToEdit(brand);
     setIsDialogOpen(true);
-  }, []);
+  }, [brands.length, team]);
 
   const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
     if (!user?.teamId || !user.id) return;
@@ -101,6 +129,11 @@ export default function MarcasPage() {
     }
   }, [selectedBrand, user]);
 
+  // Verificar se o limite foi atingido
+  const isAtBrandLimit = team && typeof team.plan === 'object' 
+    ? brands.length >= (team.plan.limits?.brands || 1)
+    : false;
+
   return (
     <div className="min-h-full flex flex-col gap-6">
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
@@ -119,7 +152,11 @@ export default function MarcasPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+            <Button 
+              onClick={() => handleOpenDialog()} 
+              disabled={isAtBrandLimit}
+              className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Plus className="mr-2 h-5 w-5" />
               Nova marca
             </Button>

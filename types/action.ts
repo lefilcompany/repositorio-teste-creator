@@ -42,6 +42,10 @@ export interface Action {
   teamId: string;
   userId: string;
   createdAt: string;
+  updatedAt?: string;
+  status: string; // "Em revisão", "Aprovado", "Rejeitado"
+  approved: boolean;
+  revisions: number;
   details?: {
     prompt?: string;
     objective?: string;

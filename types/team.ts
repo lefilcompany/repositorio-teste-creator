@@ -2,10 +2,11 @@ export interface Team {
   id: string;
   name: string;
   code: string;
+  displayCode?: string;
   admin: string; // admin email
   members: string[];
   pending: string[];
-  plan: {
+  plan: string | {
     name: string;
     limits: {
       members: number;
@@ -17,7 +18,7 @@ export interface Team {
       contentReviews: number;
     };
   };
-  credits: {
+  credits?: {
     contentSuggestions: number;
     contentReviews: number;
     contentPlans: number;

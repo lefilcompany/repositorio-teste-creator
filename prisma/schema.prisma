@@ -13,12 +13,14 @@ datasource db {
 enum UserRole {
   ADMIN
   MEMBER
+  WITHOUT_TEAM
 }
 
 enum UserStatus {
   ACTIVE
   PENDING
   INACTIVE
+  NO_TEAM
 }
 
 enum ActionType {
@@ -36,7 +38,8 @@ enum RequestStatus {
 model Team {
   id           String          @id @default(cuid())
   name         String
-  code         String          @unique
+  code         String          @unique // Hash do código para verificação
+  displayCode  String          // Código original para exibição
   adminId      String
   admin        User            @relation("TeamAdmin", fields: [adminId], references: [id])
   members      User[]          @relation("TeamMembers")
@@ -48,7 +51,6 @@ model Team {
   actions      Action[]
   notifications Notification[]
   joinRequests  JoinRequest[]
-  temporaryContents TemporaryContent[]
 }
 
 model User {
@@ -59,8 +61,8 @@ model User {
   phone     String?
   state     String?
   city      String?
-  role      UserRole   @default(MEMBER)
-  status    UserStatus @default(PENDING)
+  role      UserRole   @default(WITHOUT_TEAM)
+  status    UserStatus @default(NO_TEAM)
   teamId    String?
   team      Team?      @relation("TeamMembers", fields: [teamId], references: [id])
   adminTeams Team[]    @relation("TeamAdmin")
@@ -70,7 +72,6 @@ model User {
   brands   Brand[]
   themes   StrategicTheme[]
   personas Persona[]
-  temporaryContents TemporaryContent[]
 }
 
 model Brand {
@@ -165,31 +166,6 @@ model Action {
   status    String   @default("Em revisão") // "Em revisão", "Aprovado", "Rejeitado"
   approved  Boolean  @default(false)
   revisions Int      @default(0)
-  temporaryContents TemporaryContent[]
-}
-
-model TemporaryContent {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id])
-  actionId    String?  // Referência à ação que gerou este conteúdo
-  action      Action?  @relation(fields: [actionId], references: [id])
-  imageUrl    String
-  title       String
-  body        String
-  hashtags    Json     // Array de hashtags
-  revisions   Int      @default(0)
-  brand       String?
-  theme       String?
-  originalId  String?  // Para rastrear revisões
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  expiresAt   DateTime // Conteúdo temporário expira após um tempo
-
-  @@index([actionId])
-  @@index([userId, teamId])
 }
 
 model Notification {

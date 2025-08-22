@@ -1,4 +1,3 @@
-// app/(auth)/login/page.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -14,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle, FaApple, FaFacebook } from 'react-icons/fa';
 import { toast } from 'sonner';
+import TeamDialog from '@/components/teamDialog';
+import { User } from '@/types/user';
 
 // Use imagens locais para garantir o carregamento
 // Crie uma pasta 'assets' dentro da pasta 'public' e coloque suas imagens lá.
@@ -38,7 +39,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const { login, pendingNoTeamUser } = useAuth();
 
   const plugin = useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true }) // Delay de 4 segundos
@@ -62,6 +64,10 @@ export default function LoginPage() {
     } else if (result === 'pending') {
       setError('Aguardando aprovação do administrador da equipe.');
       toast.warning('Aguardando aprovação do administrador da equipe');
+    } else if (result === 'no_team') {
+      // Usuário precisa escolher equipe
+      setTeamDialogOpen(true);
+      toast.info('Escolha uma equipe para continuar');
     } else if (result === 'success') {
       toast.success('Login realizado com sucesso!');
     }
@@ -169,6 +175,13 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      
+      <TeamDialog 
+        isOpen={teamDialogOpen} 
+        onClose={() => setTeamDialogOpen(false)} 
+        user={pendingNoTeamUser} 
+        isFromLogin={true}
+      />
     </div>
   );
 }

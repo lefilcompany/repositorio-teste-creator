@@ -10,6 +10,7 @@ import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
+import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -22,25 +23,37 @@ export default function PersonasPage() {
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
       try {
-        const [personasRes, brandsRes] = await Promise.all([
+        const [personasRes, brandsRes, teamRes] = await Promise.all([
           fetch(`/api/personas?teamId=${user.teamId}`),
           fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
         ]);
+        
         if (personasRes.ok) {
           const data: Persona[] = await personasRes.json();
           setPersonas(data);
         } else {
           toast.error('Erro ao carregar personas');
         }
+        
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
           setBrands(data);
         } else {
           toast.error('Erro ao carregar marcas');
+        }
+
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
         console.error('Falha ao carregar personas ou marcas', error);
@@ -51,9 +64,21 @@ export default function PersonasPage() {
   }, [user]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
+    // Verificar limite antes de abrir o diálogo para nova persona
+    if (!persona && team && typeof team.plan === 'object') {
+      const planLimits = team.plan.limits;
+      const currentPersonasCount = personas.length;
+      const maxPersonas = planLimits?.personas || 2;
+      
+      if (currentPersonasCount >= maxPersonas) {
+        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxPersonas} persona${maxPersonas > 1 ? 's' : ''}.`);
+        return;
+      }
+    }
+    
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
-  }, []);
+  }, [personas.length, team]);
 
   const handleSavePersona = useCallback(
     async (formData: PersonaFormData) => {
@@ -105,6 +130,11 @@ export default function PersonasPage() {
     }
   }, [selectedPersona]);
 
+  // Verificar se o limite foi atingido
+  const isAtPersonaLimit = team && typeof team.plan === 'object' 
+    ? personas.length >= (team.plan.limits?.personas || 2)
+    : false;
+
   return (
     <div className="min-h-full flex flex-col gap-6">
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
@@ -123,7 +153,11 @@ export default function PersonasPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+            <Button 
+              onClick={() => handleOpenDialog()} 
+              disabled={isAtPersonaLimit}
+              className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Plus className="mr-2 h-5 w-5" />
               Nova persona
             </Button>

@@ -1,0 +1,9 @@
+# Ignora todas as imagens geradas
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Mas mantém esta pasta no git
+!.gitkeep

@@ -43,7 +43,7 @@ export async function GET(
     const transformedTeam = {
       id: team.id,
       name: team.name,
-      code: team.code,
+      code: team.displayCode, // Usar displayCode para exibição
       admin: team.admin.email,
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),

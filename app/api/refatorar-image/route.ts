@@ -1,8 +1,6 @@
 // app/api/refatorar-image/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Modality } from '@google/genai';
-import fs from 'fs';
-import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { ActionType } from '@prisma/client';
 
@@ -43,7 +41,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API,
 });
 
-async function generateImage(prompt: string, base64Image: string, mimeType: string) {
+async function generateImage(prompt: string, base64Image: string, mimeType: string, actionId?: string) {
   const fullPrompt = `${prompt}. A imagem final deve ser realista, de alta qualidade e manter os elementos principais da imagem original, destacando-se no feed.`;
   const response = await ai.models.generateContent({
     model: 'gemini-2.0-flash-preview-image-generation',
@@ -67,10 +65,14 @@ async function generateImage(prompt: string, base64Image: string, mimeType: stri
       const part = candidate.content.parts.find((p) => (p as any).inlineData);
       if (part && (part as any).inlineData) {
         const imageData = (part as any).inlineData.data;
-        const buffer = Buffer.from(imageData, 'base64');
-        const imagePath = path.resolve(process.cwd(), 'public', 'refactored-image.png');
-        fs.writeFileSync(imagePath, buffer);
-        return { imageUrl: '/refactored-image.png' };
+        const imageMimeType = (part as any).inlineData.mimeType || 'image/png';
+        
+        // Retorna os dados para armazenamento no banco de dados
+        return { 
+          imageUrl: `/api/image/${actionId}`,
+          base64Data: imageData,
+          mimeType: imageMimeType
+        };
       }
     }
   }
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
     const teamId = formData.get('teamId') as string | null;
     const brandId = formData.get('brandId') as string | null;
     const userId = formData.get('userId') as string | null;
+    const actionId = formData.get('actionId') as string | null;
 
     if (!imageFile || !prompt || !teamId || !brandId || !userId) {
       return NextResponse.json({ error: 'Imagem, prompt, teamId, brandId e userId são obrigatórios.' }, { status: 400 });
@@ -95,7 +98,6 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await imageFile.arrayBuffer());
     const base64Image = buffer.toString('base64');
     const mimeType = imageFile.type || 'image/png';
-    const dataURI = `data:${mimeType};base64,${base64Image}`;
 
     const revisionPrompt = buildRevisionPrompt({
       prompt,
@@ -103,31 +105,47 @@ export async function POST(req: NextRequest) {
       theme,
     });
 
-    const result = await generateImage(revisionPrompt, base64Image, mimeType);
+    // Criar nova action para a revisão
+    const action = await prisma.action.create({
+      data: {
+        type: ActionType.REVISAR_CONTEUDO,
+        userId,
+        teamId,
+        brandId,
+        result: {}, // Será atualizado depois
+        status: 'PROCESSING',
+      },
+    });
 
-    // Não salva mais no histórico aqui, pois será salvo apenas quando aprovado
-    // const action = await prisma.action.create({
-    //   data: {
-    //     type: ActionType.REVISAR_CONTEUDO,
-    //     teamId,
-    //     brandId,
-    //     userId,
-    //     details: { prompt, brand, theme, originalImage: dataURI },
-    //     result: { imageUrl: result.imageUrl },
-    //   },
-    // });
+    const result = await generateImage(revisionPrompt, base64Image, mimeType, action.id);
+
+    // Atualizar a action com os dados da imagem
+    await prisma.action.update({
+      where: { id: action.id },
+      data: {
+        result: {
+          imageUrl: result.imageUrl,
+          base64Data: result.base64Data,
+          mimeType: result.mimeType,
+          promptUsed: revisionPrompt,
+          model: 'gemini-2.0-flash-preview-image-generation',
+        },
+        status: 'COMPLETED',
+      },
+    });
+
+    console.log('Imagem de revisão gerada e salva no banco:', result.imageUrl, 'para actionId:', action.id);
 
     return NextResponse.json({
       imageUrl: result.imageUrl,
-      // actionId: action.id,
       debug: {
         promptUsed: revisionPrompt,
         model: 'gemini-2.0-flash-preview-image-generation',
+        actionId: action.id,
       },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
-    // eslint-disable-next-line no-console
     console.error('Erro ao refatorar imagem:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
