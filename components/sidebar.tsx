@@ -162,7 +162,7 @@ export default function Sidebar() {
 
   const teamName = team?.name || '';
   const isAdmin = user && team ? user.email === team.admin : false;
-  const planName = team?.plan?.name || '';
+  const planName = typeof team?.plan === 'object' ? team.plan.name : team?.plan || '';
 
   return (
     <aside className="w-64 flex-shrink-0 shadow-sm shadow-primary/20 bg-card p-4 flex-col hidden lg:flex">

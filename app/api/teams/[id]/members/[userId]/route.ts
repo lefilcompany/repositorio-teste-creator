@@ -61,6 +61,9 @@ export async function DELETE(
           teamId: teamId
         }
       });
+    }, {
+      maxWait: 10000, // 10 segundos para aguardar conexão
+      timeout: 10000, // 10 segundos para executar a transação
     });
 
     return NextResponse.json({ 

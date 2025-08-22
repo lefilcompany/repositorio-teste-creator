@@ -80,6 +80,9 @@ export async function POST(req: Request) {
               role: 'MEMBER'
             }
           });
+        }, {
+          maxWait: 15000, // 15 segundos para aguardar conexão
+          timeout: 15000, // 15 segundos para executar a transação
         });
       } else if (otherActiveMembers === 0) {
         // Se não há outros membros ativos, apenas inativar sem transferir admin
