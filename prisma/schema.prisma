@@ -15,6 +15,9 @@ model Team {
   adminId       String
   plan          Json
   credits       Json
+  // Contadores para melhorar performance
+  totalContents Int              @default(0)
+  totalBrands   Int              @default(0)
   actions       Action[]
   brands        Brand[]
   joinRequests  JoinRequest[]

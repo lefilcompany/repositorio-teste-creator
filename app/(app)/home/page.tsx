@@ -54,12 +54,20 @@ export default function HomePage() {
       }
 
       try {
-        const brandsResponse = await fetch(`/api/brands?teamId=${user.teamId}`);
-        if (brandsResponse.ok && isMounted) {
-          const brandsData: Brand[] = await brandsResponse.json();
-          setStats(prev => ({ ...prev, marcasGerenciadas: brandsData.length }));
+        // Usar o contador do team ao invés de buscar todas as marcas
+        const teamResponse = await fetch(`/api/teams/${user.teamId}`);
+        if (teamResponse.ok && isMounted) {
+          const teamData = await teamResponse.json();
+          setStats(prev => ({ ...prev, marcasGerenciadas: teamData.totalBrands || 0 }));
         } else if (isMounted) {
-          toast.error('Erro ao carregar marcas para o dashboard');
+          // Fallback para o método antigo se a API de teams não existir
+          const brandsResponse = await fetch(`/api/brands?teamId=${user.teamId}`);
+          if (brandsResponse.ok && isMounted) {
+            const brandsData: Brand[] = await brandsResponse.json();
+            setStats(prev => ({ ...prev, marcasGerenciadas: brandsData.length }));
+          } else if (isMounted) {
+            toast.error('Erro ao carregar marcas para o dashboard');
+          }
         }
       } catch (error) {
         console.error('Falha ao carregar marcas via API', error);
@@ -127,12 +135,20 @@ export default function HomePage() {
       }
 
       try {
-        const totalActionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true&limit=100`);
-        if (totalActionsRes.ok && isMounted) {
-          const allApprovedActions: Action[] = await totalActionsRes.json();
-          setStats(prev => ({ ...prev, conteudosGerados: allApprovedActions.length }));
+        // Usar o contador do team ao invés de buscar todas as actions
+        const teamResponse = await fetch(`/api/teams/${user.teamId}`);
+        if (teamResponse.ok && isMounted) {
+          const teamData = await teamResponse.json();
+          setStats(prev => ({ ...prev, conteudosGerados: teamData.totalContents || 0 }));
         } else if (isMounted) {
-          toast.error('Erro ao carregar estatísticas de conteúdo');
+          // Fallback para o método antigo se a API de teams não existir
+          const totalActionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true&limit=100`);
+          if (totalActionsRes.ok && isMounted) {
+            const allApprovedActions: Action[] = await totalActionsRes.json();
+            setStats(prev => ({ ...prev, conteudosGerados: allApprovedActions.length }));
+          } else if (isMounted) {
+            toast.error('Erro ao carregar estatísticas de conteúdo');
+          }
         }
       } catch (error) {
         console.error('Falha ao carregar estatísticas via API', error);

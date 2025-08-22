@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { incrementTeamBrandCounter } from '@/lib/team-counters';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -103,6 +104,15 @@ export async function POST(req: Request) {
         restrictions: brandData.restrictions || '',
       }
     });
+
+    // Incrementar contador de marcas da equipe
+    setTimeout(async () => {
+      try {
+        await incrementTeamBrandCounter(teamId);
+      } catch (error) {
+        console.error('Erro ao incrementar contador de marcas:', error);
+      }
+    }, 0);
     
     return NextResponse.json(brand);
   } catch (error) {

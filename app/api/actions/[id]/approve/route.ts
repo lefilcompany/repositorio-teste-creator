@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { incrementTeamContentCounter } from '@/lib/team-counters';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -67,6 +68,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           }
         }
       });
+
+      // 4) Incrementa contador de conteúdos da equipe
+      // Executamos fora da transação para não impactar o fluxo principal se der erro
+      setTimeout(async () => {
+        try {
+          await incrementTeamContentCounter(action.teamId);
+        } catch (error) {
+          console.error('Erro ao incrementar contador de conteúdos:', error);
+        }
+      }, 0);
 
       console.log('Conteúdo aprovado para ação:', updated.id);
       return NextResponse.json(updated);
