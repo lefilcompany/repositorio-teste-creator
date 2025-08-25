@@ -11,7 +11,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "env:dev": "bash scripts/use-dev-env.sh",
+    "env:prod": "bash scripts/use-prod-env.sh"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^5.0.0",
