@@ -19,29 +19,24 @@ export default function PlanosPage() {
     const fetchTeamData = async () => {
       if (!user) return;
 
-      console.log('User data:', user); // Debug log
+      // Debug log
 
       try {
         const response = await fetch(`/api/teams?userId=${user.id}`);
         if (response.ok) {
           const teamsData = await response.json();
-          console.log('Teams data received:', teamsData);
           // A API retorna um array de teams, precisamos encontrar o team do usuário
           if (Array.isArray(teamsData) && teamsData.length > 0) {
             const currentTeam = teamsData.find(t => t.id === user.teamId) || teamsData[0];
-            console.log('Current team selected:', currentTeam);
             setTeam(currentTeam);
           } else {
-            console.error('No teams found in response:', teamsData);
             throw new Error('Nenhum time encontrado');
           }
         } else {
           const errorText = await response.text();
-          console.error('API response error:', errorText);
           throw new Error('Falha ao carregar dados do time');
         }
       } catch (error) {
-        console.error('Erro ao carregar dados do time:', error);
         toast.error('Erro ao carregar informações do plano');
       } finally {
         setIsLoading(false);
@@ -181,7 +176,7 @@ export default function PlanosPage() {
                   <CardContent>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-green-600">{credit.current}</span>
+                        <span className="text-2xl font-bold text-foreground">{credit.current}</span>
                         <span className="text-sm text-muted-foreground">
                           de {credit.limit} disponíveis
                         </span>
@@ -330,3 +325,4 @@ export default function PlanosPage() {
     </div>
   );
 }
+

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       teamName: targetTeam.name 
     });
   } catch (error) {
-    console.error('Join team error', error);
     return NextResponse.json({ error: 'Falha ao solicitar entrada na equipe' }, { status: 500 });
   }
 }
+

@@ -73,7 +73,6 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
         setLoadingStates(false);
       })
       .catch(error => {
-        console.error('Erro ao carregar estados:', error);
         toast.error('Erro ao carregar lista de estados');
         setLoadingStates(false);
       });
@@ -89,7 +88,6 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
           setLoadingCities(false);
         })
         .catch(error => {
-          console.error('Erro ao carregar cidades:', error);
           toast.error('Erro ao carregar lista de cidades');
           setLoadingCities(false);
         });

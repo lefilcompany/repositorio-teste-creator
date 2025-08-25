@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ isValid: isPasswordValid });
   } catch (error) {
-    console.error('Password verification error:', error);
     return NextResponse.json({ error: 'Password verification failed' }, { status: 500 });
   }
 }
+

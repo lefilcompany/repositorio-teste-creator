@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { History, Image as ImageIcon, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -76,8 +77,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
               <DetailItem label="Título Gerado" value={action.result?.title} />
               <DetailItem label="Legenda Gerada" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.body}</p>} />
               {action.result?.imageUrl && (
-                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
-                  <img src={action.result.imageUrl} alt="Imagem Gerada" className="rounded-lg object-cover w-full h-full" />
+                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4 relative">
+                  <Image src={action.result.imageUrl} alt="Imagem Gerada" fill className="rounded-lg object-cover" />
                 </div>
               )}
             </>
@@ -87,8 +88,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             <>
               <DetailItem label="Feedback Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.feedback}</p>} />
               {action.result?.originalImage ? (
-                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
-                  <img src={action.result.originalImage} alt="Imagem Original" className="rounded-lg object-cover w-full h-full" />
+                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4 relative">
+                  <Image src={action.result.originalImage} alt="Imagem Original" fill className="rounded-lg object-cover" />
                 </div>
               ) : <DetailItem label="Imagem Original" value="Não disponível" />}
             </>

@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { incrementTeamContentCounter } from '@/lib/team-counters';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
     const actionId = params.id;
     const data = await req.json();
     const { requesterUserId } = data;
-
-    console.log('Aprovando conteúdo para ação:', actionId, { requesterUserId });
 
     return await prisma.$transaction(async (tx) => {
       // 1) Carrega a Action alvo
@@ -31,7 +30,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
       if (action.approved) {
         // Idempotência: já aprovado
-        console.log('Action já estava aprovada:', actionId);
         return NextResponse.json(action);
       }
 
@@ -68,14 +66,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
       });
 
-      console.log('Conteúdo aprovado para ação:', updated.id);
+      // 4) Incrementa contador de conteúdos da equipe
+      // Executamos fora da transação para não impactar o fluxo principal se der erro
+      setTimeout(async () => {
+        try {
+          await incrementTeamContentCounter(action.teamId);
+        } catch (error) {
+          // Error incrementing content counter
+        }
+      }, 0);
+
       return NextResponse.json(updated);
     }, {
       maxWait: 15000, // 15 segundos para aguardar conexão
       timeout: 15000, // 15 segundos para executar a transação
     });
   } catch (error) {
-    console.error('Approve content error', error);
     return NextResponse.json({ error: 'Failed to approve content' }, { status: 500 });
   }
 }

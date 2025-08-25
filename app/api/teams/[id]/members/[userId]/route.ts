@@ -72,7 +72,6 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error('Remove team member error', error);
     return NextResponse.json({ 
       error: 'Failed to remove team member' 
     }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { incrementTeamBrandCounter } from '@/lib/team-counters';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -10,13 +11,26 @@ export async function GET(req: Request) {
   }
   
   try {
+    // Query otimizada: buscar apenas campos essenciais para listagem
     const brands = await prisma.brand.findMany({ 
       where: { teamId },
-      orderBy: { createdAt: 'desc' }
+      select: {
+        id: true,
+        name: true,
+        responsible: true,
+        segment: true,
+        createdAt: true,
+        updatedAt: true,
+        // Incluir apenas campos necessários para a dashboard
+        keywords: true,
+        goals: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50 // Limitar resultados
     });
+    
     return NextResponse.json(brands);
   } catch (error) {
-    console.error('Fetch brands error', error);
     return NextResponse.json({ error: 'Failed to fetch brands' }, { status: 500 });
   }
 }
@@ -89,10 +103,18 @@ export async function POST(req: Request) {
         restrictions: brandData.restrictions || '',
       }
     });
+
+    // Incrementar contador de marcas da equipe
+    setTimeout(async () => {
+      try {
+        await incrementTeamBrandCounter(teamId);
+      } catch (error) {
+        }
+    }, 0);
     
     return NextResponse.json(brand);
   } catch (error) {
-    console.error('Create brand error', error);
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 });
   }
 }
+

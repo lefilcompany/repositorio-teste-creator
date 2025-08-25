@@ -60,7 +60,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     
     return NextResponse.json(brand);
   } catch (error) {
-    console.error('Update brand error', error);
     return NextResponse.json({ error: 'Failed to update brand' }, { status: 500 });
   }
 }
@@ -105,7 +104,6 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Delete brand error', error);
     return NextResponse.json({ error: 'Failed to delete brand' }, { status: 500 });
   }
 }

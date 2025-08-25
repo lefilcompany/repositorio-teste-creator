@@ -110,9 +110,9 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    console.error('Deactivate account error:', error);
     return NextResponse.json({ 
       error: 'Failed to deactivate account' 
     }, { status: 500 });
   }
 }
+

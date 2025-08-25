@@ -18,7 +18,6 @@ class ApiClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`API Error ${response.status}:`, errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -56,3 +55,4 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+

@@ -15,13 +15,7 @@ interface JWTPayload {
 function getJWTSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    console.error('JWT_SECRET environment variable is not set!');
-    console.error('Please create a .env file with a JWT_SECRET variable');
-    console.error('You can copy .env.example to .env and update the values');
     throw new Error('JWT_SECRET is required in environment variables');
-  }
-  if (secret.length < 32) {
-    console.warn('JWT_SECRET is shorter than recommended (32 characters minimum)');
   }
   return secret;
 }
@@ -69,7 +63,6 @@ function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
     }
     return bytes.buffer;
   } catch (error) {
-    console.error('Error decoding base64URL:', error);
     throw new Error('Invalid base64URL encoding');
   }
 }
@@ -87,7 +80,7 @@ async function createHMACKey(secret: string): Promise<CryptoKey> {
 }
 
 // Criar JWT Token usando Web Crypto API
-export async function createJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>): Promise<string> {
+export async function createJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>, rememberMe: boolean = false): Promise<string> {
   try {
     // Validar payload obrigatórios
     if (!payload.userId || !payload.email) {
@@ -95,10 +88,13 @@ export async function createJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>): Promi
     }
 
     const now = Math.floor(Date.now() / 1000);
+    // Se rememberMe for true: 4 horas, senão: 2 horas
+    const expirationTime = rememberMe ? (4 * 60 * 60) : (2 * 60 * 60);
+    
     const fullPayload: JWTPayload = {
       ...payload,
       iat: now,
-      exp: now + (24 * 60 * 60) // 24 horas
+      exp: now + expirationTime
     };
 
     // Header JWT
@@ -129,11 +125,9 @@ export async function createJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>): Promi
     const signatureB64 = arrayBufferToBase64Url(signatureBuffer);
 
     const token = `${dataToSign}.${signatureB64}`;
-    console.log('Created JWT token successfully, length:', token.length);
     
     return token;
   } catch (error) {
-    console.error('Error creating JWT:', error);
     throw new Error('Failed to create JWT token');
   }
 }
@@ -194,9 +188,13 @@ export async function verifyJWT(token: string): Promise<JWTPayload> {
   }
 }
 
-// Verificar se o token está expirado
+// Verificar se o token está expirado (versão simplificada)
 export function isTokenExpired(token: string): boolean {
   try {
+    if (!token || typeof token !== 'string') {
+      return true;
+    }
+
     const parts = token.split('.');
     if (parts.length !== 3) {
       return true;
@@ -207,13 +205,60 @@ export function isTokenExpired(token: string): boolean {
     const payloadString = arrayBufferToString(payloadBuffer);
     const payload: JWTPayload = JSON.parse(payloadString);
 
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (!payload.exp) {
       return true;
     }
 
-    return false;
+    return payload.exp < now;
   } catch (error) {
     return true;
+  }
+}
+
+// Verificar se o token deve ser renovado (se expira em menos de 10 minutos)
+export function shouldRenewToken(token: string): boolean {
+  try {
+    if (!token || typeof token !== 'string') return false;
+
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    const payloadB64 = parts[1];
+    const payloadBuffer = base64UrlToArrayBuffer(payloadB64);
+    const payloadString = arrayBufferToString(payloadBuffer);
+    const payload: JWTPayload = JSON.parse(payloadString);
+
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (!payload.exp) return false;
+
+    // Renovar se expira em menos de 10 minutos (600 segundos)
+    const renewThreshold = 10 * 60; // 10 minutos
+    const expiresIn = payload.exp - now;
+    
+    return expiresIn < renewThreshold && expiresIn > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Extrair payload do token sem verificar assinatura (para informações básicas)
+export function getTokenPayload(token: string): JWTPayload | null {
+  try {
+    if (!token || typeof token !== 'string') return null;
+
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const payloadB64 = parts[1];
+    const payloadBuffer = base64UrlToArrayBuffer(payloadB64);
+    const payloadString = arrayBufferToString(payloadBuffer);
+    
+    return JSON.parse(payloadString) as JWTPayload;
+  } catch (error) {
+    return null;
   }
 }
 
@@ -240,8 +285,6 @@ export async function verifyAuth(request: Request): Promise<{ user: JWTPayload }
 
     return { user: payload };
   } catch (error) {
-    console.error('Auth verification failed:', error);
-    
     if (error instanceof Error) {
       if (error.message.includes('expired')) {
         return NextResponse.json({ error: 'Token expired' }, { status: 401 });
@@ -257,3 +300,4 @@ export async function verifyAuth(request: Request): Promise<{ user: JWTPayload }
     return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
   }
 }
+

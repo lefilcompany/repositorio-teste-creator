@@ -13,8 +13,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       newHashtags 
     } = data;
 
-    console.log('Solicitando revisão para ação:', actionId, { requesterUserId });
-
     return await prisma.$transaction(async (tx) => {
       // 1) Carrega a Action alvo
       const action = await tx.action.findUnique({
@@ -74,7 +72,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
       });
 
-      console.log('Revisão criada para ação:', updatedAction.id);
       return NextResponse.json({ 
         action: updatedAction
       });
@@ -83,7 +80,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       timeout: 30000, // 30 segundos para executar a transação
     });
   } catch (error) {
-    console.error('Review content error', error);
     return NextResponse.json({ error: 'Failed to create review' }, { status: 500 });
   }
 }

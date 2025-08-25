@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { createJWT } from '@/lib/jwt';
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
+  const { email, password, rememberMe } = await req.json();
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -31,14 +31,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: 'no_team', user: safeUser }, { status: 200 });
     }
 
-    // Criar JWT token para usuários ativos
+    // Criar JWT token para usuários ativos com duração baseada em rememberMe
     const token = await createJWT({
       userId: user.id,
       email: user.email,
       teamId: user.teamId,
       role: user.role,
       status: user.status,
-    });
+    }, rememberMe === true);
 
     const { password: _pw, ...safeUser } = user;
     return NextResponse.json({
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       message: 'Login realizado com sucesso'
     });
   } catch (error) {
-    console.error('Login error', error);
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
 }
+

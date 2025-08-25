@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, ChangeEvent, useEffect } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,7 +42,7 @@ const saveActionToHistory = async (actionData: any, teamId: string, userId: stri
       });
     }
   } catch (error) {
-    console.error('Failed to save action', error);
+    // Error saving action - handle silently or with proper error handling
   }
 };
 
@@ -88,7 +89,7 @@ export default function Revisar() {
           if (currentTeam) setTeam(currentTeam);
         }
       } catch (error) {
-        console.error('Failed to load data from API', error);
+        // Error loading data - handle silently or with proper error handling
       }
     };
 
@@ -190,7 +191,7 @@ export default function Revisar() {
             setTeam(updatedTeam);
           }
         } catch (error) {
-          console.error('Failed to update team credits', error);
+          // Error updating team credits - handle silently or with proper error handling
         }
       }
     } catch (err: any) {
@@ -231,7 +232,6 @@ export default function Revisar() {
       toast.success('Análise aprovada e salva no histórico!');
       handleGoBackToForm();
     } catch (error) {
-      console.error('Erro ao aprovar análise:', error);
       toast.error('Erro ao salvar no histórico');
     }
   };
@@ -345,7 +345,7 @@ export default function Revisar() {
                     <div className="relative mt-2 flex justify-center rounded-xl border-2 border-dashed border-border/50 p-8 h-64 items-center hover:border-primary/50 transition-all duration-300">
                       <div className="text-center">
                         {previewUrl ? (
-                          <img src={previewUrl} alt="Pré-visualização" className="mx-auto h-48 w-auto rounded-lg object-contain" />
+                          <Image src={previewUrl} alt="Pré-visualização" width={200} height={192} className="mx-auto h-48 w-auto rounded-lg object-contain" />
                         ) : (
                           <>
                             <ImageIcon className="mx-auto h-16 w-16 text-muted-foreground/50" />
@@ -467,7 +467,7 @@ export default function Revisar() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="w-full aspect-square bg-muted/50 rounded-2xl flex items-center justify-center border-2 border-dashed border-secondary relative overflow-hidden shadow-lg">
-                  {previewUrl && <img src={previewUrl} alt="Imagem original" className="rounded-2xl object-cover w-full h-full" />}
+                  {previewUrl && <Image src={previewUrl} alt="Imagem original" fill className="rounded-2xl object-cover" />}
                 </div>
               </CardContent>
             </Card>

@@ -25,8 +25,7 @@ export default function LeaveTeamDialog({ isOpen, onOpenChange }: LeaveTeamDialo
       onOpenChange(false);
       logout();
     } catch (error) {
-      console.error('Erro ao sair da equipe:', error);
-    }
+      }
   };
 
   return (

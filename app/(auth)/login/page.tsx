@@ -37,6 +37,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
@@ -57,7 +58,7 @@ export default function LoginPage() {
       return;
     }
     
-    const result = await login({ email, password });
+    const result = await login({ email, password, rememberMe });
     if (result === 'invalid') {
       setError('E-mail ou senha inválidos.');
       toast.error('E-mail ou senha inválidos');
@@ -154,7 +155,12 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Checkbox id="remember-me" className="rounded-[4px]" />
+                <Checkbox 
+                  id="remember-me" 
+                  className="rounded-[4px]" 
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
                 <Label htmlFor="remember-me" className="text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Mantenha-me conectado</Label>
               </div>
               <Link href="#" className="text-sm text-primary hover:underline">Esqueceu a senha?</Link>

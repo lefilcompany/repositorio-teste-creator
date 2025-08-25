@@ -106,7 +106,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json([transformedTeam]);
   } catch (error) {
-    console.error('Fetch teams error', error);
     return NextResponse.json({ error: 'Failed to fetch teams' }, { status: 500 });
   }
 }
@@ -174,7 +173,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json(transformedTeam);
   } catch (error) {
-    console.error('Update team error', error);
     return NextResponse.json({ error: 'Failed to update team' }, { status: 500 });
   }
 }
+

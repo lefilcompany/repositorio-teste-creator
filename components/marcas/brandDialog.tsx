@@ -88,7 +88,6 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
         const data: { email: string; name: string }[] = await api.get(`/api/team-members?teamId=${user.teamId}`);
         setMembers(data);
       } catch (error) {
-        console.error('Failed to load team members', error);
         setMembers([]);
         toast.error('Erro ao carregar membros da equipe');
       }

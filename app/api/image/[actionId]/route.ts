@@ -39,7 +39,6 @@ export async function GET(req: NextRequest, { params }: { params: { actionId: st
       },
     });
   } catch (error) {
-    console.error('Erro ao servir imagem:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

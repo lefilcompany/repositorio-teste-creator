@@ -18,17 +18,27 @@ export default function AppLayout({
   const router = useRouter();
 
   useEffect(() => {
+    // Só redirecionar quando terminar de carregar E não estiver autenticado
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading || !isAuthenticated) {
+  // Mostrar loading enquanto carrega
+  if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
+  }
+
+  // Se não está autenticado, não renderizar (useEffect vai redirecionar)
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

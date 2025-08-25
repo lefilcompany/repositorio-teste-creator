@@ -223,7 +223,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    console.error('Delete account error:', error);
     return NextResponse.json({ 
       error: 'Failed to delete account' 
     }, { status: 500 });

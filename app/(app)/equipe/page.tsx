@@ -4,7 +4,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Team } from '@/types/team';
 import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,18 +51,17 @@ export default function EquipePage() {
         api.get(`/api/teams/${team.id}/requests`)
       ]);
 
-      setMembersDetails(membersData);
-      setPendingRequests(requestsData);
+      setMembersDetails(membersData as any);
+      setPendingRequests(requestsData as any);
 
     } catch (error) {
-      console.error("Falha ao carregar dados da equipe", error);
       toast.error("Não foi possível carregar os dados da equipe.");
       setMembersDetails([]);
       setPendingRequests([]);
     } finally {
       setIsLoading(false);
     }
-  }, [user, team, router]);
+  }, [user, team, router, isAuthLoading]);
 
   useEffect(() => {
     // Only fetch data when auth is not loading and we have the necessary data
@@ -140,8 +138,6 @@ export default function EquipePage() {
       await reloadTeam();
 
     } catch (error: any) {
-      console.error('Erro ao processar solicitação:', error);
-
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
       toast.error(error.message || 'Ocorreu um erro ao processar a solicitação.');
@@ -190,8 +186,6 @@ export default function EquipePage() {
       await reloadTeam();
 
     } catch (error: any) {
-      console.error('Erro ao remover membro:', error);
-
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
       toast.error(error.message || 'Ocorreu um erro ao remover o membro.');

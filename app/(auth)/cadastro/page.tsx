@@ -62,7 +62,6 @@ export default function CadastroPage() {
         setLoadingStates(false);
       })
       .catch(err => {
-        console.error("Erro ao buscar estados:", err);
         setLoadingStates(false);
         toast.error('Erro ao carregar estados');
       });
@@ -80,7 +79,6 @@ export default function CadastroPage() {
           setLoadingCities(false);
         })
         .catch(err => {
-          console.error("Erro ao buscar cidades:", err);
           setLoadingCities(false);
           toast.error('Erro ao carregar cidades');
         });

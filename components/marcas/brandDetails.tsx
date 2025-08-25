@@ -1,6 +1,7 @@
 // components/marcas/BrandDetails.tsx
 'use client';
 
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -52,7 +53,7 @@ const FileDetailField = ({ label, file }: { label: string, file?: MoodboardFile 
       {isImage ? (
         // Renderiza a imagem
         <div className='relative group'>
-          <img src={file.content} alt={file.name} className="rounded-md max-h-48 w-full object-cover" />
+          <Image src={file.content} alt={file.name} width={400} height={192} className="rounded-md max-h-48 w-full object-cover" />
           <a
             href={file.content}
             target="_blank"

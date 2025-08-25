@@ -46,7 +46,6 @@ const generateUniqueId = (): string => {
 // Função de histórico melhorada para usar API
 const saveActionToHistory = async (actionData: any, teamId: string | undefined, userId: string | undefined, brandName: string, brands: Brand[]) => {
   if (!teamId || !userId) {
-    console.warn('TeamId ou userId não fornecidos para salvar no histórico');
     return;
   }
 
@@ -65,10 +64,8 @@ const saveActionToHistory = async (actionData: any, teamId: string | undefined, 
           result: actionData.result,
         }),
       });
-      console.log('Ação salva no histórico via API');
-    }
+      }
   } catch (error) {
-    console.error("Erro ao salvar ação no histórico:", error);
     toast.error("Erro ao salvar no histórico. O conteúdo será criado, mas pode não aparecer no histórico.");
   }
 };
@@ -130,7 +127,6 @@ export default function Creator() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (e) {
-        console.error('Falha ao carregar dados da API', e);
         toast.error('Houve um problema ao carregar seus dados. Tente recarregar a página.');
       }
     };
@@ -197,8 +193,7 @@ export default function Creator() {
         setTeam(updatedTeam);
       }
     } catch (error) {
-      console.error('Erro ao atualizar créditos da equipe:', error);
-    }
+      }
   };
 
   const handleGenerateContent = async () => {
@@ -263,8 +258,6 @@ export default function Creator() {
       const data = await response.json();
 
       // A ação já foi criada dentro da API de geração
-      console.log('Conteúdo gerado com ação ID:', data.actionId);
-
       // Atualiza os créditos da equipe
       await updateTeamCredits();
 
@@ -272,7 +265,6 @@ export default function Creator() {
       router.push('/content/result');
 
     } catch (err: any) {
-      console.error('Erro ao gerar conteúdo:', err);
       toast.error(err.message || 'Erro ao gerar o conteúdo.');
     } finally {
       setLoading(false);

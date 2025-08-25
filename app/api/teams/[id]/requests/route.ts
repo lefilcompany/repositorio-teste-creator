@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/jwt';
 
+// Marcar como rota dinâmica devido ao uso de request.headers
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
@@ -52,7 +55,6 @@ export async function GET(
 
     return NextResponse.json(joinRequests);
   } catch (error) {
-    console.error('Fetch join requests error', error);
     return NextResponse.json({ error: 'Failed to fetch join requests' }, { status: 500 });
   }
 }

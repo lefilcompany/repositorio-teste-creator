@@ -134,8 +134,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('Imagem de revisão gerada e salva no banco:', result.imageUrl, 'para actionId:', action.id);
-
     return NextResponse.json({
       imageUrl: result.imageUrl,
       debug: {
@@ -146,8 +144,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
-    console.error('Erro ao refatorar imagem:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
 

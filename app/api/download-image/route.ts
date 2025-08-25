@@ -13,8 +13,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log('Download solicitado para URL:', imageUrl);
-
     // Caso seja uma URL interna (/api/image/[actionId])
     if (imageUrl.startsWith('/api/image/')) {
       const actionId = imageUrl.split('/').pop();
@@ -29,8 +27,6 @@ export async function GET(req: NextRequest) {
       const baseUrl = req.nextUrl.origin;
       const internalImageUrl = `${baseUrl}${imageUrl}`;
       
-      console.log('Fazendo fetch da imagem interna:', internalImageUrl);
-      
       const imageResponse = await fetch(internalImageUrl, {
         method: 'GET',
         headers: {
@@ -39,7 +35,6 @@ export async function GET(req: NextRequest) {
       });
 
       if (!imageResponse.ok) {
-        console.error('Erro ao buscar imagem interna:', imageResponse.status, imageResponse.statusText);
         return NextResponse.json(
           { error: `Falha ao buscar a imagem: ${imageResponse.status} ${imageResponse.statusText}` }, 
           { status: imageResponse.status }
@@ -49,8 +44,6 @@ export async function GET(req: NextRequest) {
       const imageBlob = await imageResponse.blob();
       const contentType = imageResponse.headers.get('Content-Type') || 'image/png';
       
-      console.log('Imagem interna obtida com sucesso, tamanho:', imageBlob.size, 'bytes');
-
       // Criar headers para download com nome de arquivo apropriado
       const headers = new Headers();
       headers.set('Content-Type', contentType);
@@ -77,8 +70,6 @@ export async function GET(req: NextRequest) {
       const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
       const extension = contentType.includes('jpeg') ? 'jpg' : 'png';
       
-      console.log('Processando imagem base64, tamanho:', buffer.length, 'bytes');
-
       const headers = new Headers();
       headers.set('Content-Type', contentType);
       headers.set('Content-Length', buffer.length.toString());
@@ -111,14 +102,11 @@ export async function GET(req: NextRequest) {
     );
 
     if (!isAuthorized) {
-      console.error('URL não autorizada:', url.hostname);
       return NextResponse.json(
         { error: 'URL não autorizada para download' },
         { status: 403 }
       );
     }
-
-    console.log('Fazendo fetch da imagem externa:', imageUrl);
 
     // Fazer o fetch da imagem externa com headers apropriados
     const imageResponse = await fetch(imageUrl, {
@@ -133,7 +121,6 @@ export async function GET(req: NextRequest) {
     });
 
     if (!imageResponse.ok) {
-      console.error('Erro no fetch da imagem externa:', imageResponse.status, imageResponse.statusText);
       return NextResponse.json(
         { error: `Falha ao buscar a imagem: ${imageResponse.status} ${imageResponse.statusText}` }, 
         { status: imageResponse.status }
@@ -149,8 +136,6 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('Imagem externa obtida com sucesso, tamanho:', imageBlob.size, 'bytes');
 
     // Determinar o tipo de conteúdo e extensão
     const contentType = imageBlob.type || imageResponse.headers.get('Content-Type') || 'image/png';
@@ -172,8 +157,6 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro no download da imagem:', error);
-    
     let errorMessage = 'Erro interno do servidor';
     let statusCode = 500;
 
@@ -207,3 +190,4 @@ export async function OPTIONS() {
     },
   });
 }
+

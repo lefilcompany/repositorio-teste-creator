@@ -24,22 +24,41 @@ export default function PersonasPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
+      
       try {
-        const [personasRes, brandsRes, teamRes] = await Promise.all([
-          fetch(`/api/personas?teamId=${user.teamId}`),
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-        
+        // Load personas
+        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
         if (personasRes.ok) {
           const data: Persona[] = await personasRes.json();
           setPersonas(data);
         } else {
           toast.error('Erro ao carregar personas');
         }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar personas');
+      } finally {
+        setIsLoadingPersonas(false);
+      }
+    };
+    
+    load();
+  }, [user]);
+
+  useEffect(() => {
+    const loadBrandsAndTeam = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const [brandsRes, teamRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
         
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
@@ -56,11 +75,13 @@ export default function PersonasPage() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar personas ou marcas', error);
         toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingTeam(false);
       }
     };
-    load();
+    
+    loadBrandsAndTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
@@ -105,7 +126,6 @@ export default function PersonasPage() {
         }
         toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
       } catch (error) {
-        console.error(error);
         toast.error('Erro ao salvar persona. Tente novamente.');
       }
     },
@@ -125,7 +145,6 @@ export default function PersonasPage() {
         toast.error(error.error || 'Erro ao deletar persona');
       }
     } catch (error) {
-      console.error('Falha ao deletar persona', error);
       toast.error('Erro ao deletar persona. Tente novamente.');
     }
   }, [selectedPersona]);
@@ -171,13 +190,22 @@ export default function PersonasPage() {
           brands={brands}
           selectedPersona={selectedPersona}
           onSelectPersona={setSelectedPersona}
+          isLoading={isLoadingPersonas}
         />
-        <PersonaDetails
-          persona={selectedPersona}
-          brands={brands}
-          onEdit={handleOpenDialog}
-          onDelete={handleDeletePersona}
-        />
+        {selectedPersona && !isLoadingPersonas ? (
+          <PersonaDetails
+            persona={selectedPersona}
+            brands={brands}
+            onEdit={handleOpenDialog}
+            onDelete={handleDeletePersona}
+          />
+        ) : (
+          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
+            <p className="text-muted-foreground text-center">
+              {isLoadingPersonas ? 'Carregando personas...' : 'Selecione uma persona para ver os detalhes'}
+            </p>
+          </div>
+        )}
       </main>
 
       <PersonaDialog
