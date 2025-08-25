@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    console.log('Dados recebidos na API plan-content:', body); // Debug log
     const {
       brand,
       theme,
@@ -24,11 +25,34 @@ export async function POST(req: NextRequest) {
       userId,
     } = body;
 
-    if (!brand || !theme || !platform || !quantity || !objective || !teamId || !brandId || !userId) {
-      return NextResponse.json({ error: 'Todos os campos são obrigatórios.' }, { status: 400 });
+    // Validações específicas com mensagens mais detalhadas
+    if (!brand) {
+      return NextResponse.json({ error: 'O campo "marca" é obrigatório.' }, { status: 400 });
+    }
+    if (!theme) {
+      return NextResponse.json({ error: 'O campo "tema" é obrigatório.' }, { status: 400 });
+    }
+    if (!platform) {
+      return NextResponse.json({ error: 'O campo "plataforma" é obrigatório.' }, { status: 400 });
+    }
+    if (!quantity || quantity < 1) {
+      return NextResponse.json({ error: 'O campo "quantidade" deve ser um número maior que zero.' }, { status: 400 });
+    }
+    if (!objective) {
+      return NextResponse.json({ error: 'O campo "objetivo" é obrigatório.' }, { status: 400 });
+    }
+    if (!teamId) {
+      return NextResponse.json({ error: 'ID da equipe não fornecido.' }, { status: 400 });
+    }
+    if (!brandId) {
+      return NextResponse.json({ error: 'ID da marca não fornecido.' }, { status: 400 });
+    }
+    if (!userId) {
+      return NextResponse.json({ error: 'ID do usuário não fornecido.' }, { status: 400 });
     }
 
     // --- PROMPT DE PLANEJAMENTO APRIMORADO ---
+    console.log('Criando prompt para OpenAI...'); // Debug log
     const planningPrompt = `
       # Persona: Estrategista de Conteúdo de Alta Performance.
 
@@ -57,47 +81,76 @@ export async function POST(req: NextRequest) {
       Repita essa estrutura para todos os ${quantity} posts. A resposta final deve ser um único texto, bem formatado com quebras de linha (\\n) para fácil leitura.
     `;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini', // Modelo atualizado
-        messages: [
-          {
-            role: 'user',
-            content: planningPrompt,
-          },
-        ],
-        max_tokens: 2000, // Aumentado para acomodar planos maiores
-        temperature: 0.8, // Um pouco mais criativo
-      }),
-    });
+    console.log('Fazendo requisição para OpenAI...'); // Debug log
+    let response;
+    try {
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo', // Mudando para um modelo mais confiável
+          messages: [
+            {
+              role: 'user',
+              content: planningPrompt,
+            },
+          ],
+          max_tokens: 3000, // Aumentado para acomodar planos maiores  
+          temperature: 0.8, // Um pouco mais criativo
+        }),
+      });
+    } catch (fetchError) {
+      console.error('Erro na requisição para OpenAI:', fetchError);
+      throw new Error('Falha na conexão com a OpenAI');
+    }
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('Erro da OpenAI:', errorData); // Debug log
       throw new Error(errorData.error?.message || 'Falha ao gerar o planejamento.');
     }
 
-    const data = await response.json();
-    const planContent = data.choices[0].message.content;
+    console.log('Resposta da OpenAI recebida com sucesso'); // Debug log
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      console.error('Erro ao fazer parse da resposta da OpenAI:', jsonError);
+      throw new Error('Resposta inválida da OpenAI');
+    }
 
-    const action = await prisma.action.create({
-      data: {
-        type: ActionType.PLANEJAR_CONTEUDO,
-        teamId,
-        brandId,
-        userId,
-        details: { brand, theme, platform, quantity, objective, additionalInfo },
-        result: { plan: planContent },
-      },
-    });
+    const planContent = data.choices[0]?.message?.content;
+    if (!planContent) {
+      console.error('Conteúdo vazio da OpenAI:', data);
+      throw new Error('Conteúdo do plano não foi gerado');
+    }
 
+    console.log('Criando ação no banco de dados...'); // Debug log
+    let action;
+    try {
+      action = await prisma.action.create({
+        data: {
+          type: ActionType.PLANEJAR_CONTEUDO,
+          teamId,
+          brandId,
+          userId,
+          details: { brand, theme, platform, quantity, objective, additionalInfo },
+          result: { plan: planContent },
+        },
+      });
+    } catch (dbError) {
+      console.error('Erro ao criar ação no banco:', dbError);
+      throw new Error('Falha ao salvar no banco de dados');
+    }
+
+    console.log('Ação criada com sucesso no banco:', action.id); // Debug log
     return NextResponse.json({ plan: planContent, actionId: action.id });
 
   } catch (error) {
+    console.error('Erro na API plan-content:', error); // Debug log
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: 'Falha ao processar o planejamento de conteúdo.', details: errorMessage }, { status: 500 });
   }
