@@ -10,6 +10,7 @@ import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
+import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -22,38 +23,83 @@ export default function PersonasPage() {
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
+      
       try {
-        const [personasRes, brandsRes] = await Promise.all([
-          fetch(`/api/personas?teamId=${user.teamId}`),
-          fetch(`/api/brands?teamId=${user.teamId}`),
-        ]);
+        // Load personas
+        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
         if (personasRes.ok) {
           const data: Persona[] = await personasRes.json();
           setPersonas(data);
         } else {
           toast.error('Erro ao carregar personas');
         }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar personas');
+      } finally {
+        setIsLoadingPersonas(false);
+      }
+    };
+    
+    load();
+  }, [user]);
+
+  useEffect(() => {
+    const loadBrandsAndTeam = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const [brandsRes, teamRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
+        
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
           setBrands(data);
         } else {
           toast.error('Erro ao carregar marcas');
         }
+
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
+        }
       } catch (error) {
-        console.error('Falha ao carregar personas ou marcas', error);
         toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingTeam(false);
       }
     };
-    load();
+    
+    loadBrandsAndTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
+    // Verificar limite antes de abrir o diálogo para nova persona
+    if (!persona && team && typeof team.plan === 'object') {
+      const planLimits = team.plan.limits;
+      const currentPersonasCount = personas.length;
+      const maxPersonas = planLimits?.personas || 2;
+      
+      if (currentPersonasCount >= maxPersonas) {
+        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxPersonas} persona${maxPersonas > 1 ? 's' : ''}.`);
+        return;
+      }
+    }
+    
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
-  }, []);
+  }, [personas.length, team]);
 
   const handleSavePersona = useCallback(
     async (formData: PersonaFormData) => {
@@ -80,7 +126,6 @@ export default function PersonasPage() {
         }
         toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
       } catch (error) {
-        console.error(error);
         toast.error('Erro ao salvar persona. Tente novamente.');
       }
     },
@@ -100,10 +145,14 @@ export default function PersonasPage() {
         toast.error(error.error || 'Erro ao deletar persona');
       }
     } catch (error) {
-      console.error('Falha ao deletar persona', error);
       toast.error('Erro ao deletar persona. Tente novamente.');
     }
   }, [selectedPersona]);
+
+  // Verificar se o limite foi atingido
+  const isAtPersonaLimit = team && typeof team.plan === 'object' 
+    ? personas.length >= (team.plan.limits?.personas || 2)
+    : false;
 
   return (
     <div className="min-h-full flex flex-col gap-6">
@@ -123,7 +172,11 @@ export default function PersonasPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+            <Button 
+              onClick={() => handleOpenDialog()} 
+              disabled={isAtPersonaLimit}
+              className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Plus className="mr-2 h-5 w-5" />
               Nova persona
             </Button>
@@ -137,13 +190,22 @@ export default function PersonasPage() {
           brands={brands}
           selectedPersona={selectedPersona}
           onSelectPersona={setSelectedPersona}
+          isLoading={isLoadingPersonas}
         />
-        <PersonaDetails
-          persona={selectedPersona}
-          brands={brands}
-          onEdit={handleOpenDialog}
-          onDelete={handleDeletePersona}
-        />
+        {selectedPersona && !isLoadingPersonas ? (
+          <PersonaDetails
+            persona={selectedPersona}
+            brands={brands}
+            onEdit={handleOpenDialog}
+            onDelete={handleDeletePersona}
+          />
+        ) : (
+          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
+            <p className="text-muted-foreground text-center">
+              {isLoadingPersonas ? 'Carregando personas...' : 'Selecione uma persona para ver os detalhes'}
+            </p>
+          </div>
+        )}
       </main>
 
       <PersonaDialog

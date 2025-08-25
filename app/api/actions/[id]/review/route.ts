@@ -13,8 +13,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       newHashtags 
     } = data;
 
-    console.log('Solicitando revisão para ação:', actionId, { requesterUserId });
-
     return await prisma.$transaction(async (tx) => {
       // 1) Carrega a Action alvo
       const action = await tx.action.findUnique({
@@ -25,7 +23,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           revisions: true, 
           status: true, 
           teamId: true,
-          userId: true 
+          userId: true,
+          result: true 
         }
       });
 
@@ -33,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         return NextResponse.json({ error: "Action não encontrada" }, { status: 404 });
       }
 
-      // 2) (Opcional) Verificação de permissão
+      // 2) Verificação de permissão
       if (requesterUserId && action.userId !== requesterUserId) {
         const requester = await tx.user.findFirst({
           where: { 
@@ -46,37 +45,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
       }
 
-      // 3) Remove TemporaryContent anterior vinculado a esta Action (se existir)
-      await tx.temporaryContent.deleteMany({
-        where: {
-          actionId: actionId
-        }
-      });
-
-      // 4) Cria novo TemporaryContent vinculado à Action
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24);
-
-      const temp = await tx.temporaryContent.create({
-        data: {
-          actionId,
-          userId: requesterUserId || action.userId,
-          teamId: action.teamId,
-          imageUrl: newImageUrl || "",
-          title: newTitle || "",
-          body: newBody || "",
-          hashtags: (newHashtags ?? []) as unknown as any, // Json
-          originalId: null,
-          expiresAt
-        }
-      });
-
-      // 5) Atualiza a Action: sinaliza "Em revisão" + incrementa contador
+      // 3) Atualiza o resultado da Action com o novo conteúdo revisado
       const updatedAction = await tx.action.update({
         where: { id: actionId },
         data: {
           status: "Em revisão",
           revisions: { increment: 1 },
+          result: {
+            ...(action.result as any || {}),
+            imageUrl: newImageUrl || (action.result as any)?.imageUrl || "",
+            title: newTitle || (action.result as any)?.title || "",
+            body: newBody || (action.result as any)?.body || "",
+            hashtags: newHashtags || (action.result as any)?.hashtags || []
+          },
           updatedAt: new Date()
         },
         include: {
@@ -91,14 +72,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
       });
 
-      console.log('Revisão criada para ação:', updatedAction.id, 'TemporaryContent:', temp.id);
       return NextResponse.json({ 
-        action: updatedAction, 
-        temporaryContent: temp 
+        action: updatedAction
       });
+    }, {
+      maxWait: 30000, // 30 segundos para aguardar uma conexão disponível
+      timeout: 30000, // 30 segundos para executar a transação
     });
   } catch (error) {
-    console.error('Review content error', error);
     return NextResponse.json({ error: 'Failed to create review' }, { status: 500 });
   }
 }

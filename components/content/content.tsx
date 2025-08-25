@@ -46,7 +46,6 @@ const generateUniqueId = (): string => {
 // Função de histórico melhorada para usar API
 const saveActionToHistory = async (actionData: any, teamId: string | undefined, userId: string | undefined, brandName: string, brands: Brand[]) => {
   if (!teamId || !userId) {
-    console.warn('TeamId ou userId não fornecidos para salvar no histórico');
     return;
   }
 
@@ -65,10 +64,8 @@ const saveActionToHistory = async (actionData: any, teamId: string | undefined, 
           result: actionData.result,
         }),
       });
-      console.log('Ação salva no histórico via API');
-    }
+      }
   } catch (error) {
-    console.error("Erro ao salvar ação no histórico:", error);
     toast.error("Erro ao salvar no histórico. O conteúdo será criado, mas pode não aparecer no histórico.");
   }
 };
@@ -130,7 +127,6 @@ export default function Creator() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (e) {
-        console.error('Falha ao carregar dados da API', e);
         toast.error('Houve um problema ao carregar seus dados. Tente recarregar a página.');
       }
     };
@@ -197,8 +193,7 @@ export default function Creator() {
         setTeam(updatedTeam);
       }
     } catch (error) {
-      console.error('Erro ao atualizar créditos da equipe:', error);
-    }
+      }
   };
 
   const handleGenerateContent = async () => {
@@ -207,7 +202,7 @@ export default function Creator() {
       return;
     }
     if (team.credits.contentSuggestions <= 0) {
-      toast.error('Seus créditos para sugestões de conteúdo acabaram.');
+      toast.error('Seus créditos para criação de conteúdo acabaram.');
       return;
     }
     if (!isFormValid() || !referenceImage) {
@@ -248,96 +243,21 @@ export default function Creator() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Se é um erro crítico que deve redirecionar para histórico
+        if (errorData.shouldRedirectToHistory) {
+          toast.error('Erro crítico no sistema. Redirecionando para o histórico.');
+          router.push('/historico');
+          return;
+        }
+        
+        // Outros erros são mostrados ao usuário para tentar novamente
         throw new Error(errorData.error || 'Falha ao gerar o conteúdo.');
       }
 
       const data = await response.json();
 
-      // Primeiro cria a ação no banco de dados
-      try {
-        const actionResponse = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'CRIAR_CONTEUDO',
-            teamId: user?.teamId,
-            userId: user?.id,
-            brandId: selectedBrand.id,
-            details: {
-              brand: formData.brand,
-              theme: formData.theme,
-              platform: formData.platform,
-              objective: formData.objective,
-              description: formData.description,
-              audience: formData.audience,
-              tone: formData.tone,
-              additionalInfo: formData.additionalInfo
-            },
-            createTemporaryContent: {
-              imageUrl: data.imageUrl,
-              title: data.title,
-              body: data.body,
-              hashtags: data.hashtags,
-              theme: formData.theme
-            }
-          })
-        });
-
-        if (!actionResponse.ok) {
-          throw new Error('Erro ao criar ação no banco de dados');
-        }
-
-        const { action, temporaryContent } = await actionResponse.json();
-        
-        console.log('Ação e conteúdo temporário criados:', action.id, temporaryContent?.id);
-
-        // Redireciona para a página de resultados
-        router.push('/content/result');
-
-      } catch (error) {
-        console.error('Erro ao salvar ação/conteúdo temporário:', error);
-        
-        // Fallback: criar conteúdo temporário diretamente se a criação da ação falhar
-        const fallbackId = generateUniqueId();
-        const resultData = {
-          id: fallbackId,
-          imageUrl: data.imageUrl,
-          title: data.title,
-          body: data.body,
-          hashtags: data.hashtags,
-          revisions: 0,
-          brand: formData.brand,
-          theme: formData.theme,
-          originalId: fallbackId
-        };
-
-        try {
-          await fetch('/api/temporary-content', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user?.id,
-              teamId: user?.teamId,
-              actionId: null, // Sem ação vinculada no fallback
-              imageUrl: data.imageUrl,
-              title: data.title,
-              body: data.body,
-              hashtags: data.hashtags,
-              brand: formData.brand,
-              theme: formData.theme,
-              originalId: fallbackId,
-              revisions: 0
-            })
-          });
-        } catch (fallbackError) {
-          console.error('Erro no fallback de conteúdo temporário:', fallbackError);
-          // Último recurso: localStorage
-          localStorage.setItem('generatedContent', JSON.stringify(resultData));
-        }
-
-        router.push('/content/result');
-      }
-
+      // A ação já foi criada dentro da API de geração
       // Atualiza os créditos da equipe
       await updateTeamCredits();
 
@@ -345,7 +265,6 @@ export default function Creator() {
       router.push('/content/result');
 
     } catch (err: any) {
-      console.error('Erro ao gerar conteúdo:', err);
       toast.error(err.message || 'Erro ao gerar o conteúdo.');
     } finally {
       setLoading(false);
@@ -386,10 +305,10 @@ export default function Creator() {
                       <div className="text-center">
                         <div className="flex items-center gap-1">
                           <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits.contentSuggestions}
+                            {team.credits?.contentSuggestions || 0}
                           </span>
                         </div>
-                        <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                        <span className="text-sm text-muted-foreground font-medium">criações restantes</span>
                       </div>
                     </div>
                   </CardContent>

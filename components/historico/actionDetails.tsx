@@ -1,6 +1,9 @@
 'use client';
 
-import { History, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
+import { History, Image as ImageIcon, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 import type { Action } from '@/types/action';
 import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,8 @@ const DetailItem = ({ label, value }: { label: string; value: React.ReactNode })
 );
 
 export default function ActionDetails({ action }: ActionDetailsProps) {
+  const router = useRouter();
+
   if (!action) {
     return (
       <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">
@@ -48,10 +53,19 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
           <div className={cn("flex-shrink-0 rounded-xl w-16 h-16 flex items-center justify-center mr-4", style.background)}>
             <Icon className={cn("h-8 w-8", style.color)} />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold text-foreground break-words">{displayType}</h2>
             <p className="text-sm text-muted-foreground">{formatDate(action.createdAt)}</p>
           </div>
+          <Button
+            onClick={() => router.push(`/historico/${action.id}`)}
+            variant="outline"
+            size="sm"
+            className="ml-4"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Visualizar
+          </Button>
         </div>
 
         <div className="space-y-4 text-left overflow-y-auto flex-1 min-h-0 pr-2">
@@ -63,8 +77,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
               <DetailItem label="Título Gerado" value={action.result?.title} />
               <DetailItem label="Legenda Gerada" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.body}</p>} />
               {action.result?.imageUrl && (
-                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
-                  <img src={action.result.imageUrl} alt="Imagem Gerada" className="rounded-lg object-cover w-full h-full" />
+                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4 relative">
+                  <Image src={action.result.imageUrl} alt="Imagem Gerada" fill className="rounded-lg object-cover" />
                 </div>
               )}
             </>
@@ -74,8 +88,8 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             <>
               <DetailItem label="Feedback Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.feedback}</p>} />
               {action.result?.originalImage ? (
-                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4">
-                  <img src={action.result.originalImage} alt="Imagem Original" className="rounded-lg object-cover w-full h-full" />
+                <div className="w-full aspect-square bg-muted/50 rounded-lg flex items-center justify-center mt-4 relative">
+                  <Image src={action.result.originalImage} alt="Imagem Original" fill className="rounded-lg object-cover" />
                 </div>
               ) : <DetailItem label="Imagem Original" value="Não disponível" />}
             </>

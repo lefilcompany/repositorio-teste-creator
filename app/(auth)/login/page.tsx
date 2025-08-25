@@ -1,4 +1,3 @@
-// app/(auth)/login/page.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -14,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle, FaApple, FaFacebook } from 'react-icons/fa';
 import { toast } from 'sonner';
+import TeamDialog from '@/components/teamDialog';
+import { User } from '@/types/user';
 
 // Use imagens locais para garantir o carregamento
 // Crie uma pasta 'assets' dentro da pasta 'public' e coloque suas imagens lá.
@@ -36,9 +37,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const { login, pendingNoTeamUser } = useAuth();
 
   const plugin = useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true }) // Delay de 4 segundos
@@ -55,13 +58,17 @@ export default function LoginPage() {
       return;
     }
     
-    const result = await login({ email, password });
+    const result = await login({ email, password, rememberMe });
     if (result === 'invalid') {
       setError('E-mail ou senha inválidos.');
       toast.error('E-mail ou senha inválidos');
     } else if (result === 'pending') {
       setError('Aguardando aprovação do administrador da equipe.');
       toast.warning('Aguardando aprovação do administrador da equipe');
+    } else if (result === 'no_team') {
+      // Usuário precisa escolher equipe
+      setTeamDialogOpen(true);
+      toast.info('Escolha uma equipe para continuar');
     } else if (result === 'success') {
       toast.success('Login realizado com sucesso!');
     }
@@ -148,7 +155,12 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Checkbox id="remember-me" className="rounded-[4px]" />
+                <Checkbox 
+                  id="remember-me" 
+                  className="rounded-[4px]" 
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
                 <Label htmlFor="remember-me" className="text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Mantenha-me conectado</Label>
               </div>
               <Link href="#" className="text-sm text-primary hover:underline">Esqueceu a senha?</Link>
@@ -169,6 +181,13 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      
+      <TeamDialog 
+        isOpen={teamDialogOpen} 
+        onClose={() => setTeamDialogOpen(false)} 
+        user={pendingNoTeamUser} 
+        isFromLogin={true}
+      />
     </div>
   );
 }

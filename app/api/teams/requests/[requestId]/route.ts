@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { UserRole } from '@prisma/client';
 
 export async function PATCH(
   req: Request,
@@ -37,7 +38,8 @@ export async function PATCH(
         where: { id: userId },
         data: { 
           status: 'ACTIVE',
-          teamId: teamId
+          teamId: teamId,
+          role: UserRole.MEMBER
         }
       });
 
@@ -57,7 +59,7 @@ export async function PATCH(
         where: { id: userId },
         data: { 
           teamId: null,
-          status: 'ACTIVE'
+          status: 'NO_TEAM' // Usuário rejeitado volta ao status NO_TEAM
         }
       });
 
@@ -67,7 +69,6 @@ export async function PATCH(
       });
     }
   } catch (error) {
-    console.error('Handle join request error', error);
     return NextResponse.json({ error: 'Failed to process join request' }, { status: 500 });
   }
 }

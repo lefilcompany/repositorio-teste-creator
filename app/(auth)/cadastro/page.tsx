@@ -10,18 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from '@/types/user';
-import { Loader2, User as UserIcon, Mail, Lock, Phone } from 'lucide-react';
+import { Loader2, User as UserIcon, Mail, Lock, Phone, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+import TeamDialog from '@/components/teamDialog';
 
 // Interfaces para os dados do IBGE
 interface State {
@@ -44,6 +35,8 @@ export default function CadastroPage() {
     state: '',
     city: '',
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -53,12 +46,12 @@ export default function CadastroPage() {
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  const [teamStep, setTeamStep] = useState<'none' | 'choice' | 'create' | 'join' | 'pending'>('none');
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [pendingUser, setPendingUser] = useState<User | null>(null);
-  const [teamName, setTeamName] = useState('');
-  const [teamCode, setTeamCode] = useState('');
-  const [joinCode, setJoinCode] = useState('');
-  const [teamError, setTeamError] = useState('');
+
+  // Validações de senha
+  const passwordsMatch = formData.password === confirmPassword;
+  const isPasswordValid = formData.password && formData.password.length >= 6;
 
   // Busca os estados do Brasil na API do IBGE
   useEffect(() => {
@@ -69,7 +62,6 @@ export default function CadastroPage() {
         setLoadingStates(false);
       })
       .catch(err => {
-        console.error("Erro ao buscar estados:", err);
         setLoadingStates(false);
         toast.error('Erro ao carregar estados');
       });
@@ -87,7 +79,6 @@ export default function CadastroPage() {
           setLoadingCities(false);
         })
         .catch(err => {
-          console.error("Erro ao buscar cidades:", err);
           setLoadingCities(false);
           toast.error('Erro ao carregar cidades');
         });
@@ -96,7 +87,25 @@ export default function CadastroPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    if (id === 'phone') {
+      // Formatação do telefone: (XX) XXXXX-XXXX
+      const cleaned = value.replace(/\D/g, '');
+      let formatted = cleaned;
+      
+      if (cleaned.length >= 1) {
+        formatted = `(${cleaned.substring(0, 2)}`;
+      }
+      if (cleaned.length >= 3) {
+        formatted += `) ${cleaned.substring(2, 7)}`;
+      }
+      if (cleaned.length >= 8) {
+        formatted += `-${cleaned.substring(7, 11)}`;
+      }
+      
+      setFormData(prev => ({ ...prev, [id]: formatted }));
+    } else {
+      setFormData(prev => ({ ...prev, [id]: value }));
+    }
   };
 
   const handleSelectChange = (field: 'state' | 'city', value: string) => {
@@ -109,6 +118,20 @@ export default function CadastroPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validações
+    if (formData.password !== confirmPassword) {
+      setError('As senhas não coincidem');
+      toast.error('As senhas não coincidem');
+      return;
+    }
+    
+    if (!formData.password || formData.password.length < 6) {
+      setError('A senha deve ter no mínimo 6 caracteres');
+      toast.error('A senha deve ter no mínimo 6 caracteres');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     try {
@@ -126,7 +149,7 @@ export default function CadastroPage() {
       }
       const user = await res.json();
       setPendingUser(user);
-      setTeamStep('choice');
+      setTeamDialogOpen(true);
       toast.success('Cadastro realizado com sucesso!');
     } catch (err) {
       setError('Ocorreu um erro ao tentar se cadastrar.');
@@ -136,88 +159,12 @@ export default function CadastroPage() {
     }
   };
 
-  const handleCreateTeam = async () => {
-    if (!pendingUser) return;
-    
-    if (!teamName.trim() || !teamCode.trim()) {
-      toast.error('Por favor, preencha o nome e código da equipe');
-      return;
-    }
-    
-    try {
-      const freePlan = {
-        name: 'Free',
-        limits: {
-          members: 5,
-          brands: 1,
-          themes: 3,
-          personas: 2,
-          calendars: 1,
-          contentSuggestions: 20,
-          contentReviews: 20,
-        },
-      };
-      const res = await fetch('/api/teams/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: pendingUser.id,
-          name: teamName,
-          code: teamCode,
-          plan: freePlan,
-          credits: {
-            contentSuggestions: freePlan.limits.contentSuggestions,
-            contentReviews: freePlan.limits.contentReviews,
-            contentPlans: freePlan.limits.calendars,
-          },
-        }),
-      });
-      
-      if (res.ok) {
-        toast.success('Equipe criada com sucesso!');
-        router.push('/login');
-      } else {
-        const data = await res.json();
-        toast.error(data.error || 'Erro ao criar equipe');
-      }
-    } catch (error) {
-      toast.error('Erro de conexão ao criar equipe');
-    }
-  };
-
-  const handleJoinTeam = async () => {
-    if (!pendingUser) return;
-    
-    if (!joinCode.trim()) {
-      toast.error('Por favor, digite o código da equipe');
-      return;
-    }
-    
-    try {
-      const res = await fetch('/api/teams/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: pendingUser.id, code: joinCode }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setTeamError(data.error || 'Falha ao entrar na equipe.');
-        toast.error(data.error || 'Código de equipe inválido');
-        return;
-      }
-      setTeamStep('pending');
-      toast.success('Solicitação enviada! Aguarde aprovação do administrador.');
-    } catch (error) {
-      toast.error('Erro de conexão ao solicitar entrada na equipe');
-    }
-  };
-
   return (
     <>
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       {/* Coluna Esquerda: Formulário de Cadastro */}
-      <div className="flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md space-y-8">
+      <div className="flex items-center justify-center p-8 bg-background overflow-y-auto">
+        <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-foreground">Crie sua Conta</h1>
             <p className="text-muted-foreground mt-2">
@@ -225,7 +172,7 @@ export default function CadastroPage() {
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-6">
+          <form onSubmit={handleRegister} className="space-y-5">
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="name" placeholder="Nome Completo" required value={formData.name} onChange={handleInputChange} className="pl-10 h-12" />
@@ -234,13 +181,79 @@ export default function CadastroPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="email" type="email" placeholder="E-mail" required value={formData.email} onChange={handleInputChange} className="pl-10 h-12" />
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="password" type="password" placeholder="Senha (mínimo 6 caracteres)" required minLength={6} value={formData.password} onChange={handleInputChange} className="pl-10 h-12" />
+            
+            {/* Campos de senha lado a lado */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  id="password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="Senha" 
+                  required 
+                  minLength={6} 
+                  value={formData.password} 
+                  onChange={handleInputChange} 
+                  className="pl-10 pr-12 h-12" 
+                />
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8" 
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                </Button>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  id="confirmPassword" 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="Confirmar Senha" 
+                  required 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  className="pl-10 h-12" 
+                />
+              </div>
             </div>
+
+            {/* Indicadores de validação da senha */}
+            {formData.password && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200/50 shadow-md">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
+                      isPasswordValid ? 'bg-green-500 shadow-sm' : 'bg-red-500'
+                    }`}>
+                      {isPasswordValid && <span className="text-white text-[10px]">✓</span>}
+                    </div>
+                    <span className={`font-medium transition-colors ${
+                      isPasswordValid ? 'text-green-700' : 'text-red-500'
+                    }`}>
+                      Mínimo 6 caracteres
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
+                      passwordsMatch && confirmPassword ? 'bg-green-500 shadow-sm' : 'bg-red-500'
+                    }`}>
+                      {passwordsMatch && confirmPassword && <span className="text-white text-[10px]">✓</span>}
+                    </div>
+                    <span className={`font-medium transition-colors ${
+                      passwordsMatch && confirmPassword ? 'text-green-700' : 'text-red-500'
+                    }`}>
+                      Senhas coincidem
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="phone" type="tel" placeholder="Telefone (Opcional)" value={formData.phone} onChange={handleInputChange} className="pl-10 h-12" />
+              <Input id="phone" type="tel" placeholder="(XX) XXXXX-XXXX" value={formData.phone} onChange={handleInputChange} className="pl-10 h-12" maxLength={15} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -266,7 +279,7 @@ export default function CadastroPage() {
 
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-            <Button type="submit" className="w-full rounded-lg text-base py-6 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider" disabled={isLoading}>
+            <Button type="submit" className="w-full rounded-lg text-base py-5 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : 'CRIAR CONTA'}
             </Button>
           </form>
@@ -297,68 +310,12 @@ export default function CadastroPage() {
       </div>
     </div>
 
-    <AlertDialog open={teamStep === 'choice'} onOpenChange={() => {}}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Participar de uma equipe</AlertDialogTitle>
-          <AlertDialogDescription>
-            Você deseja criar uma nova equipe ou entrar em uma existente?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => setTeamStep('create')}>Criar equipe</AlertDialogAction>
-          <AlertDialogAction onClick={() => setTeamStep('join')}>Entrar em equipe</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={teamStep === 'create'} onOpenChange={() => {}}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Nova equipe</AlertDialogTitle>
-          <AlertDialogDescription>Informe o nome e código de acesso.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="space-y-2 py-2">
-          <Input placeholder="Nome da equipe" value={teamName} onChange={e => setTeamName(e.target.value)} />
-          <Input placeholder="Código de acesso" value={teamCode} onChange={e => setTeamCode(e.target.value)} />
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setTeamStep('choice')}>Voltar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleCreateTeam}>Criar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={teamStep === 'join'} onOpenChange={() => {}}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Entrar em equipe</AlertDialogTitle>
-          <AlertDialogDescription>Insira o código da equipe.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="space-y-2 py-2">
-          <Input placeholder="Código da equipe" value={joinCode} onChange={e => setJoinCode(e.target.value)} />
-          {teamError && <p className="text-sm text-destructive">{teamError}</p>}
-        </div>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setTeamStep('choice')}>Voltar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleJoinTeam}>Enviar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-
-    <AlertDialog open={teamStep === 'pending'} onOpenChange={() => {}}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Solicitação enviada</AlertDialogTitle>
-          <AlertDialogDescription>
-            Aguarde o administrador aprovar sua entrada na equipe.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogAction onClick={() => router.push('/login')}>OK</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <TeamDialog 
+      isOpen={teamDialogOpen} 
+      onClose={() => setTeamDialogOpen(false)} 
+      user={pendingUser} 
+      isFromLogin={false}
+    />
 
     </>
   );

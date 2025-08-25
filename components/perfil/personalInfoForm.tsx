@@ -41,6 +41,29 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
   const [loadingStates, setLoadingStates] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
 
+  // Função para formatar telefone
+  const formatPhone = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    let formatted = cleaned;
+    
+    if (cleaned.length >= 1) {
+      formatted = `(${cleaned.substring(0, 2)}`;
+    }
+    if (cleaned.length >= 3) {
+      formatted += `) ${cleaned.substring(2, 7)}`;
+    }
+    if (cleaned.length >= 8) {
+      formatted += `-${cleaned.substring(7, 11)}`;
+    }
+    
+    return formatted;
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhone(value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
   // useEffects para buscar estados e cidades (sem alterações)
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
@@ -50,7 +73,6 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
         setLoadingStates(false);
       })
       .catch(error => {
-        console.error('Erro ao carregar estados:', error);
         toast.error('Erro ao carregar lista de estados');
         setLoadingStates(false);
       });
@@ -66,7 +88,6 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
           setLoadingCities(false);
         })
         .catch(error => {
-          console.error('Erro ao carregar cidades:', error);
           toast.error('Erro ao carregar lista de cidades');
           setLoadingCities(false);
         });
@@ -137,9 +158,10 @@ export default function PersonalInfoForm({ initialData, onSave, onSavePassword }
               <Input 
                 id="phone" 
                 value={formData.phone || ''} 
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
+                onChange={(e) => handlePhoneChange(e.target.value)} 
                 className="h-11 border border-accent/30 focus:border-accent/60 rounded-lg bg-background/90 transition-all text-base"
-                placeholder="(11) 99999-9999"
+                placeholder="(XX) XXXXX-XXXX"
+                maxLength={15}
               />
             </div>
             <div className="space-y-3">

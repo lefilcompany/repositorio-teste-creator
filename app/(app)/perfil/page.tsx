@@ -31,7 +31,7 @@ export default function PerfilPage() {
           if (t) {
             setTeamInfo({
               teamName: t.name,
-              plan: t.plan.name,
+              plan: typeof t.plan === 'string' ? t.plan : t.plan.name,
               actionsRemaining: {
                 total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
                 createContent: t.credits.contentSuggestions,
@@ -42,8 +42,7 @@ export default function PerfilPage() {
           }
         }
       } catch (error) {
-        console.error('Erro ao carregar informações da equipe:', error);
-      }
+        }
     };
 
     loadTeamInfo();
@@ -71,6 +70,7 @@ export default function PerfilPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': user.id, // Adiciona o header de autenticação
         },
         body: JSON.stringify(data),
       });
@@ -84,7 +84,6 @@ export default function PerfilPage() {
       updateUser(updatedUser);
       toast.success('Informações pessoais atualizadas com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao salvar informações:', error);
       toast.error(error.message || 'Erro ao salvar informações. Tente novamente.');
     }
   };
@@ -95,6 +94,7 @@ export default function PerfilPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': user.id, // Adiciona o header de autenticação
         },
         body: JSON.stringify({ password: newPassword }),
       });
@@ -106,15 +106,15 @@ export default function PerfilPage() {
 
       toast.success('Senha alterada com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
       toast.error(error.message || 'Erro ao alterar senha. Tente novamente.');
     }
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
-      <header className="pb-6">
-        <div className="bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 p-6 rounded-xl border border-primary/20 shadow-md backdrop-blur-sm">
+    <div className="min-h-full">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Card */}
+        <div className="bg-gradient-to-r from-primary/15 via-secondary/15 to-accent/15 p-6 rounded-xl border border-primary/30 shadow-lg backdrop-blur-md">
           <div className="flex items-center gap-6">
             <div className="flex-shrink-0 bg-gradient-to-br from-primary to-secondary text-white rounded-xl p-3 shadow-md">
               <UserIcon className="h-8 w-8" />
@@ -129,9 +129,8 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="flex-1 pb-6 md:pb-8 overflow-y-auto">
+        {/* Main content */}
         <div className="space-y-8">
           {/* Seção: Informações Pessoais e da Equipe */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -148,7 +147,7 @@ export default function PerfilPage() {
             <AccountManagement />
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

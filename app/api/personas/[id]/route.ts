@@ -7,7 +7,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const persona = await prisma.persona.update({ where: { id: params.id }, data });
     return NextResponse.json(persona);
   } catch (error) {
-    console.error('Update persona error', error);
     return NextResponse.json({ error: 'Failed to update persona' }, { status: 500 });
   }
 }
@@ -17,7 +16,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     await prisma.persona.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Delete persona error', error);
     return NextResponse.json({ error: 'Failed to delete persona' }, { status: 500 });
   }
 }

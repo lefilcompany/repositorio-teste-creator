@@ -19,6 +19,7 @@ import {
 import type { Brand, MoodboardFile } from '@/types/brand';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
@@ -84,20 +85,14 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
     const loadMembers = async () => {
       if (!isOpen || !user?.teamId) return;
       try {
-        const res = await fetch(`/api/team-members?teamId=${user.teamId}`);
-        if (res.ok) {
-          const data: { email: string; name: string }[] = await res.json();
-          setMembers(data);
-        } else {
-          setMembers([]);
-          toast.error('Erro ao carregar membros da equipe');
-        }
+        const data: { email: string; name: string }[] = await api.get(`/api/team-members?teamId=${user.teamId}`);
+        setMembers(data);
       } catch (error) {
-        console.error('Failed to load team members', error);
         setMembers([]);
-        toast.error('Erro de conexão ao carregar membros da equipe');
+        toast.error('Erro ao carregar membros da equipe');
       }
     };
+    
     loadMembers();
   }, [isOpen, user]);
 

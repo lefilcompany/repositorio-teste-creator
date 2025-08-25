@@ -8,12 +8,10 @@ export async function cleanupExpiredContent() {
     
     if (response.ok) {
       const result = await response.json();
-      console.log(`Cleanup completed: ${result.deletedCount} expired items removed`);
       return result;
     }
   } catch (error) {
-    console.error('Cleanup failed:', error);
-  }
+    }
 }
 
 // Função para executar limpeza a cada 6 horas
@@ -24,3 +22,4 @@ export function scheduleCleanup() {
     }, 6 * 60 * 60 * 1000); // 6 horas em milissegundos
   }
 }
+

@@ -13,7 +13,7 @@ interface AdditionalInfoCardProps {
     team?: {
       name: string;
     };
-    role?: 'ADMIN' | 'MEMBER';
+    role?: 'ADMIN' | 'MEMBER' | 'WITHOUT_TEAM';
   };
 }
 
@@ -38,7 +38,6 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
           toast.error('Erro ao carregar histórico de ações da equipe');
         }
       } catch (error) {
-        console.error('Erro ao buscar ações da equipe:', error);
         toast.error('Erro de conexão ao carregar dados da equipe');
       } finally {
         setIsLoading(false);
@@ -49,13 +48,15 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
   }, [user?.teamId]);
 
   // Calcular progresso baseado nos créditos da equipe
-  const creditosUsados = team ? {
-    total: (team.plan.limits.contentSuggestions || 0) + (team.plan.limits.contentReviews || 0) + (team.plan.limits.calendars || 0),
-    restantes: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0)
-  } : { total: 0, restantes: 0 };
+  const creditosDisponiveis = team ? {
+    total: typeof team.plan === 'object' 
+      ? ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5))
+      : 45,
+    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0)
+  } : { total: 45, restantes: 0 };
 
-  const acoesUsadas = creditosUsados.total - creditosUsados.restantes;
-  const progressoPercentual = creditosUsados.total > 0 ? (acoesUsadas / creditosUsados.total) * 100 : 0;
+  const creditosUsados = creditosDisponiveis.total - creditosDisponiveis.restantes;
+  const progressoPercentual = creditosDisponiveis.total > 0 ? (creditosUsados / creditosDisponiveis.total) * 100 : 0;
   return (
     <Card className="shadow-md border border-primary/20 bg-gradient-to-br from-background via-background/95 to-muted/10 backdrop-blur-sm">
       <CardHeader className="bg-gradient-to-r from-secondary/10 to-accent/10 rounded-t-lg border-b border-secondary/20 p-6">
@@ -97,14 +98,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
             </h3>
             <div className="pl-8 space-y-1">
               <p className={`font-semibold text-lg ${
-                userData.role === 'ADMIN' ? 'text-yellow-600' : 'text-accent'
+                userData.role === 'ADMIN' ? 'text-yellow-600' : userData.role === 'MEMBER' ? 'text-accent' : 'text-muted-foreground'
               }`}>
-                {userData.role === 'ADMIN' ? 'Administrador' : 'Membro'}
+                {userData.role === 'ADMIN' ? 'Administrador' : userData.role === 'MEMBER' ? 'Membro' : 'Sem Equipe'}
               </p>
               <p className="text-sm text-muted-foreground">
                 {userData.role === 'ADMIN' 
                   ? 'Controle total sobre a equipe' 
-                  : 'Acesso aos projetos da equipe'
+                  : userData.role === 'MEMBER'
+                  ? 'Acesso aos projetos da equipe'
+                  : 'Precisa fazer parte de uma equipe'
                 }
               </p>
             </div>
@@ -121,12 +124,12 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
             </h3>
             <div className="pl-8 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold text-foreground">{creditosUsados.restantes}</span>
-                <span className="text-sm text-muted-foreground">de {creditosUsados.total} disponíveis</span>
+                <span className="text-2xl font-bold text-foreground">{creditosDisponiveis.restantes}</span>
+                <span className="text-sm text-muted-foreground">de {creditosDisponiveis.total} disponíveis</span>
               </div>
               <Progress value={progressoPercentual} className="h-3" />
               <p className="text-xs text-muted-foreground">
-                {acoesUsadas} ações utilizadas ({totalActions} conteúdos gerados)
+                {creditosUsados} ações utilizadas
               </p>
             </div>
           </div>

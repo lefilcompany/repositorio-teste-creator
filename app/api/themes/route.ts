@@ -11,18 +11,62 @@ export async function GET(req: Request) {
     const themes = await prisma.strategicTheme.findMany({ where: { teamId } });
     return NextResponse.json(themes);
   } catch (error) {
-    console.error('Fetch themes error', error);
     return NextResponse.json({ error: 'Failed to fetch themes' }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
-  const data = await req.json();
   try {
-    const theme = await prisma.strategicTheme.create({ data });
+    const data = await req.json();
+    const { teamId, userId, ...themeData } = data;
+    
+    // Validações básicas
+    if (!teamId || !userId) {
+      return NextResponse.json({ error: 'teamId and userId are required' }, { status: 400 });
+    }
+
+    // Verificar se o usuário pertence à equipe e buscar dados da equipe
+    const user = await prisma.user.findFirst({
+      where: { 
+        id: userId, 
+        teamId: teamId 
+      },
+      include: {
+        team: true
+      }
+    });
+    
+    if (!user || !user.team) {
+      return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
+    }
+
+    // Verificar limite de temas do plano
+    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
+      const teamPlan = user.team.plan as any;
+      if (teamPlan.limits) {
+        const currentThemesCount = await prisma.strategicTheme.count({
+          where: { teamId: teamId }
+        });
+
+        if (currentThemesCount >= teamPlan.limits.themes) {
+          return NextResponse.json({ 
+            error: `Limite de temas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.themes} tema(s) estratégico(s).` 
+          }, { status: 400 });
+        }
+      }
+    }
+
+    // Criar o tema
+    const theme = await prisma.strategicTheme.create({ 
+      data: {
+        ...themeData,
+        teamId,
+        userId
+      } 
+    });
     return NextResponse.json(theme);
   } catch (error) {
-    console.error('Create theme error', error);
     return NextResponse.json({ error: 'Failed to create theme' }, { status: 500 });
   }
 }
+

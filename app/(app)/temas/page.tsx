@@ -10,6 +10,7 @@ import ThemeDetails from '@/components/temas/themeDetails';
 import ThemeDialog from '@/components/temas/themeDialog';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
+import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -22,38 +23,83 @@ export default function TemasPage() {
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  
   useEffect(() => {
     const load = async () => {
       if (!user?.teamId) return;
+      
       try {
-        const [themesRes, brandsRes] = await Promise.all([
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/brands?teamId=${user.teamId}`),
-        ]);
+        // Load themes
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
         if (themesRes.ok) {
           const data: StrategicTheme[] = await themesRes.json();
           setThemes(data);
         } else {
           toast.error('Erro ao carregar temas estratégicos');
         }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar temas');
+      } finally {
+        setIsLoadingThemes(false);
+      }
+    };
+    
+    load();
+  }, [user]);
+
+  useEffect(() => {
+    const loadBrandsAndTeam = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const [brandsRes, teamRes] = await Promise.all([
+          fetch(`/api/brands?teamId=${user.teamId}`),
+          fetch(`/api/teams?userId=${user.id}`)
+        ]);
+        
         if (brandsRes.ok) {
           const data: Brand[] = await brandsRes.json();
           setBrands(data);
         } else {
           toast.error('Erro ao carregar marcas');
         }
+
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
+        }
       } catch (error) {
-        console.error('Falha ao carregar temas ou marcas', error);
         toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingTeam(false);
       }
     };
-    load();
+    
+    loadBrandsAndTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
+    // Verificar limite antes de abrir o diálogo para novo tema
+    if (!theme && team && typeof team.plan === 'object') {
+      const planLimits = team.plan.limits;
+      const currentThemesCount = themes.length;
+      const maxThemes = planLimits?.themes || 3;
+      
+      if (currentThemesCount >= maxThemes) {
+        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
+        return;
+      }
+    }
+    
     setThemeToEdit(theme);
     setIsDialogOpen(true);
-  }, []);
+  }, [themes.length, team]);
 
   const handleSaveTheme = useCallback(
     async (formData: ThemeFormData) => {
@@ -80,7 +126,6 @@ export default function TemasPage() {
         }
         toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
       } catch (error) {
-        console.error(error);
         toast.error('Erro ao salvar tema. Tente novamente.');
       }
     },
@@ -100,10 +145,14 @@ export default function TemasPage() {
         toast.error(error.error || 'Erro ao deletar tema');
       }
     } catch (error) {
-      console.error('Falha ao deletar tema', error);
       toast.error('Erro ao deletar tema. Tente novamente.');
     }
   }, [selectedTheme]);
+
+  // Verificar se o limite foi atingido
+  const isAtThemeLimit = team && typeof team.plan === 'object' 
+    ? themes.length >= (team.plan.limits?.themes || 3)
+    : false;
 
   return (
     <div className="min-h-full flex flex-col gap-6">
@@ -123,7 +172,11 @@ export default function TemasPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => handleOpenDialog()} className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base">
+            <Button 
+              onClick={() => handleOpenDialog()} 
+              disabled={isAtThemeLimit}
+              className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Plus className="mr-2 h-5 w-5" />
               Novo tema
             </Button>
@@ -137,13 +190,22 @@ export default function TemasPage() {
           brands={brands} // Passa as marcas para a lista
           selectedTheme={selectedTheme}
           onSelectTheme={setSelectedTheme}
+          isLoading={isLoadingThemes}
         />
-        <ThemeDetails
-          theme={selectedTheme}
-          brands={brands} // Passa as marcas para os detalhes
-          onEdit={handleOpenDialog}
-          onDelete={handleDeleteTheme}
-        />
+        {selectedTheme && !isLoadingThemes ? (
+          <ThemeDetails
+            theme={selectedTheme}
+            brands={brands} // Passa as marcas para os detalhes
+            onEdit={handleOpenDialog}
+            onDelete={handleDeleteTheme}
+          />
+        ) : (
+          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
+            <p className="text-muted-foreground text-center">
+              {isLoadingThemes ? 'Carregando temas...' : 'Selecione um tema para ver os detalhes'}
+            </p>
+          </div>
+        )}
       </main>
 
       <ThemeDialog

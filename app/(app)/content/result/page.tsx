@@ -1,8 +1,23 @@
+/**
+ * Página de Resultado de Conteúdo Gerado
+ * 
+ * Esta página exibe o conteúdo gerado pela IA e permite ao usuário:
+ * - Visualizar o conteúdo (imagem + texto + hashtags)
+ * - Fazer revisões (até 2 por conteúdo)
+ * - Aprovar e salvar no histórico
+ * - Fazer download da imagem
+ * - Copiar o texto para clipboard
+ * - Reverter para versões anteriores
+ * 
+ * O conteúdo é armazenado diretamente na tabela Actions, sem uso de TemporaryContent.
+ */
+
 // app/(app)/content/result/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -11,19 +26,22 @@ import { toast } from 'sonner';
 import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
+import { downloadImage } from '@/lib/download-utils';
 
+// Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
-  id: string;
-  imageUrl: string;
-  title: string;
-  body: string;
-  hashtags: string[];
-  revisions: number;
-  brand?: string;
-  theme?: string;
-  originalId?: string; // ID da ação original para rastreamento
+  id: string;           // ID único do conteúdo
+  imageUrl: string;     // URL da imagem gerada
+  title: string;        // Título/legenda principal
+  body: string;         // Corpo do texto/descrição
+  hashtags: string[];   // Lista de hashtags
+  revisions: number;    // Contador de revisões feitas
+  brand?: string;       // Nome da marca (opcional)
+  theme?: string;       // Tema estratégico usado (opcional)
+  actionId: string;     // ID da Action no banco (para rastreamento)
 }
 
+// Interface para controle de versões do conteúdo
 interface ContentVersion {
   id: string;
   content: GeneratedContent;
@@ -54,43 +72,30 @@ export default function ResultPage() {
       }
 
       try {
-        // Primeiro tenta buscar do banco de dados
-        const response = await fetch(`/api/temporary-content?userId=${user.id}&teamId=${user.teamId}`);
+        // Busca a Action mais recente não aprovada do usuário
+        const response = await fetch(`/api/actions?userId=${user.id}&teamId=${user.teamId}&status=Em revisão&limit=1`);
         
         if (response.ok) {
-          const tempContent = await response.json();
+          const actions = await response.json();
           
-          if (tempContent) {
-            // Converte o conteúdo temporário para o formato esperado
+          if (actions && actions.length > 0) {
+            const action = actions[0];
+            
+            // Converte a Action para o formato esperado
             const parsedContent: GeneratedContent = {
-              id: tempContent.id,
-              imageUrl: tempContent.imageUrl,
-              title: tempContent.title,
-              body: tempContent.body,
-              hashtags: Array.isArray(tempContent.hashtags) ? tempContent.hashtags : [],
-              revisions: tempContent.revisions,
-              brand: tempContent.brand,
-              theme: tempContent.theme,
-              originalId: tempContent.actionId || tempContent.originalId // Prioriza actionId
+              id: action.id,
+              actionId: action.id,
+              imageUrl: action.result?.imageUrl || "",
+              title: action.result?.title || "",
+              body: action.result?.body || "",
+              hashtags: Array.isArray(action.result?.hashtags) ? action.result.hashtags : [],
+              revisions: action.revisions || 0,
+              brand: action.brand?.name,
+              theme: action.details?.theme
             };
 
             setContent(parsedContent);
-
-            // Busca o brandId baseado no nome da marca
-            if (tempContent.brand && user?.teamId) {
-              try {
-                const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
-                if (brandsRes.ok) {
-                  const brands = await brandsRes.json();
-                  const brand = brands.find((b: any) => b.name === tempContent.brand);
-                  if (brand) {
-                    setBrandId(brand.id);
-                  }
-                }
-              } catch (error) {
-                console.error('Erro ao buscar brandId:', error);
-              }
-            }
+            setBrandId(action.brandId);
 
             // Inicializa as versões com a versão original
             const initialVersion: ContentVersion = {
@@ -103,10 +108,10 @@ export default function ResultPage() {
             setVersions([initialVersion]);
             setCurrentVersionIndex(0);
           } else {
-            throw new Error('Nenhum conteúdo gerado encontrado no banco de dados.');
+            throw new Error('Nenhum conteúdo gerado encontrado.');
           }
         } else {
-          throw new Error('Nenhum conteúdo gerado encontrado.');
+          throw new Error('Erro ao buscar conteúdo gerado.');
         }
 
         if (user?.teamId) {
@@ -119,7 +124,7 @@ export default function ResultPage() {
                 setTeam(currentTeam || null);
               }
             } catch (error) {
-              console.error('Erro ao carregar team:', error);
+              // Error loading team data
             }
           };
           loadTeam();
@@ -135,6 +140,72 @@ export default function ResultPage() {
     loadContent();
   }, [user, router]);
 
+  /**
+   * Hook para detectar quando o usuário sai da página sem aprovar
+   * Marca a ação como "Rejeitada" se sair sem aprovar
+   */
+  useEffect(() => {
+    let isApproving = false; // Flag para evitar marcar como rejeitada durante aprovação
+    
+    const handleBeforeUnload = async () => {
+      if (content && content.actionId && !isApproving) {
+        // Marca como rejeitada se sair sem aprovar
+        try {
+          await fetch('/api/actions', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: content.actionId,
+              status: 'Rejeitada',
+              approved: false,
+              requesterUserId: user?.id
+            })
+          });
+        } catch (error) {
+          // Error marking action as rejected
+        }
+      }
+    };
+
+    const handleRouteChange = () => {
+      if (content && content.actionId && !isApproving) {
+        // Marca como rejeitada ao navegar para outra rota (usando fetch com keepalive)
+        fetch('/api/actions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: content.actionId,
+            status: 'Rejeitada',
+            approved: false,
+            requesterUserId: user?.id
+          }),
+          keepalive: true // Garante que a requisição seja enviada mesmo se a página fechar
+        }).catch(() => {
+          // Error in cleanup request
+        });
+      }
+    };
+
+    // Expõe função para sinalizar que a aprovação está em andamento
+    (window as any).__setApprovingFlag = (value: boolean) => {
+      isApproving = value;
+    };
+
+    // Listener para fechar aba/navegador
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Cleanup quando o componente desmontar (navegação)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (!isApproving) {
+        handleRouteChange(); // Marca como rejeitada ao desmontar apenas se não estiver aprovando
+      }
+    };
+  }, [content, user?.id]);
+
+  /**
+   * Atualiza os créditos do time após usar recursos como revisões
+   */
   const updateTeamCredits = useCallback(async (creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
     if (!user?.teamId || !team) return;
     try {
@@ -154,159 +225,119 @@ export default function ResultPage() {
         setTeam(updatedTeam);
       }
     } catch (e) {
-      console.error('Erro ao atualizar créditos:', e);
-    }
+      }
   }, [user?.teamId, team]);
 
-  const saveToHistory = async (finalContent: GeneratedContent, approved = false) => {
-    if (!user?.teamId || !user?.email || !finalContent || !brandId) return;
-
-    try {
-      // Verifica se existe uma ação vinculada ao conteúdo
-      const actionId = finalContent.originalId;
-      
-      if (actionId && approved) {
-        // Se temos actionId e estamos aprovando, usar a API específica de aprovação
-        const approveRes = await fetch(`/api/actions/${actionId}/approve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            temporaryContentId: finalContent.id,
-            requesterUserId: user.id
-          })
-        });
-        
-        if (!approveRes.ok) {
-          console.error('Erro na API de aprovação, usando fallback');
-          // Se a API específica falhar, continua com o método original
-        } else {
-          const approvedAction = await approveRes.json();
-          console.log('Ação aprovada via API específica:', approvedAction.id);
-          return;
-        }
-      }
-
-      // Fallback: método original para conteúdos legados ou quando a API específica falha
-      const actionIdFallback = finalContent.originalId || finalContent.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-      const actionData = {
-        type: 'CRIAR_CONTEUDO',
-        teamId: user.teamId,
-        userId: user.id,
-        brandId: brandId,
-        details: {
-          brand: finalContent.brand,
-          theme: finalContent.theme,
-          platform: 'Social Media',
-          objective: 'Conteúdo aprovado pelo usuário'
-        },
-        result: {
-          id: actionIdFallback,
-          imageUrl: finalContent.imageUrl,
-          title: finalContent.title,
-          body: finalContent.body,
-          hashtags: finalContent.hashtags,
-          approved,
-          originalId: actionIdFallback,
-          revisions: finalContent.revisions || 0
-        },
-        status: approved ? 'Aprovado' : 'Em revisão',
-        approved,
-        revisions: finalContent.revisions || 0
-      };
-
-      const createRes = await fetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(actionData)
-      });
-      
-      if (!createRes.ok) {
-        throw new Error('Erro ao salvar ação no histórico');
-      }
-      
-      console.log('Ação salva no histórico com ID:', actionIdFallback);
-
-    } catch (e) {
-      console.error("Erro ao salvar no histórico:", e);
-      toast.error("Erro ao salvar no histórico");
-    }
-  };
-
+  /**
+   * Atualiza o conteúdo atual na Action do banco de dados
+   * Usado quando o usuário faz revisões
+   */
   const updateCurrentContent = async (newContent: GeneratedContent) => {
     // Mantém o ID original para rastreamento
     const updatedContent = {
       ...newContent,
-      originalId: content?.originalId || content?.id || newContent.id
+      actionId: content?.actionId || content?.id || newContent.id
     };
 
     // Atualiza o estado atual
     setContent(updatedContent);
 
     try {
-      // Tenta atualizar no banco de dados primeiro
-      if (user?.id && user?.teamId && updatedContent.id) {
-        const response = await fetch('/api/temporary-content', {
-          method: 'PATCH',
+      // Atualiza a Action no banco de dados
+      if (user?.id && user?.teamId && updatedContent.actionId) {
+        const response = await fetch(`/api/actions/${updatedContent.actionId}/review`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            id: updatedContent.id,
-            userId: user.id,
-            teamId: user.teamId,
-            imageUrl: updatedContent.imageUrl,
-            title: updatedContent.title,
-            body: updatedContent.body,
-            hashtags: updatedContent.hashtags,
-            revisions: updatedContent.revisions
+            requesterUserId: user.id,
+            newImageUrl: updatedContent.imageUrl,
+            newTitle: updatedContent.title,
+            newBody: updatedContent.body,
+            newHashtags: updatedContent.hashtags
           })
         });
         
         if (response.ok) {
-          console.log('Conteúdo atual atualizado no banco de dados:', updatedContent);
-        } else {
-          throw new Error('Falha ao atualizar no banco de dados');
+          } else {
+          throw new Error('Falha ao atualizar na Action');
         }
       }
     } catch (error) {
-      console.error('Erro ao atualizar no banco de dados:', error);
-      toast.error('Erro ao atualizar conteúdo no banco de dados');
+      toast.error('Erro ao atualizar conteúdo');
     }
 
-    console.log('Conteúdo atual atualizado:', updatedContent);
-  };
+    };
 
+  /**
+   * Aprova o conteúdo final e redireciona para o histórico
+   * Marca a Action como aprovada no banco de dados
+   */
   const handleApprove = async () => {
-    if (!content) return;
+    if (!content) {
+      toast.error('Conteúdo não encontrado');
+      return;
+    }
+
+    // Sinaliza que está aprovando para evitar marcação como rejeitada
+    if ((window as any).__setApprovingFlag) {
+      (window as any).__setApprovingFlag(true);
+    }
 
     try {
       const currentVersion = versions[currentVersionIndex];
       const finalContent = currentVersion ? currentVersion.content : content;
 
-      await saveToHistory(finalContent, true);
-      toast.success('Conteúdo aprovado e salvo no histórico!');
-
-      // Remove o conteúdo temporário do banco de dados
-      if (user?.id && user?.teamId && finalContent.id) {
-        try {
-          const response = await fetch(`/api/temporary-content?id=${finalContent.id}&userId=${user.id}&teamId=${user.teamId}`, {
-            method: 'DELETE'
-          });
-          
-          if (response.ok) {
-            console.log('Conteúdo temporário removido do banco de dados');
-          }
-        } catch (error) {
-          console.error('Erro ao remover conteúdo temporário do banco:', error);
-        }
+      // Atualiza a Action existente para status "Aprovado"
+      const actionId = finalContent.actionId;
+      
+      if (!actionId) {
+        throw new Error('ID da ação não encontrado');
       }
 
-      router.push('/historico');
+      const updateRes = await fetch('/api/actions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: actionId,
+          status: 'Aprovado',
+          approved: true,
+          requesterUserId: user?.id
+        })
+      });
+      
+      if (!updateRes.ok) {
+        const errorData = await updateRes.json();
+        throw new Error(errorData.error || errorData.details || 'Erro ao aprovar ação');
+      }
+      
+      const approvedAction = await updateRes.json();
+      toast.success('Conteúdo aprovado e salvo no histórico!');
+
+      // Limpa o conteúdo para evitar que seja marcado como rejeitado
+      setContent(null);
+
+      // Aguarda um pouco antes de redirecionar para garantir que a ação foi salva
+      setTimeout(() => {
+        router.push(`/historico?actionId=${approvedAction.id}`);
+      }, 500);
+
     } catch (error) {
-      console.error('Erro ao aprovar conteúdo:', error);
-      toast.error('Erro ao aprovar o conteúdo');
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao aprovar o conteúdo';
+      toast.error(errorMessage, {
+        description: "Tente novamente ou entre em contato com o suporte se o problema persistir."
+      });
+      
+      // Remove a flag de aprovação em caso de erro
+      if ((window as any).__setApprovingFlag) {
+        (window as any).__setApprovingFlag(false);
+      }
     }
   };
 
+  /**
+   * Inicia o processo de revisão (imagem ou texto)
+   * Verifica se o usuário tem créditos suficientes e se não excedeu o limite de revisões
+   */
   const handleStartRevision = (type: 'image' | 'text') => {
     if (team && team.credits.contentReviews <= 0) {
       toast.error('Você não tem créditos de revisão suficientes.');
@@ -321,6 +352,10 @@ export default function ResultPage() {
     setShowRevisionForm(true);
   };
 
+  /**
+   * Processa o resultado de uma revisão
+   * Cria uma nova versão do conteúdo e atualiza a Action
+   */
   const handleRevisionComplete = async (updatedContent: GeneratedContent) => {
     try {
       updateTeamCredits('contentReviews');
@@ -329,7 +364,7 @@ export default function ResultPage() {
       const contentWithRevision = {
         ...updatedContent,
         revisions: (content?.revisions || 0) + 1,
-        originalId: content?.originalId || content?.id || updatedContent.id
+        actionId: content?.actionId || content?.id || updatedContent.id
       };
 
       // Cria uma nova versão
@@ -357,12 +392,17 @@ export default function ResultPage() {
       toast.success(`Revisão ${revisionType === 'image' ? 'da imagem' : 'do texto'} concluída!`);
 
     } catch (error) {
-      console.error('Erro ao completar revisão:', error);
       toast.error('Erro ao processar a revisão');
     }
   };
 
-  const handleRevert = () => {
+  /**
+   * Reverte para a versão anterior do conteúdo
+   * Permite desfazer revisões feitas
+   * IMPORTANTE: Mesmo revertendo, os créditos gastos nas revisões não retornam
+   * e o contador de revisões é mantido
+   */
+  const handleRevert = async () => {
     if (currentVersionIndex <= 0) {
       toast.info("Você já está na versão original.");
       return;
@@ -373,43 +413,91 @@ export default function ResultPage() {
       const previousVersion = versions[previousIndex];
 
       if (previousVersion) {
+        // Atualiza apenas a visualização atual, mas mantém o contador de revisões
+        // Os créditos gastos não retornam conforme solicitado
         setCurrentVersionIndex(previousIndex);
-        updateCurrentContent(previousVersion.content);
-        toast.info("Versão anterior restaurada.");
+        
+        // Atualiza o conteúdo visualmente mas preserva o contador de revisões original
+        const revertedContent = {
+          ...previousVersion.content,
+          revisions: content?.revisions || 0, // Mantém o contador original
+          actionId: content?.actionId || content?.id || previousVersion.content.id
+        };
+        
+        // Atualiza a Action no banco com o conteúdo revertido mas mantendo o contador de revisões
+        if (user?.id && user?.teamId && revertedContent.actionId) {
+          const response = await fetch(`/api/actions/${revertedContent.actionId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              result: {
+                imageUrl: revertedContent.imageUrl,
+                title: revertedContent.title,
+                body: revertedContent.body,
+                hashtags: revertedContent.hashtags
+              },
+              // NÃO diminui o contador de revisões - mantém os créditos gastos
+              revisions: content?.revisions || 0
+            })
+          });
+          
+          if (response.ok) {
+            // Conteúdo revertido na Action (créditos mantidos)
+          } else {
+            throw new Error('Falha ao reverter na Action');
+          }
+        }
+
+        setContent(revertedContent);
+        toast.info("Versão anterior restaurada. Os créditos utilizados foram mantidos.");
       }
     } catch (error) {
-      console.error('Erro ao reverter versão:', error);
       toast.error('Erro ao reverter para versão anterior');
     }
   };
 
+  /**
+   * Faz o download da imagem gerada usando o utilitário de download
+   */
   const handleDownloadImage = async () => {
-    if (!content?.imageUrl) return;
+    if (!content?.imageUrl) {
+      toast.error('URL da imagem não encontrada.');
+      return;
+    }
+    
     setIsDownloading(true);
-    toast.info("O download da imagem foi iniciado.");
+    toast.info("Iniciando download da imagem...");
+    
     try {
-      const response = await fetch(`/api/download-image?url=${encodeURIComponent(content.imageUrl)}`);
-      if (!response.ok) throw new Error('Falha ao buscar a imagem.');
-
-      const blob = await response.blob();
-      const contentType = response.headers.get('Content-Type') || 'image/png';
-      const extension = contentType.includes('jpeg') ? 'jpeg' : 'png';
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `creator-ai-image.${extension}`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Erro ao baixar a imagem:', err);
-      toast.error('Não foi possível baixar a imagem.');
+      // Determinar o nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+      const filename = `creator-ai-image-${timestamp}`;
+      
+      // Usar o utilitário de download
+      await downloadImage(content.imageUrl, {
+        filename,
+        useProxy: true,
+        timeout: 30000
+      });
+      
+      toast.success('Download concluído com sucesso!');
+      } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Erro desconhecido ao baixar a imagem';
+        
+      toast.error(`Falha no download: ${errorMessage}`, {
+        description: 'Verifique sua conexão e tente novamente.'
+      });
+      
     } finally {
       setIsDownloading(false);
     }
   };
 
+  /**
+   * Copia o conteúdo completo (título + corpo + hashtags) para o clipboard
+   */
   const handleCopyToClipboard = () => {
     if (!content) return;
     const fullText = `${content.title}\n\n${content.body}\n\n${content.hashtags.map(h => `#${h}`).join(' ')}`;
@@ -457,23 +545,24 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 h-[calc(100vh-8rem)] flex flex-col gap-6">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center flex-shrink-0">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-            <Sparkles className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
-            <p className="text-muted-foreground">
-              Revise, edite, aprove ou baixe seus resultados.
-              {versions.length > 1 && (
-                <span className="block text-sm text-primary mt-1">
-                  Versão {currentVersionIndex + 1} de {versions.length} - {
-                    versions[currentVersionIndex]?.type === 'original' ? 'Original' :
-                      versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
-                        'Texto Revisado'
-                  }
+    <div className="p-4 md:p-8 min-h-full">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
+              <p className="text-muted-foreground">
+                Revise, edite, aprove ou baixe seus resultados.
+                {versions.length > 1 && (
+                  <span className="block text-sm text-primary mt-1">
+                    Versão {currentVersionIndex + 1} de {versions.length} - {
+                      versions[currentVersionIndex]?.type === 'original' ? 'Original' :
+                        versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
+                          'Texto Revisado'
+                    }
                 </span>
               )}
             </p>
@@ -485,6 +574,7 @@ export default function ResultPage() {
             variant="outline"
             className="rounded-full"
             disabled={currentVersionIndex <= 0}
+            title={currentVersionIndex <= 0 ? "Você já está na versão original" : "Reverte para a versão anterior (créditos utilizados são mantidos)"}
           >
             <Undo2 className="mr-2" /> Reverter
           </Button>
@@ -493,6 +583,13 @@ export default function ResultPage() {
             variant="secondary"
             className="rounded-full"
             disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}
+            title={
+              content.revisions >= 2 
+                ? "Limite de 2 revisões atingido" 
+                : team && team.credits.contentReviews <= 0
+                  ? "Sem créditos de revisão disponíveis"
+                  : "Fazer revisão do conteúdo"
+            }
           >
             <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
           </Button>
@@ -505,38 +602,39 @@ export default function ResultPage() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow overflow-hidden">
-        <div className="flex flex-col gap-4 h-full overflow-hidden">
-          <Card className="flex-grow w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
-            <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
-            <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
-              {isDownloading ? <Loader className="animate-spin" /> : <Download />}
-            </Button>
-          </Card>
-        </div>
-
-        <div className="flex flex-col h-full overflow-hidden">
-          <Card className="w-full h-full bg-card rounded-2xl p-1 shadow-lg border-2 border-primary/10 flex flex-col">
-            <CardHeader className="p-4 flex-row justify-between items-center border-b border-border/10">
-              <CardTitle className="text-xl font-bold text-foreground">{content.title}</CardTitle>
-              <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                {copied ? <Check className="text-green-500" /> : <Copy />}
+        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
+              <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
+              <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
+                {isDownloading ? <Loader className="animate-spin" /> : <Download />}
               </Button>
-            </CardHeader>
-            <CardContent className="p-4 flex-grow overflow-y-auto">
-              <div className="prose prose-sm dark:prose-invert max-w-none text-left">
-                <p className="whitespace-pre-line text-base text-muted-foreground">{content.body}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {content.hashtags.map((tag) => (
-                    <span key={tag} className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">#{tag}</span>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+            </Card>
+          </div>
 
+          <div className="space-y-4">
+            <Card className="w-full bg-card rounded-2xl p-1 shadow-lg border-2 border-primary/10">
+              <CardHeader className="p-4 flex-row justify-between items-center border-b border-border/10">
+                <CardTitle className="text-xl font-bold text-foreground">{content.title}</CardTitle>
+                <Button onClick={handleCopyToClipboard} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                  {copied ? <Check className="text-green-500" /> : <Copy />}
+                </Button>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                  <p className="whitespace-pre-line text-base text-muted-foreground">{content.body}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {content.hashtags.map((tag) => (
+                      <span key={tag} className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">#{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+
+      {/* Dialog para escolher tipo de revisão (imagem ou texto) */}
       <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
         <DialogContent>
           <DialogHeader>
@@ -544,14 +642,23 @@ export default function ResultPage() {
             <DialogDescription>
               Você pode fazer até {2 - content.revisions} revisões. Cada revisão consome 1 crédito.
               Restam {team?.credits.contentReviews || 0} créditos de revisão.
+              <br />
+              <strong className="text-amber-600 dark:text-amber-400">
+                ⚠️ Importante: Os créditos são consumidos mesmo se você reverter as alterações posteriormente.
+              </strong>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">Ajustar a Imagem</Button>
-            <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">Ajustar a Legenda</Button>
+            <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
+              Ajustar a Imagem
+            </Button>
+            <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
+              Ajustar a Legenda
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

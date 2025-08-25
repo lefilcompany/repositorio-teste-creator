@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   const data = await req.json();
   try {
+    // Hash da senha antes de salvar
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+    
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     
     // Se existe um usuário com este email
@@ -15,7 +19,7 @@ export async function POST(req: Request) {
           where: { email: data.email },
           data: {
             name: data.name,
-            password: data.password,
+            password: hashedPassword,
             phone: data.phone,
             state: data.state,
             city: data.city,
@@ -38,17 +42,17 @@ export async function POST(req: Request) {
       data: {
         name: data.name,
         email: data.email,
-        password: data.password,
+        password: hashedPassword,
         phone: data.phone,
         state: data.state,
         city: data.city,
-        status: UserStatus.PENDING,
+        status: UserStatus.NO_TEAM,
       },
     });
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Register error', error);
     return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
   }
 }
+

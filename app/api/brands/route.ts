@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { incrementTeamBrandCounter } from '@/lib/team-counters';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -10,13 +11,26 @@ export async function GET(req: Request) {
   }
   
   try {
+    // Query otimizada: buscar apenas campos essenciais para listagem
     const brands = await prisma.brand.findMany({ 
       where: { teamId },
-      orderBy: { createdAt: 'desc' }
+      select: {
+        id: true,
+        name: true,
+        responsible: true,
+        segment: true,
+        createdAt: true,
+        updatedAt: true,
+        // Incluir apenas campos necessários para a dashboard
+        keywords: true,
+        goals: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50 // Limitar resultados
     });
+    
     return NextResponse.json(brands);
   } catch (error) {
-    console.error('Fetch brands error', error);
     return NextResponse.json({ error: 'Failed to fetch brands' }, { status: 500 });
   }
 }
@@ -35,16 +49,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'name and responsible are required' }, { status: 400 });
     }
     
-    // Verificar se o usuário pertence à equipe
+    // Verificar se o usuário pertence à equipe e buscar dados da equipe
     const user = await prisma.user.findFirst({
       where: { 
         id: userId, 
         teamId: teamId 
+      },
+      include: {
+        team: true
       }
     });
     
-    if (!user) {
+    if (!user || !user.team) {
       return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
+    }
+
+    // Verificar limite de marcas do plano
+    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
+      const teamPlan = user.team.plan as any;
+      if (teamPlan.limits) {
+        const currentBrandsCount = await prisma.brand.count({
+          where: { teamId: teamId }
+        });
+
+        if (currentBrandsCount >= teamPlan.limits.brands) {
+          return NextResponse.json({ 
+            error: `Limite de marcas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.brands} marca(s).` 
+          }, { status: 400 });
+        }
+      }
     }
     
     // Criar a marca
@@ -70,10 +103,18 @@ export async function POST(req: Request) {
         restrictions: brandData.restrictions || '',
       }
     });
+
+    // Incrementar contador de marcas da equipe
+    setTimeout(async () => {
+      try {
+        await incrementTeamBrandCounter(teamId);
+      } catch (error) {
+        }
+    }, 0);
     
     return NextResponse.json(brand);
   } catch (error) {
-    console.error('Create brand error', error);
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 });
   }
 }
+

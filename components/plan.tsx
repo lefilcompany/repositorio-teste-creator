@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader, Calendar, ArrowLeft, MessageSquareQuote } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +44,7 @@ export default function Plan() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -77,8 +79,9 @@ export default function Plan() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Failed to load data from API', error);
         toast.error('Erro de conexão ao carregar dados para planejamento');
+      } finally {
+        setIsLoadingData(false);
       }
     };
     
@@ -130,7 +133,7 @@ export default function Plan() {
       return;
     }
     if (team.credits.contentPlans <= 0) {
-      setError('Seus créditos para calendário de conteúdo acabaram.');
+      setError('Seus créditos para planejamento de conteúdo acabaram.');
       setIsResultView(false);
       toast.error('Créditos insuficientes para gerar planejamento');
       return;
@@ -173,7 +176,6 @@ export default function Plan() {
             toast.error('Erro ao atualizar créditos da equipe');
           }
         } catch (error) {
-          console.error('Failed to update team credits', error);
           toast.error('Erro ao atualizar créditos da equipe');
         }
       }
@@ -197,7 +199,6 @@ export default function Plan() {
             });
           }
         } catch (error) {
-          console.error('Failed to save action', error);
           toast.error('Erro ao salvar no histórico');
         }
       }
@@ -244,16 +245,16 @@ export default function Plan() {
                           <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                             <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                              <Calendar className="h-4 w-4" />
+                              <Zap className="h-4 w-4" />
                             </div>
                           </div>
                           <div className="text-center">
                             <div className="flex items-center gap-1">
                               <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                                {team.credits.contentPlans}
+                                {team.credits?.contentPlans || 0}
                               </span>
                             </div>
-                            <span className="text-sm text-muted-foreground font-medium">créditos restantes</span>
+                            <span className="text-sm text-muted-foreground font-medium">planejamentos restantes</span>
                           </div>
                         </div>
                       </CardContent>
@@ -264,8 +265,8 @@ export default function Plan() {
             </CardHeader>
           </Card>
 
-          {/* Main Content with vertical layout */}
-          <div className="space-y-6">
+          {/* Main Content with proper padding */}
+          <div className="flex flex-col gap-6">
             {/* Configuration Section */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -279,29 +280,37 @@ export default function Plan() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="space-y-3">
                     <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
-                    <Select onValueChange={handleBrandChange} value={formData.brand}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder="Selecione a marca" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/20">
-                        {brands.map((brand) => (
-                          <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isLoadingData ? (
+                      <Skeleton className="h-11 w-full rounded-xl" />
+                    ) : (
+                      <Select onValueChange={handleBrandChange} value={formData.brand}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder="Selecione a marca" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          {brands.map((brand) => (
+                            <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
-                    <Select onValueChange={handleThemeChange} value={formData.theme} disabled={!formData.brand || filteredThemes.length === 0}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/20">
-                        {filteredThemes.map((theme) => (
-                          <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isLoadingData ? (
+                      <Skeleton className="h-11 w-full rounded-xl" />
+                    ) : (
+                      <Select onValueChange={handleThemeChange} value={formData.theme} disabled={!formData.brand || filteredThemes.length === 0}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                          <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          {filteredThemes.map((theme) => (
+                            <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="platform" className="text-sm font-semibold text-foreground">Plataforma *</Label>
@@ -381,17 +390,18 @@ export default function Plan() {
                   >
                     {loading ? (
                       <>
-                        <Loader className="animate-spin mr-2 h-5 w-5" />
-                        Gerando...
+                        <Loader className="animate-spin mr-3 h-5 w-5" />
+                        <span>Gerando...</span>
                       </>
                     ) : (
                       <>
-                        <Calendar className="mr-2 h-5 w-5" />
-                        Gerar Planejamento
+                        <Calendar className="mr-3 h-5 w-5" />
+                        <span>Gerar Planejamento</span>
                       </>
                     )}
                   </Button>
-                  {error && <p className="text-destructive mt-4 text-center">{error}</p>}
+
+                  {/* Form validation indicator */}
                   {(!formData.brand || !formData.theme || !formData.platform || !formData.objective) && (
                     <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
                       <p className="text-sm text-muted-foreground">
@@ -399,6 +409,8 @@ export default function Plan() {
                       </p>
                     </div>
                   )}
+
+                  {error && <p className="text-destructive mt-4 text-center text-base">{error}</p>}
                 </div>
               </CardContent>
             </Card>

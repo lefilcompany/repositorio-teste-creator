@@ -39,21 +39,32 @@ export async function GET(
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
+    // Buscar contadores usando raw SQL temporariamente
+    const countersResult = await prisma.$queryRaw<[{totalContents: number, totalBrands: number}]>`
+      SELECT COALESCE("totalContents", 0) as "totalContents", 
+             COALESCE("totalBrands", 0) as "totalBrands"
+      FROM "Team" 
+      WHERE id = ${params.id}
+    `;
+    
+    const counters = countersResult[0] || { totalContents: 0, totalBrands: 0 };
+
     // Transform the data to match the expected Team interface
     const transformedTeam = {
       id: team.id,
       name: team.name,
-      code: team.code,
+      code: team.displayCode, // Usar displayCode para exibição
       admin: team.admin.email,
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),
       plan: team.plan,
-      credits: team.credits
+      credits: team.credits,
+      totalContents: counters.totalContents,
+      totalBrands: counters.totalBrands
     };
 
     return NextResponse.json(transformedTeam);
   } catch (error) {
-    console.error('Fetch team error', error);
     return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });
   }
 }

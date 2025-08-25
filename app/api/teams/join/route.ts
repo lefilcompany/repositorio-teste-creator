@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { UserStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   const { userId, code } = await req.json();
@@ -9,45 +11,62 @@ export async function POST(req: Request) {
   }
 
   try {
-    const team = await prisma.team.findUnique({ where: { code } });
-    if (!team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    // Buscar todas as equipes e verificar o código usando bcrypt
+    const teams = await prisma.team.findMany();
+    let targetTeam = null;
+    
+    for (const team of teams) {
+      const isCodeMatch = await bcrypt.compare(code, team.code);
+      if (isCodeMatch) {
+        targetTeam = team;
+        break;
+      }
+    }
+    
+    if (!targetTeam) {
+      return NextResponse.json({ error: 'Código de equipe inválido' }, { status: 404 });
     }
 
-    // Check if user already has a pending or approved request
-    const existingRequest = await prisma.joinRequest.findFirst({
+    // Verificar se o usuário já é um membro ATIVO desta equipe
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamId: true, status: true }
+    });
+
+    if (user && user.teamId === targetTeam.id && user.status === UserStatus.ACTIVE) {
+      return NextResponse.json({ error: 'Você já é membro desta equipe' }, { status: 400 });
+    }
+
+    // Check if user already has a pending request for this team
+    const existingPendingRequest = await prisma.joinRequest.findFirst({
       where: { 
-        teamId: team.id, 
+        teamId: targetTeam.id, 
         userId,
-        status: { in: ['PENDING', 'APPROVED'] }
+        status: 'PENDING'
       }
     });
 
-    if (existingRequest) {
-      if (existingRequest.status === 'PENDING') {
-        return NextResponse.json({ error: 'You already have a pending request for this team' }, { status: 400 });
-      } else {
-        return NextResponse.json({ error: 'You are already a member of this team' }, { status: 400 });
-      }
+    if (existingPendingRequest) {
+      return NextResponse.json({ error: 'Você já tem uma solicitação pendente para esta equipe' }, { status: 400 });
     }
 
     // Create join request
     await prisma.joinRequest.create({ 
-      data: { teamId: team.id, userId } 
+      data: { teamId: targetTeam.id, userId } 
     });
 
     // Update user to pending status and associate with team
     await prisma.user.update({
       where: { id: userId },
-      data: { teamId: team.id, status: 'PENDING' },
+      data: { teamId: targetTeam.id, status: 'PENDING' },
     });
 
     return NextResponse.json({ 
-      message: 'Join request sent successfully',
-      teamName: team.name 
+      message: 'Solicitação de entrada enviada com sucesso',
+      teamName: targetTeam.name 
     });
   } catch (error) {
-    console.error('Join team error', error);
-    return NextResponse.json({ error: 'Join team failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha ao solicitar entrada na equipe' }, { status: 500 });
   }
 }
+
