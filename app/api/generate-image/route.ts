@@ -178,8 +178,7 @@ function buildDetailedImagePrompt(formData: any): string {
 //     const response = await openai.images.generate(imageParams);
 //     return response;
 //   } catch (error) {
-//     console.error('Erro na geração com GPT-Image-1:', error);
-//     throw error;
+//     //     throw error;
 //   }
 // }
 
@@ -207,13 +206,10 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
           },
         });
       } catch (refError) {
-        console.warn('Erro ao processar imagem de referência, continuando sem ela:', refError);
-      }
+        }
     }
     contents.push({ text: fullPrompt });
 
-    console.log(`Tentando gerar imagem com Gemini para action ${actionId}`);
-    
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash-preview-image-generation",
       contents,
@@ -240,8 +236,6 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
           const mimeType = part.inlineData.mimeType || 'image/png';
           const dataUrl = createImageDataUrl(imageData, mimeType);
           
-          console.log(`Imagem gerada com sucesso via Gemini para action ${actionId}`);
-          
           return { 
             imageUrl: dataUrl,
             base64Data: imageData,
@@ -257,7 +251,6 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
       throw new Error("No candidates returned from the model");
     }
   } catch (error) {
-    console.error(`Erro na geração com Gemini para action ${actionId}:`, error);
     throw error;
   }
 }
@@ -267,8 +260,6 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
  */
 async function generateImageWithDALLE(prompt: string, actionId?: string): Promise<any> {
   try {
-    console.log(`Tentando gerar imagem com DALL-E para action ${actionId}`);
-    
     // Simplificar o prompt para DALL-E
     const simplePrompt = prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
     
@@ -285,8 +276,6 @@ async function generateImageWithDALLE(prompt: string, actionId?: string): Promis
       const mimeType = 'image/png';
       const dataUrl = createImageDataUrl(imageData, mimeType);
       
-      console.log(`Imagem gerada com sucesso via DALL-E para action ${actionId}`);
-      
       return {
         imageUrl: dataUrl,
         base64Data: imageData,
@@ -296,7 +285,6 @@ async function generateImageWithDALLE(prompt: string, actionId?: string): Promis
       throw new Error("No image data returned from DALL-E");
     }
   } catch (error) {
-    console.error(`Erro na geração com DALL-E para action ${actionId}:`, error);
     throw error;
   }
 }
@@ -331,11 +319,8 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
         };
       }
     } catch (error) {
-      console.error(`Tentativa ${i + 1} com Gemini falhou:`, error);
-      
       // Se é erro 500 do Gemini, tenta o DALL-E imediatamente
       if (error.status === 500 || error.message?.includes('INTERNAL')) {
-        console.log('Erro interno do Gemini detectado, tentando DALL-E...');
         break;
       }
       
@@ -353,8 +338,7 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
       }
 
       if (i === prompts.length - 1) {
-        console.log('Todas as tentativas com Gemini falharam, tentando DALL-E...');
-      }
+        }
     }
   }
 
@@ -374,8 +358,7 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
       output_format: 'png'
     };
   } catch (dalleError) {
-    console.error('DALL-E também falhou:', dalleError);
-  }
+    }
 
   return {
     success: false,
@@ -525,8 +508,6 @@ Você é um copywriter especialista em redes sociais com mais de 10 anos de expe
     return postContent;
 
   } catch (error: any) {
-    console.error('Erro na geração de texto:', error);
-    
     // Fallback com conteúdo personalizado mais rico e envolvente
     const brandName = cleanInput(formData.brand) || 'nossa marca';
     const themeName = cleanInput(formData.theme) || 'novidades';
@@ -615,8 +596,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('Ação criada com ID:', action.id);
-
     // --- 2. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS (usando actionId) ---
     const imageResult = await generateImageWithFallbacks(actionDetails, action.id);
 
@@ -655,8 +634,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log('Ação atualizada com resultados:', updatedAction.id);
-
     // --- 5. RETORNO DA RESPOSTA COMPLETA ---
     return NextResponse.json({
       imageUrl: imageResult.imageUrl,
@@ -681,8 +658,6 @@ export async function POST(req: NextRequest) {
     
     if (error instanceof Error) {
       errorMessage = error.message;
-      console.error('Erro detalhado na geração:', error);
-      
       if (error.message.includes('Limite de requisições')) statusCode = 429;
       else if (error.message.includes('não autorizada') || error.message.includes('inválida')) statusCode = 401;
       else if (error.message.includes('não encontrado')) statusCode = 404;
@@ -702,10 +677,8 @@ export async function POST(req: NextRequest) {
             }
           }
         });
-        console.log('Ação marcada como rejeitada:', formData.actionId);
-      } catch (updateError) {
-        console.error('Erro ao atualizar ação com falha:', updateError);
-      }
+        } catch (updateError) {
+        }
     }
 
     return NextResponse.json({

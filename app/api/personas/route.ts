@@ -11,7 +11,6 @@ export async function GET(req: Request) {
     const personas = await prisma.persona.findMany({ where: { teamId } });
     return NextResponse.json(personas);
   } catch (error) {
-    console.error('Fetch personas error', error);
     return NextResponse.json({ error: 'Failed to fetch personas' }, { status: 500 });
   }
 }
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(persona);
   } catch (error) {
-    console.error('Create persona error', error);
     return NextResponse.json({ error: 'Failed to create persona' }, { status: 500 });
   }
 }
+

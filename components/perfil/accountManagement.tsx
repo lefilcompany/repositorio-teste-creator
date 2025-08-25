@@ -53,11 +53,9 @@ export default function AccountManagement() {
         const members = await response.json();
         setTeamMembers(members);
       } else {
-        console.error('Failed to load team members');
         toast.error('Erro ao carregar membros da equipe');
       }
     } catch (error) {
-      console.error('Error loading team members:', error);
       toast.error('Erro ao carregar membros da equipe');
     } finally {
       setLoadingMembers(false);
@@ -100,7 +98,6 @@ export default function AccountManagement() {
       logout();
       router.push('/login');
     } catch (error: any) {
-      console.error('Error deleting account:', error);
       toast.error(error.message || 'Erro ao deletar conta');
     } finally {
       setIsLoading(false);
@@ -144,7 +141,6 @@ export default function AccountManagement() {
       logout();
       router.push('/login');
     } catch (error: any) {
-      console.error('Error deactivating account:', error);
       toast.error(error.message || 'Erro ao inativar conta');
     } finally {
       setIsLoading(false);

@@ -41,7 +41,6 @@ export default function TemasPage() {
           toast.error('Erro ao carregar temas estratégicos');
         }
       } catch (error) {
-        console.error('Falha ao carregar temas', error);
         toast.error('Erro de conexão ao carregar temas');
       } finally {
         setIsLoadingThemes(false);
@@ -76,7 +75,6 @@ export default function TemasPage() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar marcas ou equipe', error);
         toast.error('Erro de conexão ao carregar dados');
       } finally {
         setIsLoadingTeam(false);
@@ -128,7 +126,6 @@ export default function TemasPage() {
         }
         toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
       } catch (error) {
-        console.error(error);
         toast.error('Erro ao salvar tema. Tente novamente.');
       }
     },
@@ -148,7 +145,6 @@ export default function TemasPage() {
         toast.error(error.error || 'Erro ao deletar tema');
       }
     } catch (error) {
-      console.error('Falha ao deletar tema', error);
       toast.error('Erro ao deletar tema. Tente novamente.');
     }
   }, [selectedTheme]);

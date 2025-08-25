@@ -20,7 +20,6 @@ export default function AppLayout({
   useEffect(() => {
     // Só redirecionar quando terminar de carregar E não estiver autenticado
     if (!isLoading && !isAuthenticated) {
-      console.log('Layout: Redirecionando para login');
       router.push('/login');
     }
   }, [isLoading, isAuthenticated, router]);

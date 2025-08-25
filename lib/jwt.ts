@@ -63,7 +63,6 @@ function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
     }
     return bytes.buffer;
   } catch (error) {
-    console.error('Error decoding base64URL:', error);
     throw new Error('Invalid base64URL encoding');
   }
 }
@@ -129,7 +128,6 @@ export async function createJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>, rememb
     
     return token;
   } catch (error) {
-    console.error('Error creating JWT:', error);
     throw new Error('Failed to create JWT token');
   }
 }
@@ -242,7 +240,6 @@ export function shouldRenewToken(token: string): boolean {
     
     return expiresIn < renewThreshold && expiresIn > 0;
   } catch (error) {
-    console.error('Erro ao verificar necessidade de renovação:', error);
     return false;
   }
 }
@@ -261,7 +258,6 @@ export function getTokenPayload(token: string): JWTPayload | null {
     
     return JSON.parse(payloadString) as JWTPayload;
   } catch (error) {
-    console.error('Erro ao extrair payload do token:', error);
     return null;
   }
 }
@@ -289,8 +285,6 @@ export async function verifyAuth(request: Request): Promise<{ user: JWTPayload }
 
     return { user: payload };
   } catch (error) {
-    console.error('Auth verification failed:', error);
-    
     if (error instanceof Error) {
       if (error.message.includes('expired')) {
         return NextResponse.json({ error: 'Token expired' }, { status: 401 });
@@ -306,3 +300,4 @@ export async function verifyAuth(request: Request): Promise<{ user: JWTPayload }
     return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
   }
 }
+

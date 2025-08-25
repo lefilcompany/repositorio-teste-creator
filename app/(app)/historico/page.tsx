@@ -44,15 +44,11 @@ export default function HistoricoPage() {
             action.approved === true && action.status === 'Aprovado'
           );
           setActions(approvedActions);
-          console.log('Ações aprovadas carregadas:', approvedActions.length, 'de', actionsData.length, 'total');
-          
           // Se existe um actionId na URL, seleciona automaticamente a ação correspondente
           if (actionIdFromUrl && approvedActions.length > 0) {
             const targetAction = approvedActions.find(action => action.id === actionIdFromUrl);
             if (targetAction) {
               setSelectedAction(targetAction);
-              console.log('Ação selecionada automaticamente:', targetAction.id);
-              
               // Ajusta os filtros para mostrar a ação selecionada
               if (targetAction.brand?.name) {
                 setBrandFilter(targetAction.brand.name);
@@ -62,15 +58,12 @@ export default function HistoricoPage() {
                 setTypeFilter(actionTypeDisplay);
               }
             } else {
-              console.warn('Ação com ID', actionIdFromUrl, 'não encontrada nas ações aprovadas');
-            }
+              }
           }
         } else {
-          console.error('Erro ao carregar histórico:', actionsRes.status, actionsRes.statusText);
           toast.error('Erro ao carregar histórico de ações');
         }
       } catch (error) {
-        console.error("Falha ao carregar ações", error);
         toast.error('Erro de conexão ao carregar histórico');
       } finally {
         setIsLoadingActions(false);
@@ -93,7 +86,6 @@ export default function HistoricoPage() {
           toast.error('Erro ao carregar marcas para filtros');
         }
       } catch (error) {
-        console.error("Falha ao carregar marcas", error);
         toast.error('Erro de conexão ao carregar marcas');
       } finally {
         setIsLoadingBrands(false);

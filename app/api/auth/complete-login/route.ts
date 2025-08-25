@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    console.error('Complete login error:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
+

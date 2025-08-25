@@ -120,7 +120,6 @@ export default function TopBar() {
           personas = personasResponse.status === 'fulfilled' && personasResponse.value.ok 
             ? await personasResponse.value.json() : [];
         } catch (parseError) {
-          console.warn('Erro ao parsear JSON das APIs:', parseError);
           // Tentar requisições individuais simples como fallback
           try {
             const simpleBrands = await fetch(`/api/brands?teamId=${user.teamId}`, { signal });
@@ -137,14 +136,6 @@ export default function TopBar() {
         }
 
         // Debug logs
-        console.log('Dados da pesquisa:', { 
-          searchQuery, 
-          brands: brands?.length || 0, 
-          themes: themes?.length || 0, 
-          personas: personas?.length || 0,
-          teamId: user.teamId 
-        });
-
         const results: SearchResult[] = [
           ...(Array.isArray(brands) ? brands : []).map((brand: any) => ({
             id: brand.id || brand._id || '',
@@ -200,14 +191,12 @@ export default function TopBar() {
         });
 
         // Salvar no cache
-        console.log('Resultados filtrados:', results.length, results);
         setSearchCache(prev => new Map(prev.set(cacheKey, results)));
         setSearchResults(results);
         setShowResults(true);
       } catch (error) {
         if (!signal.aborted) {
-          console.error('Erro na pesquisa:', error);
-        }
+          }
       } finally {
         if (!signal.aborted) {
           setIsSearching(false);
@@ -242,7 +231,6 @@ export default function TopBar() {
       );
     } catch (error) {
       // Em caso de erro, retornar o texto original
-      console.warn('Erro ao destacar termo de pesquisa:', error);
       return text;
     }
   };

@@ -54,8 +54,6 @@ export function DownloadButton({
       onDownloadSuccess?.();
 
     } catch (error) {
-      console.error('Erro no download:', error);
-      
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Erro ao baixar a imagem';
@@ -86,3 +84,4 @@ export function DownloadButton({
     </Button>
   );
 }
+

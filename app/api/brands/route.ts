@@ -31,7 +31,6 @@ export async function GET(req: Request) {
     
     return NextResponse.json(brands);
   } catch (error) {
-    console.error('Fetch brands error', error);
     return NextResponse.json({ error: 'Failed to fetch brands' }, { status: 500 });
   }
 }
@@ -110,13 +109,12 @@ export async function POST(req: Request) {
       try {
         await incrementTeamBrandCounter(teamId);
       } catch (error) {
-        console.error('Erro ao incrementar contador de marcas:', error);
-      }
+        }
     }, 0);
     
     return NextResponse.json(brand);
   } catch (error) {
-    console.error('Create brand error', error);
     return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 });
   }
 }
+

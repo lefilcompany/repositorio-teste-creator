@@ -45,8 +45,6 @@ export async function POST(req: NextRequest) {
 
         while (!success && retryCount < maxRetries) {
             try {
-                console.log(`Tentativa ${retryCount + 1} de refatoração de texto...`);
-
                 const response = await openai.chat.completions.create({
                     model: 'gpt-4o-mini',
                     messages: [{ role: 'user', content: textPrompt }],
@@ -62,12 +60,8 @@ export async function POST(req: NextRequest) {
                 }
 
                 success = true;
-                console.log(`Refatoração de texto bem-sucedida na tentativa ${retryCount + 1}`);
-
-            } catch (error: any) {
+                } catch (error: any) {
                 retryCount++;
-                console.warn(`Falha na tentativa ${retryCount} de refatoração de texto:`, error.message);
-
                 // Aguarda meio segundo entre tentativas
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
@@ -78,7 +72,6 @@ export async function POST(req: NextRequest) {
 
                     if (retryCount < maxRetries) {
                         const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-                        console.log(`Aguardando ${delay}ms adicional antes da próxima tentativa...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
                     }
                 } else {
@@ -107,7 +100,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro desconhecido';
-        console.error('Erro ao refatorar texto:', error);
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

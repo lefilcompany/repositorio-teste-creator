@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Register error', error);
     return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
   }
 }
+

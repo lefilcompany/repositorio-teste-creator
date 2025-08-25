@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       });
     }
   } catch (error) {
-    console.error('Erro ao inicializar contadores:', error);
     return NextResponse.json({ error: 'Falha ao inicializar contadores' }, { status: 500 });
   }
 }
+

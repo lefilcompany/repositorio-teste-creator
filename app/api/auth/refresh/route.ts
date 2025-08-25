@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro ao renovar token:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
+

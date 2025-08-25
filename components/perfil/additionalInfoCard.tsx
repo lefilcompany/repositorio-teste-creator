@@ -38,7 +38,6 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
           toast.error('Erro ao carregar histórico de ações da equipe');
         }
       } catch (error) {
-        console.error('Erro ao buscar ações da equipe:', error);
         toast.error('Erro de conexão ao carregar dados da equipe');
       } finally {
         setIsLoading(false);
@@ -130,7 +129,7 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
               </div>
               <Progress value={progressoPercentual} className="h-3" />
               <p className="text-xs text-muted-foreground">
-                {creditosUsados} ações utilizadas ({totalActions} conteúdos gerados)
+                {creditosUsados} ações utilizadas
               </p>
             </div>
           </div>

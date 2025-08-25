@@ -78,7 +78,6 @@ export async function GET(
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Get user error:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
@@ -116,7 +115,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const { password, ...safeUser } = user;
     return NextResponse.json(safeUser);
   } catch (error) {
-    console.error('Update user error', error);
     return NextResponse.json({ 
       error: 'Falha ao atualizar usuário' 
     }, { status: 500 });

@@ -13,7 +13,6 @@ export async function incrementTeamContentCounter(teamId: string, increment: num
       WHERE id = ${teamId}
     `;
   } catch (error) {
-    console.error('Erro ao incrementar contador de conteúdos:', error);
     // Não lançar erro para não quebrar o fluxo principal
   }
 }
@@ -31,7 +30,6 @@ export async function incrementTeamBrandCounter(teamId: string, increment: numbe
       WHERE id = ${teamId}
     `;
   } catch (error) {
-    console.error('Erro ao incrementar contador de marcas:', error);
     // Não lançar erro para não quebrar o fluxo principal
   }
 }
@@ -49,7 +47,6 @@ export async function decrementTeamContentCounter(teamId: string, decrement: num
       WHERE id = ${teamId}
     `;
   } catch (error) {
-    console.error('Erro ao decrementar contador de conteúdos:', error);
     // Não lançar erro para não quebrar o fluxo principal
   }
 }
@@ -67,7 +64,6 @@ export async function decrementTeamBrandCounter(teamId: string, decrement: numbe
       WHERE id = ${teamId}
     `;
   } catch (error) {
-    console.error('Erro ao decrementar contador de marcas:', error);
     // Não lançar erro para não quebrar o fluxo principal
   }
 }
@@ -103,7 +99,6 @@ export async function recalculateTeamCounters(teamId: string) {
 
     return { totalContents, totalBrands };
   } catch (error) {
-    console.error('Erro ao recalcular contadores:', error);
     throw error;
   }
 }
@@ -126,7 +121,7 @@ export async function initializeAllTeamCounters() {
 
     return results;
   } catch (error) {
-    console.error('Erro ao inicializar contadores de todas as equipes:', error);
     throw error;
   }
 }
+

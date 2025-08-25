@@ -25,7 +25,6 @@ import type { Action } from '@/types/action';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import { toast } from 'sonner';
 
-
 export default function HomePage() {
   const { user, team } = useAuth();
   const [stats, setStats] = useState({ conteudosGerados: 0, marcasGerenciadas: 0 });
@@ -54,25 +53,36 @@ export default function HomePage() {
       }
 
       try {
-        // Usar o contador do team ao invés de buscar todas as marcas
+        // Primeiro tentar buscar dados do team com contadores
         const teamResponse = await fetch(`/api/teams/${user.teamId}`);
-        if (teamResponse.ok && isMounted) {
+        if (teamResponse.ok) {
           const teamData = await teamResponse.json();
-          setStats(prev => ({ ...prev, marcasGerenciadas: teamData.totalBrands || 0 }));
-        } else if (isMounted) {
-          // Fallback para o método antigo se a API de teams não existir
-          const brandsResponse = await fetch(`/api/brands?teamId=${user.teamId}`);
-          if (brandsResponse.ok && isMounted) {
+          if (isMounted) {
+            setStats(prev => ({ 
+              ...prev, 
+              marcasGerenciadas: teamData.totalBrands || 0 
+            }));
+          }
+        } else {
+          // Fallback: buscar marcas diretamente (se a API de brands não precisar de teamId)
+          const brandsResponse = await fetch(`/api/brands`);
+          if (brandsResponse.ok) {
             const brandsData: Brand[] = await brandsResponse.json();
-            setStats(prev => ({ ...prev, marcasGerenciadas: brandsData.length }));
-          } else if (isMounted) {
-            toast.error('Erro ao carregar marcas para o dashboard');
+            // Filtrar marcas do team atual
+            const teamBrands = brandsData.filter(brand => brand.teamId === user.teamId);
+            if (isMounted) {
+              setStats(prev => ({ ...prev, marcasGerenciadas: teamBrands.length }));
+            }
+          } else {
+            // Se ambas as APIs falharem, usar 0
+            if (isMounted) {
+              setStats(prev => ({ ...prev, marcasGerenciadas: 0 }));
+            }
           }
         }
       } catch (error) {
-        console.error('Falha ao carregar marcas via API', error);
         if (isMounted) {
-          toast.error('Erro de conexão ao carregar marcas');
+          setStats(prev => ({ ...prev, marcasGerenciadas: 0 }));
         }
       } finally {
         if (isMounted) {
@@ -82,44 +92,50 @@ export default function HomePage() {
     };
 
     const fetchActivities = async () => {
-      if (!user?.teamId || !isAuthLoaded) {
+      if (!user?.id || !user?.teamId || !isAuthLoaded) {
         setIsLoadingActivities(false);
         return;
       }
 
       try {
-        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&approved=true&limit=5`);
-        if (actionsResponse.ok && isMounted) {
+        // Buscar ações aprovadas do usuário específico
+        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=5`);
+        if (actionsResponse.ok) {
           const actionsData: Action[] = await actionsResponse.json();
-          const independentActions = actionsData.filter(action => {
+          
+          // Filtrar apenas ações válidas e aprovadas do usuário específico
+          const validActions = actionsData.filter(action => {
             if (!action.approved || action.status !== 'Aprovado') return false;
+            if (action.userId !== user.id) return false; // Garantir que é do usuário específico
             if (!action.result) return false;
             
+            // Validar se a ação tem conteúdo válido
             if (action.type === 'REVISAR_CONTEUDO') {
               return !!(action.result as any)?.feedback;
             }
-            
             if (action.type === 'CRIAR_CONTEUDO') {
               const result = action.result as any;
-              return !!(result?.title || result?.body);
+              return !!(result?.title || result?.body || result?.content);
             }
-            
             if (action.type === 'PLANEJAR_CONTEUDO') {
               return !!(action.result as any)?.plan;
             }
             
             return true;
           });
+          
           if (isMounted) {
-            setAtividadesRecentes(independentActions);
+            setAtividadesRecentes(validActions.slice(0, 3));
           }
-        } else if (isMounted) {
-          toast.error('Erro ao carregar atividades recentes');
+        } else {
+          // Se a API falhar, usar array vazio
+          if (isMounted) {
+            setAtividadesRecentes([]);
+          }
         }
       } catch (error) {
-        console.error('Falha ao carregar atividades via API', error);
         if (isMounted) {
-          toast.error('Erro de conexão ao carregar atividades');
+          setAtividadesRecentes([]);
         }
       } finally {
         if (isMounted) {
@@ -129,31 +145,35 @@ export default function HomePage() {
     };
 
     const fetchStats = async () => {
-      if (!user?.teamId || !isAuthLoaded) {
+      if (!user?.id || !user?.teamId || !isAuthLoaded) {
         setIsLoadingStats(false);
         return;
       }
 
       try {
-        // Usar o contador do team ao invés de buscar todas as actions
-        const teamResponse = await fetch(`/api/teams/${user.teamId}`);
-        if (teamResponse.ok && isMounted) {
-          const teamData = await teamResponse.json();
-          setStats(prev => ({ ...prev, conteudosGerados: teamData.totalContents || 0 }));
-        } else if (isMounted) {
-          // Fallback para o método antigo se a API de teams não existir
-          const totalActionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true&limit=100`);
-          if (totalActionsRes.ok && isMounted) {
-            const allApprovedActions: Action[] = await totalActionsRes.json();
-            setStats(prev => ({ ...prev, conteudosGerados: allApprovedActions.length }));
-          } else if (isMounted) {
-            toast.error('Erro ao carregar estatísticas de conteúdo');
+        // Buscar ações aprovadas do usuário específico (não do time todo)
+        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&type=CRIAR_CONTEUDO`);
+        if (actionsResponse.ok) {
+          const actionsData: Action[] = await actionsResponse.json();
+          // Contar apenas ações de criação de conteúdo aprovadas do usuário específico
+          const userContentActions = actionsData.filter(action => 
+            action.approved && 
+            action.status === 'Aprovado' && 
+            action.type === 'CRIAR_CONTEUDO' &&
+            action.userId === user.id
+          );
+          if (isMounted) {
+            setStats(prev => ({ ...prev, conteudosGerados: userContentActions.length }));
+          }
+        } else {
+          // Se a API falhar, usar 0
+          if (isMounted) {
+            setStats(prev => ({ ...prev, conteudosGerados: 0 }));
           }
         }
       } catch (error) {
-        console.error('Falha ao carregar estatísticas via API', error);
         if (isMounted) {
-          toast.error('Erro de conexão ao carregar estatísticas');
+          setStats(prev => ({ ...prev, conteudosGerados: 0 }));
         }
       } finally {
         if (isMounted) {
@@ -162,11 +182,17 @@ export default function HomePage() {
       }
     };
 
-    if (isAuthLoaded) {
-      // Executar com pequenos delays para evitar sobrecarga
-      setTimeout(fetchBrands, 0);
-      setTimeout(fetchActivities, 100);
-      setTimeout(fetchStats, 200);
+    if (isAuthLoaded && user?.id && user?.teamId) {
+      // Executar com pequenos delays para melhor UX
+      const timer1 = setTimeout(fetchBrands, 0);
+      const timer2 = setTimeout(fetchActivities, 100);
+      const timer3 = setTimeout(fetchStats, 200);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
     }
 
     // Cleanup function
@@ -183,26 +209,6 @@ export default function HomePage() {
       ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5)) 
       : 45) // Valor padrão para plano FREE: 20 + 20 + 5 = 45
   } : { restantes: 0, total: 0 };
-
-  // Debug logs para rastrear valores
-  console.log('Team data (home):', team);
-  console.log('Credits calculation (home):', creditos);
-  if (team?.credits) {
-    console.log('Individual credits breakdown:', {
-      contentSuggestions: team.credits.contentSuggestions,
-      contentReviews: team.credits.contentReviews,
-      contentPlans: team.credits.contentPlans,
-      total: (team.credits.contentSuggestions || 0) + (team.credits.contentReviews || 0) + (team.credits.contentPlans || 0)
-    });
-  }
-  if (team?.plan && typeof team.plan === 'object') {
-    console.log('Plan limits breakdown:', {
-      contentSuggestions: team.plan.limits?.contentSuggestions,
-      contentReviews: team.plan.limits?.contentReviews,
-      calendars: team.plan.limits?.calendars,
-      total: (team.plan.limits?.contentSuggestions || 0) + (team.plan.limits?.contentReviews || 0) + (team.plan.limits?.calendars || 0)
-    });
-  }
 
   const creditosUsadosPercentual = (creditos.total > 0)
     ? ((creditos.total - creditos.restantes) / creditos.total) * 100
@@ -330,168 +336,168 @@ export default function HomePage() {
                 <Button size="lg" className="rounded-full text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 transform hover:scale-105">
                   <Plus className="mr-2 h-5 w-5" />
                   Criar Novo Conteúdo
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Grid de Cards de Estatísticas */}
-      <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card de Créditos */}
-        {!isAuthLoaded || !team ? (
-          <CreditsCardSkeleton />
-        ) : (
-          <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-medium text-primary">Créditos Restantes</CardTitle>
-              <Rocket className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold">{creditos.restantes}</div>
-              <p className="text-xs text-muted-foreground">
-                de {creditos.total} créditos disponíveis
-              </p>
-              <Progress value={creditosUsadosPercentual} className="mt-4 h-3" />
-              <Link href="/planos">
-                <Button variant="link" className="px-0 mt-2 text-primary">
-                  Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardHeader>
+        </Card>
 
-        {/* Card de Conteúdos Gerados */}
-        {isLoadingStats ? (
-          <StatsCardSkeleton />
-        ) : (
-          <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-medium">Conteúdos Gerados</CardTitle>
-              <Sparkles className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold">{stats.conteudosGerados}</div>
-              <p className="text-xs text-muted-foreground">total de conteúdos criados</p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Grid de Cards de Estatísticas */}
+        <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Card de Créditos */}
+          {!isAuthLoaded || !team ? (
+            <CreditsCardSkeleton />
+          ) : (
+            <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium text-primary">Créditos Restantes</CardTitle>
+                <Rocket className="h-5 w-5 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{creditos.restantes}</div>
+                <p className="text-xs text-muted-foreground">
+                  de {creditos.total} créditos disponíveis
+                </p>
+                <Progress value={100 - creditosUsadosPercentual} className="mt-4 h-3" />
+                <Link href="/planos">
+                  <Button variant="link" className="px-0 mt-2 text-primary">
+                    Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Card de Marcas Gerenciadas */}
-        {isLoadingBrands ? (
-          <StatsCardSkeleton />
-        ) : (
-          <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-medium">Marcas Gerenciadas</CardTitle>
-              <Tag className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold">{stats.marcasGerenciadas}</div>
-              <p className="text-xs text-muted-foreground">total de marcas ativas</p>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+          {/* Card de Conteúdos Gerados */}
+          {isLoadingStats ? (
+            <StatsCardSkeleton />
+          ) : (
+            <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium">Meus Conteúdos</CardTitle>
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{stats.conteudosGerados}</div>
+                <p className="text-xs text-muted-foreground">conteúdos criados por você</p>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Seção de Ações Rápidas e Atividades Recentes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Ações Rápidas */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 bg-secondary/10 text-secondary rounded-lg p-3">
-                  <Sparkles className="h-6 w-6" />
+          {/* Card de Marcas Gerenciadas */}
+          {isLoadingBrands ? (
+            <StatsCardSkeleton />
+          ) : (
+            <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium">Marcas Gerenciadas</CardTitle>
+                <Tag className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{stats.marcasGerenciadas}</div>
+                <p className="text-xs text-muted-foreground">total de marcas ativas</p>
+              </CardContent>
+            </Card>
+          )}
+        </main>
+
+        {/* Seção de Ações Rápidas e Atividades Recentes */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Ações Rápidas */}
+          <div className="lg:col-span-1 space-y-4">
+            <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 bg-secondary/10 text-secondary rounded-lg p-3">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <CardTitle className="text-xl font-semibold">Ações Rápidas</CardTitle>
                 </div>
-                <CardTitle className="text-xl font-semibold">Ações Rápidas</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Link href="/content" className="block">
-                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <Sparkles className="h-6 w-6 text-accent" />
-                    <div>
-                      <p className="font-semibold">Criar Conteúdo</p>
-                      <p className="text-sm text-muted-foreground">Gerar novas imagens e textos.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              <Link href="/revisar" className="block">
-                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <CheckCircle className="h-6 w-6 text-accent" />
-                    <div>
-                      <p className="font-semibold">Revisar Imagem</p>
-                      <p className="text-sm text-muted-foreground">Receber feedback da IA.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              <Link href="/personas" className="block">
-                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <Users className="h-6 w-6 text-accent" />
-                    <div>
-                      <p className="font-semibold">Gerenciar Personas</p>
-                      <p className="text-sm text-muted-foreground">Adicionar ou editar suas personas.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Atividades Recentes */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
-            <CardHeader className="pb-4 border-b">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <CardTitle className="text-xl font-semibold">Atividades Recentes</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoadingActivities ? (
-                <ActivitiesSkeleton />
-              ) : (
-                <div className="divide-y">
-                  {formattedAtividadesRecentes.length > 0 ? (
-                    formattedAtividadesRecentes.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="p-2 bg-muted rounded-full">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{item.titulo}</p>
-                            <p className="text-sm text-muted-foreground">{item.subtitulo}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{item.data}</p>
-                          <Link href={`/historico?actionId=${item.id}`} className="text-sm text-primary hover:underline">Ver detalhes</Link>
-                        </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Link href="/content" className="block">
+                  <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <Sparkles className="h-6 w-6 text-accent" />
+                      <div>
+                        <p className="font-semibold">Criar Conteúdo</p>
+                        <p className="text-sm text-muted-foreground">Gerar novas imagens e textos.</p>
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center text-muted-foreground">
-                      Nenhuma atividade recente encontrada.
-                    </div>
-                  )}
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/revisar" className="block">
+                  <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <CheckCircle className="h-6 w-6 text-accent" />
+                      <div>
+                        <p className="font-semibold">Revisar Imagem</p>
+                        <p className="text-sm text-muted-foreground">Receber feedback da IA.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link href="/personas" className="block">
+                  <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <Users className="h-6 w-6 text-accent" />
+                      <div>
+                        <p className="font-semibold">Gerenciar Personas</p>
+                        <p className="text-sm text-muted-foreground">Adicionar ou editar suas personas.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Atividades Recentes */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <CardTitle className="text-xl font-semibold">Atividades Recentes</CardTitle>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoadingActivities ? (
+                  <ActivitiesSkeleton />
+                ) : (
+                  <div className="divide-y">
+                    {formattedAtividadesRecentes.length > 0 ? (
+                      formattedAtividadesRecentes.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 bg-muted rounded-full">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-semibold">{item.titulo}</p>
+                              <p className="text-sm text-muted-foreground">{item.subtitulo}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{item.data}</p>
+                            <Link href={`/historico?actionId=${item.id}`} className="text-sm text-primary hover:underline">Ver detalhes</Link>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-muted-foreground">
+                        Nenhuma atividade recente encontrada.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 }

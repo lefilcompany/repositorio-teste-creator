@@ -8,8 +8,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const data = await req.json();
     const { requesterUserId } = data;
 
-    console.log('Aprovando conteúdo para ação:', actionId, { requesterUserId });
-
     return await prisma.$transaction(async (tx) => {
       // 1) Carrega a Action alvo
       const action = await tx.action.findUnique({
@@ -32,7 +30,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
       if (action.approved) {
         // Idempotência: já aprovado
-        console.log('Action já estava aprovada:', actionId);
         return NextResponse.json(action);
       }
 
@@ -75,18 +72,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         try {
           await incrementTeamContentCounter(action.teamId);
         } catch (error) {
-          console.error('Erro ao incrementar contador de conteúdos:', error);
+          // Error incrementing content counter
         }
       }, 0);
 
-      console.log('Conteúdo aprovado para ação:', updated.id);
       return NextResponse.json(updated);
     }, {
       maxWait: 15000, // 15 segundos para aguardar conexão
       timeout: 15000, // 15 segundos para executar a transação
     });
   } catch (error) {
-    console.error('Approve content error', error);
     return NextResponse.json({ error: 'Failed to approve content' }, { status: 500 });
   }
 }

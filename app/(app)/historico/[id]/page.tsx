@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/download-button';
@@ -44,7 +45,6 @@ export default function ActionViewPage() {
           router.push('/historico');
         }
       } catch (error) {
-        console.error('Erro ao carregar ação:', error);
         toast.error('Erro de conexão ao carregar a ação');
         router.push('/historico');
       } finally {
@@ -135,11 +135,12 @@ export default function ActionViewPage() {
                 <CardTitle className="text-lg font-semibold">Imagem Gerada</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="w-full aspect-square bg-muted/50 rounded-lg overflow-hidden">
-                  <img 
+                <div className="w-full aspect-square bg-muted/50 rounded-lg overflow-hidden relative">
+                  <Image 
                     src={action.result.imageUrl} 
                     alt="Imagem Gerada" 
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 </div>
                 <DownloadButton
@@ -243,11 +244,12 @@ export default function ActionViewPage() {
                 <CardTitle className="text-lg font-semibold">Imagem Revisada</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="w-full aspect-square bg-muted/50 rounded-lg overflow-hidden">
-                  <img 
+                <div className="w-full aspect-square bg-muted/50 rounded-lg overflow-hidden relative">
+                  <Image 
                     src={action.result.originalImage} 
                     alt="Imagem Revisada" 
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 </div>
                 <DownloadButton

@@ -41,11 +41,9 @@ export default function MarcasPage() {
           setBrands(data);
         } else {
           const error = await brandsRes.json();
-          console.error('Falha ao carregar marcas:', error.error);
           toast.error('Erro ao carregar marcas da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar marcas', error);
         toast.error('Erro de conexão ao carregar marcas');
       } finally {
         setIsLoadingBrands(false);
@@ -59,11 +57,9 @@ export default function MarcasPage() {
           const currentTeam = teamsData.find(t => t.id === user.teamId);
           if (currentTeam) setTeam(currentTeam);
         } else {
-          console.error('Falha ao carregar dados da equipe');
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar dados da equipe', error);
         toast.error('Erro de conexão ao carregar dados da equipe');
       } finally {
         setIsLoadingTeam(false);
@@ -102,7 +98,6 @@ export default function MarcasPage() {
       
       if (!res.ok) {
         const error = await res.json();
-        console.error('Falha ao salvar marca:', error.error);
         toast.error(error.error || 'Erro ao salvar marca');
         throw new Error(error.error || 'Falha ao salvar marca');
       }
@@ -117,7 +112,6 @@ export default function MarcasPage() {
       
       toast.success(brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!');
     } catch (error) {
-      console.error('Erro ao salvar marca:', error);
       toast.error('Erro ao salvar marca. Tente novamente.');
     }
   }, [brandToEdit, selectedBrand?.id, user]);
@@ -134,11 +128,9 @@ export default function MarcasPage() {
         toast.success('Marca deletada com sucesso!');
       } else {
         const error = await res.json();
-        console.error('Falha ao deletar marca:', error.error);
         toast.error(error.error || 'Erro ao deletar marca');
       }
     } catch (error) {
-      console.error('Falha ao deletar marca', error);
       toast.error('Erro ao deletar marca. Tente novamente.');
     }
   }, [selectedBrand, user]);
@@ -201,3 +193,4 @@ export default function MarcasPage() {
     </div>
   );
 }
+

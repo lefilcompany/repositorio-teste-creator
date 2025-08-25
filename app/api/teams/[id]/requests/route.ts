@@ -55,7 +55,6 @@ export async function GET(
 
     return NextResponse.json(joinRequests);
   } catch (error) {
-    console.error('Fetch join requests error', error);
     return NextResponse.json({ error: 'Failed to fetch join requests' }, { status: 500 });
   }
 }

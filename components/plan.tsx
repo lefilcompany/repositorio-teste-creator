@@ -79,7 +79,6 @@ export default function Plan() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Failed to load data from API', error);
         toast.error('Erro de conexão ao carregar dados para planejamento');
       } finally {
         setIsLoadingData(false);
@@ -177,7 +176,6 @@ export default function Plan() {
             toast.error('Erro ao atualizar créditos da equipe');
           }
         } catch (error) {
-          console.error('Failed to update team credits', error);
           toast.error('Erro ao atualizar créditos da equipe');
         }
       }
@@ -201,7 +199,6 @@ export default function Plan() {
             });
           }
         } catch (error) {
-          console.error('Failed to save action', error);
           toast.error('Erro ao salvar no histórico');
         }
       }

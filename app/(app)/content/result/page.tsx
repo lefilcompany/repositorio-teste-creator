@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -123,7 +124,7 @@ export default function ResultPage() {
                 setTeam(currentTeam || null);
               }
             } catch (error) {
-              console.error('Erro ao carregar team:', error);
+              // Error loading team data
             }
           };
           loadTeam();
@@ -160,9 +161,8 @@ export default function ResultPage() {
               requesterUserId: user?.id
             })
           });
-          console.log('Ação marcada como rejeitada ao sair da página');
         } catch (error) {
-          console.error('Erro ao marcar ação como rejeitada:', error);
+          // Error marking action as rejected
         }
       }
     };
@@ -180,7 +180,9 @@ export default function ResultPage() {
             requesterUserId: user?.id
           }),
           keepalive: true // Garante que a requisição seja enviada mesmo se a página fechar
-        }).catch(console.error);
+        }).catch(() => {
+          // Error in cleanup request
+        });
       }
     };
 
@@ -223,8 +225,7 @@ export default function ResultPage() {
         setTeam(updatedTeam);
       }
     } catch (e) {
-      console.error('Erro ao atualizar créditos:', e);
-    }
+      }
   }, [user?.teamId, team]);
 
   /**
@@ -257,18 +258,15 @@ export default function ResultPage() {
         });
         
         if (response.ok) {
-          console.log('Conteúdo atual atualizado na Action:', updatedContent);
-        } else {
+          } else {
           throw new Error('Falha ao atualizar na Action');
         }
       }
     } catch (error) {
-      console.error('Erro ao atualizar na Action:', error);
       toast.error('Erro ao atualizar conteúdo');
     }
 
-    console.log('Conteúdo atual atualizado:', updatedContent);
-  };
+    };
 
   /**
    * Aprova o conteúdo final e redireciona para o histórico
@@ -276,12 +274,9 @@ export default function ResultPage() {
    */
   const handleApprove = async () => {
     if (!content) {
-      console.error('Erro ao aprovar: content é null');
       toast.error('Conteúdo não encontrado');
       return;
     }
-
-    console.log('Iniciando aprovação do conteúdo:', content.id);
 
     // Sinaliza que está aprovando para evitar marcação como rejeitada
     if ((window as any).__setApprovingFlag) {
@@ -296,11 +291,8 @@ export default function ResultPage() {
       const actionId = finalContent.actionId;
       
       if (!actionId) {
-        console.error('Erro ao aprovar: actionId não encontrado', finalContent);
         throw new Error('ID da ação não encontrado');
       }
-
-      console.log('Aprovando ação:', actionId, 'com userId:', user?.id);
 
       const updateRes = await fetch('/api/actions', {
         method: 'PUT',
@@ -313,17 +305,12 @@ export default function ResultPage() {
         })
       });
       
-      console.log('Resposta da API:', updateRes.status, updateRes.statusText);
-      
       if (!updateRes.ok) {
         const errorData = await updateRes.json();
-        console.error('Erro da API ao aprovar:', errorData);
         throw new Error(errorData.error || errorData.details || 'Erro ao aprovar ação');
       }
       
       const approvedAction = await updateRes.json();
-      console.log('Ação aprovada e salva no histórico:', approvedAction.id, approvedAction);
-
       toast.success('Conteúdo aprovado e salvo no histórico!');
 
       // Limpa o conteúdo para evitar que seja marcado como rejeitado
@@ -335,7 +322,6 @@ export default function ResultPage() {
       }, 500);
 
     } catch (error) {
-      console.error('Erro completo ao aprovar conteúdo:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao aprovar o conteúdo';
       toast.error(errorMessage, {
         description: "Tente novamente ou entre em contato com o suporte se o problema persistir."
@@ -406,7 +392,6 @@ export default function ResultPage() {
       toast.success(`Revisão ${revisionType === 'image' ? 'da imagem' : 'do texto'} concluída!`);
 
     } catch (error) {
-      console.error('Erro ao completar revisão:', error);
       toast.error('Erro ao processar a revisão');
     }
   };
@@ -457,7 +442,7 @@ export default function ResultPage() {
           });
           
           if (response.ok) {
-            console.log('Conteúdo revertido na Action (créditos mantidos):', revertedContent);
+            // Conteúdo revertido na Action (créditos mantidos)
           } else {
             throw new Error('Falha ao reverter na Action');
           }
@@ -467,7 +452,6 @@ export default function ResultPage() {
         toast.info("Versão anterior restaurada. Os créditos utilizados foram mantidos.");
       }
     } catch (error) {
-      console.error('Erro ao reverter versão:', error);
       toast.error('Erro ao reverter para versão anterior');
     }
   };
@@ -485,8 +469,6 @@ export default function ResultPage() {
     toast.info("Iniciando download da imagem...");
     
     try {
-      console.log('Iniciando download da imagem:', content.imageUrl);
-      
       // Determinar o nome do arquivo
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
       const filename = `creator-ai-image-${timestamp}`;
@@ -499,11 +481,7 @@ export default function ResultPage() {
       });
       
       toast.success('Download concluído com sucesso!');
-      console.log('Download concluído:', filename);
-      
-    } catch (error) {
-      console.error('Erro no download:', error);
-      
+      } catch (error) {
       const errorMessage = error instanceof Error 
         ? error.message 
         : 'Erro desconhecido ao baixar a imagem';
@@ -627,7 +605,7 @@ export default function ResultPage() {
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
             <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
-              <img src={content.imageUrl} alt="Imagem Gerada" className="object-cover w-full h-full" />
+              <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
               <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
                 {isDownloading ? <Loader className="animate-spin" /> : <Download />}
               </Button>

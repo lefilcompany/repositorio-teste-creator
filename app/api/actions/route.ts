@@ -8,6 +8,7 @@ export async function GET(req: Request) {
   const status = searchParams.get('status');
   const limit = searchParams.get('limit');
   const approved = searchParams.get('approved');
+  const type = searchParams.get('type');
   
   if (!teamId) {
     return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
@@ -22,6 +23,10 @@ export async function GET(req: Request) {
     
     if (status) {
       whereClause.status = status;
+    }
+    
+    if (type) {
+      whereClause.type = type;
     }
     
     // Filtro específico para ações aprovadas (usado no histórico)
@@ -58,7 +63,6 @@ export async function GET(req: Request) {
     const actions = await prisma.action.findMany(queryOptions);
     return NextResponse.json(actions);
   } catch (error) {
-    console.error('Fetch actions error', error);
     return NextResponse.json({ error: 'Failed to fetch actions' }, { status: 500 });
   }
 }
@@ -71,8 +75,6 @@ export async function PUT(req: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Action ID is required' }, { status: 400 });
     }
-    
-    console.log('Tentando atualizar ação:', id, { status, approved });
     
     // Busca a action para validar permissões
     const existingAction = await prisma.action.findUnique({
@@ -88,11 +90,8 @@ export async function PUT(req: Request) {
     });
     
     if (!existingAction) {
-      console.log('Ação não encontrada:', id);
       return NextResponse.json({ error: 'Action not found' }, { status: 404 });
     }
-    
-    console.log('Ação encontrada:', existingAction.id, 'Status atual:', existingAction.status);
     
     // Verifica permissão do usuário
     if (requesterUserId && existingAction.userId !== requesterUserId) {
@@ -103,7 +102,6 @@ export async function PUT(req: Request) {
         }
       });
       if (!requester) {
-        console.log('Usuário sem permissão:', requesterUserId);
         return NextResponse.json({ error: 'Sem permissão para atualizar esta ação' }, { status: 403 });
       }
     }
@@ -115,12 +113,10 @@ export async function PUT(req: Request) {
     
     if (status !== undefined) {
       updateData.status = status;
-      console.log('Atualizando status para:', status);
-    }
+      }
     if (approved !== undefined) {
       updateData.approved = approved;
-      console.log('Atualizando approved para:', approved);
-    }
+      }
     
     const updatedAction = await prisma.action.update({
       where: { id },
@@ -137,11 +133,9 @@ export async function PUT(req: Request) {
       }
     });
     
-    console.log('Action atualizada com sucesso:', updatedAction.id, `status: ${updatedAction.status}, approved: ${updatedAction.approved}`);
     return NextResponse.json(updatedAction);
     
   } catch (error) {
-    console.error('Update action error - detalhes completos:', error);
     return NextResponse.json({ 
       error: 'Failed to update action', 
       details: error instanceof Error ? error.message : 'Erro desconhecido' 
@@ -183,8 +177,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Brand not found or not part of the team' }, { status: 403 });
     }
 
-    console.log('Criando nova ação:', { type, teamId, userId, brandId, details: details || null, result: result || null });
-    
     // Criar a ação - sempre com status "Em revisão" para CRIAR_CONTEUDO
     const action = await prisma.action.create({ 
       data: {
@@ -210,10 +202,9 @@ export async function POST(req: Request) {
       }
     });
 
-    console.log('Ação criada com sucesso:', action.id);
     return NextResponse.json(action);
   } catch (error) {
-    console.error('Create action error', error);
     return NextResponse.json({ error: 'Failed to create action' }, { status: 500 });
   }
 }
+

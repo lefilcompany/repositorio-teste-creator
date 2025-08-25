@@ -86,7 +86,6 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Erro da API da OpenAI:', errorData);
       throw new Error(errorData.error?.message || 'Falha ao analisar a imagem.');
     }
 
@@ -108,7 +107,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ feedback: analysisContent }); // , actionId: action.id
 
   } catch (error) {
-    console.error('Erro ao chamar a API da OpenAI:', error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: 'Falha ao processar a análise da imagem.', details: errorMessage }, { status: 500 });
   }

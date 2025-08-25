@@ -11,7 +11,6 @@ export async function GET(req: Request) {
     const themes = await prisma.strategicTheme.findMany({ where: { teamId } });
     return NextResponse.json(themes);
   } catch (error) {
-    console.error('Fetch themes error', error);
     return NextResponse.json({ error: 'Failed to fetch themes' }, { status: 500 });
   }
 }
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(theme);
   } catch (error) {
-    console.error('Create theme error', error);
     return NextResponse.json({ error: 'Failed to create theme' }, { status: 500 });
   }
 }
+

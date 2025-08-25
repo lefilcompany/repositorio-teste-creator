@@ -42,8 +42,7 @@ export default function PerfilPage() {
           }
         }
       } catch (error) {
-        console.error('Erro ao carregar informações da equipe:', error);
-      }
+        }
     };
 
     loadTeamInfo();
@@ -85,7 +84,6 @@ export default function PerfilPage() {
       updateUser(updatedUser);
       toast.success('Informações pessoais atualizadas com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao salvar informações:', error);
       toast.error(error.message || 'Erro ao salvar informações. Tente novamente.');
     }
   };
@@ -108,7 +106,6 @@ export default function PerfilPage() {
 
       toast.success('Senha alterada com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
       toast.error(error.message || 'Erro ao alterar senha. Tente novamente.');
     }
   };

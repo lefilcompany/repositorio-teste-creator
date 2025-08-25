@@ -41,7 +41,6 @@ export default function PersonasPage() {
           toast.error('Erro ao carregar personas');
         }
       } catch (error) {
-        console.error('Falha ao carregar personas', error);
         toast.error('Erro de conexão ao carregar personas');
       } finally {
         setIsLoadingPersonas(false);
@@ -76,7 +75,6 @@ export default function PersonasPage() {
           toast.error('Erro ao carregar dados da equipe');
         }
       } catch (error) {
-        console.error('Falha ao carregar marcas ou equipe', error);
         toast.error('Erro de conexão ao carregar dados');
       } finally {
         setIsLoadingTeam(false);
@@ -128,7 +126,6 @@ export default function PersonasPage() {
         }
         toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
       } catch (error) {
-        console.error(error);
         toast.error('Erro ao salvar persona. Tente novamente.');
       }
     },
@@ -148,7 +145,6 @@ export default function PersonasPage() {
         toast.error(error.error || 'Erro ao deletar persona');
       }
     } catch (error) {
-      console.error('Falha ao deletar persona', error);
       toast.error('Erro ao deletar persona. Tente novamente.');
     }
   }, [selectedPersona]);

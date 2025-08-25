@@ -126,8 +126,7 @@ export default function ChangePasswordDialog({ isOpen, onOpenChange, onSavePassw
       }, 300);
     } catch (error) {
       // A função pai já cuida dos erros de API, só tratamos erros inesperados
-      console.error('Erro inesperado ao alterar senha:', error);
-    }
+      }
   };
 
   return (

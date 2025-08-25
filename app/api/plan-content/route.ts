@@ -78,7 +78,6 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Erro da API da OpenAI:', errorData);
       throw new Error(errorData.error?.message || 'Falha ao gerar o planejamento.');
     }
 
@@ -99,7 +98,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ plan: planContent, actionId: action.id });
 
   } catch (error) {
-    console.error('Erro ao chamar a API da OpenAI:', error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: 'Falha ao processar o planejamento de conteúdo.', details: errorMessage }, { status: 500 });
   }

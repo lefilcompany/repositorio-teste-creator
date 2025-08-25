@@ -11,9 +11,9 @@ export async function POST(req: Request) {
       deletedCount: 0 
     });
   } catch (error) {
-    console.error('Cleanup error', error);
     return NextResponse.json({ 
       error: 'Failed to cleanup expired content' 
     }, { status: 500 });
   }
 }
+

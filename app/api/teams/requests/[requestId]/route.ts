@@ -69,7 +69,6 @@ export async function PATCH(
       });
     }
   } catch (error) {
-    console.error('Handle join request error', error);
     return NextResponse.json({ error: 'Failed to process join request' }, { status: 500 });
   }
 }

@@ -65,7 +65,6 @@ export async function GET(
 
     return NextResponse.json(transformedTeam);
   } catch (error) {
-    console.error('Fetch team error', error);
     return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });
   }
 }

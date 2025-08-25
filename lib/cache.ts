@@ -7,8 +7,7 @@ export class CacheManager {
       localStorage.setItem(key, JSON.stringify(data));
       localStorage.setItem(`${key}_timestamp`, Date.now().toString());
     } catch (error) {
-      console.warn('Failed to cache data:', error);
-    }
+      }
   }
 
   static get<T>(key: string): T | null {
@@ -28,7 +27,6 @@ export class CacheManager {
 
       return JSON.parse(cachedData) as T;
     } catch (error) {
-      console.warn('Failed to retrieve cached data:', error);
       return null;
     }
   }
@@ -38,8 +36,7 @@ export class CacheManager {
       localStorage.removeItem(key);
       localStorage.removeItem(`${key}_timestamp`);
     } catch (error) {
-      console.warn('Failed to remove cached data:', error);
-    }
+      }
   }
 
   static clear(): void {
@@ -51,8 +48,7 @@ export class CacheManager {
         }
       });
     } catch (error) {
-      console.warn('Failed to clear cache:', error);
-    }
+      }
   }
 
   static clearUserCache(userId: string): void {
@@ -63,3 +59,4 @@ export class CacheManager {
     this.remove(`team_${teamId}`);
   }
 }
+
