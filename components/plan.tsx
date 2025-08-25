@@ -144,10 +144,24 @@ export default function Plan() {
     setIsResultView(true);
 
     try {
+      // Buscar os IDs necessários
+      const selectedBrand = brands.find(b => b.name === formData.brand);
+      if (!selectedBrand) {
+        toast.error('Marca selecionada não encontrada');
+        return;
+      }
+
+      const requestBody = {
+        ...formData,
+        teamId: user.teamId,
+        brandId: selectedBrand.id,
+        userId: user.id,
+      };
+
       const response = await fetch('/api/plan-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -443,7 +457,7 @@ export default function Plan() {
               <Button 
                 onClick={handleGoBackToForm} 
                 variant="outline" 
-                className="rounded-xl px-6 py-3 border-2 border-primary/30 hover:bg-primary/5 transition-all duration-300"
+                className="rounded-xl px-6 py-3 border-2 border-primary/30 hover:bg-primary transition-all duration-300"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Criar Novo Planejamento
