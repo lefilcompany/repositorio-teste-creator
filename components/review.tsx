@@ -23,29 +23,6 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.onerror = reject;
   });
 
-// Função auxiliar para salvar no histórico via API
-const saveActionToHistory = async (actionData: any, teamId: string, userId: string, brandName: string, brands: Brand[]) => {
-  try {
-    const brandData = brands.find(b => b.name === brandName);
-    if (brandData) {
-      await fetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'REVISAR_CONTEUDO',
-          teamId,
-          userId,
-          brandId: brandData.id,
-          details: actionData.details,
-          result: actionData.result,
-        }),
-      });
-    }
-  } catch (error) {
-    // Error saving action - handle silently or with proper error handling
-  }
-};
-
 export default function Revisar() {
   const [brand, setBrand] = useState('');
   const [theme, setTheme] = useState('');
@@ -149,6 +126,18 @@ export default function Revisar() {
     formData.append('prompt', adjustmentsPrompt);
     formData.append('brand', brand);
     formData.append('theme', theme);
+    
+    // Adicionar parâmetros necessários para salvar no banco
+    if (user?.teamId && user?.id) {
+      formData.append('teamId', user.teamId);
+      formData.append('userId', user.id);
+      
+      // Encontrar o brandId baseado no nome da marca
+      const selectedBrand = brands.find(b => b.name === brand);
+      if (selectedBrand) {
+        formData.append('brandId', selectedBrand.id);
+      }
+    }
 
     try {
       const response = await fetch('/api/revisar-imagem', {
@@ -163,8 +152,11 @@ export default function Revisar() {
 
       const data = await response.json();
       setRevisedText(data.feedback);
+      
+      // Mostrar sucesso com informação de salvamento automático
+      toast.success('Revisão gerada e salva automaticamente no histórico!');
 
-      // NÃO salva automaticamente no histórico - será salvo apenas quando o usuário aprovar
+      // NÃO salva manualmente mais no histórico - já é salvo automaticamente pela API
       // await saveActionToHistory({
       //   details: {
       //     prompt: adjustmentsPrompt,
@@ -213,26 +205,13 @@ export default function Revisar() {
   };
 
   const handleApproveReview = async () => {
-    if (!revisedText || !previewUrl) return;
+    if (!revisedText) return;
 
     try {
-      const originalImageBase64 = await fileToBase64(imageFile!);
-      await saveActionToHistory({
-        details: {
-          prompt: adjustmentsPrompt,
-          brand: brand,
-          theme: theme,
-        },
-        result: {
-          feedback: revisedText,
-          originalImage: originalImageBase64,
-        },
-      }, team!.id, user?.id || '', brand, brands);
-
-      toast.success('Análise aprovada e salva no histórico!');
+      toast.success('Análise já foi salva automaticamente no histórico!');
       handleGoBackToForm();
     } catch (error) {
-      toast.error('Erro ao salvar no histórico');
+      toast.error('Erro inesperado');
     }
   };
 

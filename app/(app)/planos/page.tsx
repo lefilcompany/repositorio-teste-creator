@@ -312,7 +312,7 @@ export default function PlanosPage() {
               </div>
               <div className="flex items-center gap-2">
                 <X className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Funcionalidades premium</span>
+                <span className="text-sm text-muted-foreground">Funcionalidades Plano Pro</span>
               </div>
               <div className="flex items-center gap-2">
                 <X className="h-4 w-4 text-muted-foreground" />
