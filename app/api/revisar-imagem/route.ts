@@ -92,19 +92,32 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const analysisContent = data.choices[0].message.content;
 
-    // Não salva mais no histórico aqui, pois será salvo apenas quando aprovado
-    // const action = await prisma.action.create({
-    //   data: {
-    //     type: ActionType.REVISAR_CONTEUDO,
-    //     teamId,
-    //     brandId,
-    //     userId,
-    //     details: { prompt, brand, theme },
-    //     result: { feedback: analysisContent, originalImage: dataURI },
-    //   },
-    // });
+    // Salvar no banco de dados com aprovação automática
+    console.log('Salvando ação de revisão no banco de dados...'); // Debug log
+    let action;
+    try {
+      action = await prisma.action.create({
+        data: {
+          type: ActionType.REVISAR_CONTEUDO,
+          teamId,
+          brandId,
+          userId,
+          details: { prompt, brand, theme },
+          result: { feedback: analysisContent, originalImage: dataURI },
+          approved: true, // Aprovar automaticamente
+          status: 'Aprovado' // Definir status como aprovado
+        },
+      });
+      console.log('Ação de revisão salva com sucesso:', action.id); // Debug log
+    } catch (dbError) {
+      console.error('Erro ao salvar ação de revisão no banco:', dbError);
+      // Continuar mesmo se falhar o salvamento, pois o feedback já foi gerado
+    }
 
-    return NextResponse.json({ feedback: analysisContent }); // , actionId: action.id
+    return NextResponse.json({ 
+      feedback: analysisContent, 
+      actionId: action?.id 
+    });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";

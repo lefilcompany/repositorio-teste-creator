@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 
 export default function HomePage() {
   const { user, team } = useAuth();
-  const [stats, setStats] = useState({ conteudosGerados: 0, marcasGerenciadas: 0 });
+  const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
   
   // Estados de carregamento independentes
@@ -151,29 +151,29 @@ export default function HomePage() {
       }
 
       try {
-        // Buscar ações aprovadas do usuário específico (não do time todo)
-        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&type=CRIAR_CONTEUDO`);
+        // Buscar todas as ações aprovadas do usuário específico (todos os tipos)
+        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true`);
         if (actionsResponse.ok) {
           const actionsData: Action[] = await actionsResponse.json();
-          // Contar apenas ações de criação de conteúdo aprovadas do usuário específico
-          const userContentActions = actionsData.filter(action => 
+          // Contar todas as ações aprovadas do usuário (criar, revisar e planejar conteúdo)
+          const userTotalActions = actionsData.filter(action => 
             action.approved && 
             action.status === 'Aprovado' && 
-            action.type === 'CRIAR_CONTEUDO' &&
-            action.userId === user.id
+            action.userId === user.id &&
+            (action.type === 'CRIAR_CONTEUDO' || action.type === 'REVISAR_CONTEUDO' || action.type === 'PLANEJAR_CONTEUDO')
           );
           if (isMounted) {
-            setStats(prev => ({ ...prev, conteudosGerados: userContentActions.length }));
+            setStats(prev => ({ ...prev, acoesTotais: userTotalActions.length }));
           }
         } else {
           // Se a API falhar, usar 0
           if (isMounted) {
-            setStats(prev => ({ ...prev, conteudosGerados: 0 }));
+            setStats(prev => ({ ...prev, acoesTotais: 0 }));
           }
         }
       } catch (error) {
         if (isMounted) {
-          setStats(prev => ({ ...prev, conteudosGerados: 0 }));
+          setStats(prev => ({ ...prev, acoesTotais: 0 }));
         }
       } finally {
         if (isMounted) {
@@ -374,12 +374,12 @@ export default function HomePage() {
           ) : (
             <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base font-medium">Meus Conteúdos</CardTitle>
+                <CardTitle className="text-base font-medium">Minhas Ações</CardTitle>
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{stats.conteudosGerados}</div>
-                <p className="text-xs text-muted-foreground">conteúdos criados por você</p>
+                <div className="text-4xl font-bold">{stats.acoesTotais}</div>
+                <p className="text-xs text-muted-foreground">total de ações realizadas</p>
               </CardContent>
             </Card>
           )}
