@@ -29,20 +29,22 @@ model Team {
 }
 
 model User {
-  id            String           @id @default(cuid())
-  name          String
-  email         String           @unique
-  password      String
-  phone         String?
-  state         String?
-  city          String?
-  role          UserRole         @default(WITHOUT_TEAM)
-  status        UserStatus       @default(NO_TEAM)
-  teamId        String?
-  actions       Action[]
-  brands        Brand[]
-  joinRequests  JoinRequest[]
-  notifications Notification[]
+  id               String           @id @default(cuid())
+  name             String
+  email            String           @unique
+  password         String
+  phone            String?
+  state            String?
+  city             String?
+  role             UserRole         @default(WITHOUT_TEAM)
+  status           UserStatus       @default(NO_TEAM)
+  teamId           String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  actions          Action[]
+  brands           Brand[]
+  joinRequests     JoinRequest[]
+  notifications    Notification[]
   personas      Persona[]
   themes        StrategicTheme[]
   adminTeams    Team[]           @relation("TeamAdmin")
