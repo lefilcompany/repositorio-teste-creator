@@ -67,3 +67,8 @@
     font-family: 'Inter', sans-serif;
   }
 }
+
+/* Estilo usado pelo tutorial para destacar elementos */
+.tutorial-highlight {
+  @apply ring-4 ring-primary rounded-xl relative z-50 pointer-events-none;
+}
