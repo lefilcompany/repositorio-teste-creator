@@ -296,11 +296,11 @@ export default function CadastroPage() {
       <div className="hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-primary to-secondary text-white text-center">
         <div className="max-w-md space-y-4">
           <Image
-            src="/assets/logoCreatorPreta.png"
+            src="/assets/logoCreatorBranca.png"
             alt="Creator Logo"
             width={200}
             height={55}
-            className="mx-auto invert brightness-0"
+            className="mx-auto"
           />
           <h2 className="text-4xl font-bold mt-6">Transforme Ideias em Conteúdo</h2>
           <p className="mt-4 text-white/80 text-lg">

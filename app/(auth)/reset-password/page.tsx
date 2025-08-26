@@ -193,7 +193,7 @@ function ResetPasswordContent() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
             <div className="relative">
               <Label htmlFor="password">Nova Senha</Label>
               <div className="relative mt-2">

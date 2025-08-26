@@ -58,7 +58,7 @@ export default function ForgotPasswordDialog({ isOpen, onOpenChange }: ForgotPas
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok) {
         setStep('success');
       } else {
         toast.error(data.error || 'E-mail não encontrado ou não foi possível enviar o e-mail de recuperação.');
