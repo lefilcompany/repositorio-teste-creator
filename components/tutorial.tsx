@@ -90,6 +90,16 @@ const steps: Step[] = [
   },
 ];
 
+const whiteBgSelectors = new Set([
+  '#nav-home',
+  '#nav-marcas',
+  '#nav-temas',
+  '#nav-personas',
+  '#nav-historico',
+  '#topbar-settings',
+  '#topbar-notifications',
+]);
+
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Tutorial() {
@@ -97,6 +107,7 @@ export default function Tutorial() {
   const [stepIndex, setStepIndex] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [dialogWidth, setDialogWidth] = useState(320);
 
   // Só mostrar para usuário autenticado e novo (primeiro acesso)
   useEffect(() => {
@@ -122,13 +133,18 @@ export default function Tutorial() {
       (el as HTMLElement).style.pointerEvents = '';
       (el as HTMLElement).style.filter = '';
       (el as HTMLElement).style.boxShadow = '';
+      (el as HTMLElement).style.backgroundColor = '';
     });
 
     // Aplica highlight e z-index alto; mantemos a cor original do botão
+    const originalBg = element.style.backgroundColor;
     element.classList.add('tutorial-highlight');
     element.style.zIndex = '9999';
     element.style.pointerEvents = 'none';
     element.style.boxShadow = '0 6px 20px rgba(215,38,96,0.18)';
+    if (whiteBgSelectors.has(step.selector)) {
+      element.style.backgroundColor = '#fff';
+    }
 
     // Centraliza o elemento na tela se não estiver visível
     const rect = element.getBoundingClientRect();
@@ -144,11 +160,13 @@ export default function Tutorial() {
     // Calcula posição do card para não sair da tela
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
-    const cardWidth = Math.min(360, viewportW - 48);
+    const margin = 24; // margem visual da viewport para não ficar colado
+    const calculatedWidth = Math.min(360, viewportW - margin * 2);
     const cardHeight = 240;
     const gap = 32; // distância padrão do elemento
     const sideGap = 36; // distância quando posicionado ao lado
-    const margin = 20; // margem visual da viewport para não ficar colado
+
+    setDialogWidth(calculatedWidth);
 
     const leftThird = viewportW * 0.33;
     let top = rect.top;
@@ -160,27 +178,27 @@ export default function Tutorial() {
       left = rect.right + sideGap;
       top = Math.round(rect.top + rect.height / 2 - cardHeight / 2);
       // ajustar verticalmente para caber
-      top = Math.max(12, Math.min(top, viewportH - cardHeight - 12));
+      top = Math.max(margin, Math.min(top, viewportH - cardHeight - margin));
       // ajustar horizontalmente se extrapolar
-      if (left + cardWidth > viewportW - margin) {
+      if (left + calculatedWidth > viewportW - margin) {
         // tenta posicionar à esquerda do elemento
-        const leftOf = rect.left - cardWidth - sideGap;
+        const leftOf = rect.left - calculatedWidth - sideGap;
         if (leftOf >= margin) {
           left = leftOf;
         } else {
-          left = Math.max(margin, viewportW - cardWidth - margin);
+          left = Math.max(margin, viewportW - calculatedWidth - margin);
         }
       }
     } else {
       // posiciona abaixo por padrão
       top = rect.bottom + gap;
       left = rect.left;
-      if (left + cardWidth > viewportW - margin) left = viewportW - cardWidth - margin;
+      if (left + calculatedWidth > viewportW - margin) left = viewportW - calculatedWidth - margin;
 
       // se ao posicionar abaixo extrapolar verticalmente, preferir tentar ao lado (direita) antes de subir
       if (top + cardHeight > viewportH) {
         const tryRight = rect.right + sideGap;
-        if (tryRight + cardWidth <= viewportW - margin) {
+        if (tryRight + calculatedWidth <= viewportW - margin) {
           left = tryRight;
           top = Math.round(rect.top + rect.height / 2 - cardHeight / 2);
           top = Math.max(margin, Math.min(top, viewportH - cardHeight - margin));
@@ -201,7 +219,7 @@ export default function Tutorial() {
 
     // centraliza em telas muito pequenas
     if (viewportW <= 420) {
-      left = Math.max(margin, Math.floor((viewportW - cardWidth) / 2));
+      left = Math.max(margin, Math.floor((viewportW - calculatedWidth) / 2));
     }
 
     // Garantir que o card não exceda o bottom da viewport;
@@ -222,6 +240,7 @@ export default function Tutorial() {
       element.style.pointerEvents = '';
       element.style.filter = '';
       element.style.boxShadow = '';
+      element.style.backgroundColor = originalBg;
     };
   }, [isActive, stepIndex]);
 
@@ -254,10 +273,8 @@ export default function Tutorial() {
         style={{
           top: position.top,
           left: position.left,
-          minWidth: 320,
-          maxWidth: 380,
-          width: '100%',
-          maxHeight: 'calc(100vh - 32px)',
+          width: dialogWidth,
+          maxHeight: 'calc(100vh - 48px)',
           overflowY: 'auto',
           background: 'linear-gradient(135deg, #fff 80%, #f8e6f0 100%)',
           boxShadow: '0 8px 32px 0 rgba(215,38,96,0.18)',
