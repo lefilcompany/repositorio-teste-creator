@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Users, Shield, Crown, Activity } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import LeaveTeamDialog from './leaveTeamDialog';
 
 interface AdditionalInfoCardProps {
   userData: {
@@ -72,15 +73,21 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
       </CardHeader>
       <CardContent className="space-y-6 p-6">
         {userData?.team && (
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-accent/15 rounded-lg">
-              <Users className="h-6 w-6 text-accent" />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-accent/15 rounded-lg">
+                <Users className="h-6 w-6 text-accent" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-semibold text-foreground">
+                  Equipe
+                </h3>
+                <p className="text-foreground font-medium text-md">{userData.team.name.charAt(0).toUpperCase() + userData.team.name.slice(1).toLowerCase()}</p>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <h3 className="text-base font-semibold text-foreground">
-                Equipe
-              </h3>
-              <p className="text-foreground font-medium text-md">{userData.team.name.charAt(0).toUpperCase() + userData.team.name.slice(1).toLowerCase()}</p>
+            <div className="flex items-center gap-2">
+              {/* Button to open leave team confirmation dialog */}
+              <LeaveTeamTrigger />
             </div>
           </div>
         )}
@@ -136,5 +143,26 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function LeaveTeamTrigger() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  if (!user?.teamId) return null;
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="text-sm px-3 py-1.5 rounded-md border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition"
+        aria-label="Sair da equipe"
+        title="Sair da equipe"
+      >
+        Sair da equipe
+      </button>
+      <LeaveTeamDialog isOpen={open} onOpenChange={setOpen} />
+    </>
   );
 }
