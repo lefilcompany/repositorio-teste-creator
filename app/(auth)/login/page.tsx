@@ -14,6 +14,7 @@ import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { FaGoogle, FaApple, FaFacebook } from 'react-icons/fa';
 import { toast } from 'sonner';
 import TeamDialog from '@/components/teamDialog';
+import ForgotPasswordDialog from '@/components/auth/ForgotPasswordDialog';
 import { User } from '@/types/user';
 
 // Use imagens locais para garantir o carregamento
@@ -41,6 +42,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const { login, pendingNoTeamUser } = useAuth();
 
   const plugin = useRef(
@@ -163,7 +165,13 @@ export default function LoginPage() {
                 />
                 <Label htmlFor="remember-me" className="text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Mantenha-me conectado</Label>
               </div>
-              <Link href="#" className="text-sm text-primary hover:underline">Esqueceu a senha?</Link>
+              <button
+                type="button"
+                onClick={() => setForgotPasswordOpen(true)}
+                className="text-sm text-primary hover:underline"
+              >
+                Esqueceu a senha?
+              </button>
             </div>
 
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
@@ -187,6 +195,11 @@ export default function LoginPage() {
         onClose={() => setTeamDialogOpen(false)} 
         user={pendingNoTeamUser} 
         isFromLogin={true}
+      />
+      
+      <ForgotPasswordDialog 
+        isOpen={forgotPasswordOpen}
+        onOpenChange={setForgotPasswordOpen}
       />
     </div>
   );

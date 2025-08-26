@@ -58,8 +58,8 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
   useEffect(() => {
     if (isOpen && brandToEdit) {
       setFormData({
-        name: brandToEdit.name,
-        responsible: brandToEdit.responsible,
+        name: brandToEdit.name || '',
+        responsible: brandToEdit.responsible || '',
         segment: brandToEdit.segment || '',
         values: brandToEdit.values || '',
         keywords: brandToEdit.keywords || '',

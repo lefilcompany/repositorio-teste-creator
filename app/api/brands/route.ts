@@ -11,20 +11,9 @@ export async function GET(req: Request) {
   }
   
   try {
-    // Query otimizada: buscar apenas campos essenciais para listagem
+    // Buscar todos os campos necessários para edição
     const brands = await prisma.brand.findMany({ 
       where: { teamId },
-      select: {
-        id: true,
-        name: true,
-        responsible: true,
-        segment: true,
-        createdAt: true,
-        updatedAt: true,
-        // Incluir apenas campos necessários para a dashboard
-        keywords: true,
-        goals: true
-      },
       orderBy: { createdAt: 'desc' },
       take: 50 // Limitar resultados
     });
