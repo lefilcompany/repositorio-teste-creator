@@ -19,47 +19,51 @@ import { cn } from '@/lib/utils';
 
 // --- DATA DEFINITIONS ---
 const navLinks = [
-  { href: '/', icon: Home, label: 'Home' },
-  { href: '/marcas', icon: Tag, label: 'Marcas' },
-  { href: '/temas', icon: Palette, label: 'Temas Estratégicos' },
-  { href: '/personas', icon: Users, label: 'Personas' },
-  { href: '/historico', icon: History, label: 'Histórico' },
+  { id: 'nav-home', href: '/', icon: Home, label: 'Home' },
+  { id: 'nav-marcas', href: '/marcas', icon: Tag, label: 'Marcas' },
+  { id: 'nav-temas', href: '/temas', icon: Palette, label: 'Temas Estratégicos' },
+  { id: 'nav-personas', href: '/personas', icon: Users, label: 'Personas' },
+  { id: 'nav-historico', href: '/historico', icon: History, label: 'Histórico' },
 ];
 
 const contentAction = {
+  id: 'nav-criar',
   href: '/content',
   icon: Sparkles,
   label: 'Criar Conteúdo',
 }
 
 const reviewAction = {
+  id: 'nav-revisar',
   href: '/revisar',
   icon: CheckCircle,
   label: 'Revisar Conteúdo',
 }
 
 const planAction = {
+  id: 'nav-planejar',
   href: '/planejamento',
   icon: Calendar,
   label: 'Planejar Conteúdo',
 }
 
 const navFooter = [
-  { href: '/equipe', icon: Rocket, label: 'Equipe' },
+  { id: 'nav-equipe', href: '/equipe', icon: Rocket, label: 'Equipe' },
 ];
 
-function NavItem({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+function NavItem({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
+      id={id}
       href={href}
       className={cn(
         "flex items-center gap-4 p-3 rounded-lg transition-colors duration-200 group",
         isActive
           ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'text-muted-foreground bg-background hover:bg-muted hover:text-foreground'
       )}
     >
       <Icon className="h-5 w-5" />
@@ -68,12 +72,13 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
   );
 }
 
-function ContentAction({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+function ContentAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
+      id={id}
       href={href}
       className={cn(
         "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-primary",
@@ -88,12 +93,13 @@ function ContentAction({ href, icon: Icon, label }: { href: string; icon: React.
   );
 }
 
-function ReviewAction({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
+      id={id}
       href={href}
       className={cn(
         "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-accent",
@@ -108,12 +114,13 @@ function ReviewAction({ href, icon: Icon, label }: { href: string; icon: React.E
   );
 }
 
-function PlanAction({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
+      id={id}
       href={href}
       className={cn(
         "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-border",
@@ -128,8 +135,8 @@ function PlanAction({ href, icon: Icon, label }: { href: string; icon: React.Ele
   );
 }
 
-function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
-  const { href, icon: Icon } = item;
+function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: string; href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
+  const { id, href, icon: Icon, label } = item;
 
   const content = (
     <>
@@ -148,13 +155,13 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: 
 
   if (isAdmin) {
     return (
-      <Link href={href} className={classes}>
+      <Link id={id} href={href} className={classes} aria-label={label}>
         {content}
       </Link>
     );
   }
 
-  return <div className={classes}>{content}</div>;
+  return <div id={id} className={classes} aria-label={label}>{content}</div>;
 }
 
 export default function Sidebar() {
