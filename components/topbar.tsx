@@ -355,7 +355,7 @@ export default function TopBar() {
           id="topbar-notifications"
           variant="ghost"
           size="icon"
-          className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent hover:border-primary/40 hover:shadow-md"
+          className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent bg-background hover:border-primary/40 hover:shadow-md"
         >
           <Bell className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
           <span className="sr-only">Notificações</span>
@@ -368,7 +368,7 @@ export default function TopBar() {
                 id="topbar-settings"
                 variant="ghost"
                 size="icon"
-                className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent hover:border-primary/40 hover:shadow-md"
+                className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent bg-background hover:border-primary/40 hover:shadow-md"
               >
                 <Settings className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
                 <span className="sr-only">Configurações</span>

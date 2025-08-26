@@ -90,16 +90,6 @@ const steps: Step[] = [
   },
 ];
 
-const whiteBgSelectors = new Set([
-  '#nav-home',
-  '#nav-marcas',
-  '#nav-temas',
-  '#nav-personas',
-  '#nav-historico',
-  '#topbar-settings',
-  '#topbar-notifications',
-]);
-
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Tutorial() {
@@ -142,9 +132,6 @@ export default function Tutorial() {
     element.style.zIndex = '9999';
     element.style.pointerEvents = 'none';
     element.style.boxShadow = '0 6px 20px rgba(215,38,96,0.18)';
-    if (whiteBgSelectors.has(step.selector)) {
-      element.style.backgroundColor = '#fff';
-    }
 
     // Centraliza o elemento na tela se não estiver visível
     const rect = element.getBoundingClientRect();

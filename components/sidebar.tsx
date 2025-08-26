@@ -63,7 +63,7 @@ function NavItem({ id, href, icon: Icon, label }: { id: string; href: string; ic
         "flex items-center gap-4 p-3 rounded-lg transition-colors duration-200 group",
         isActive
           ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'text-muted-foreground bg-background hover:bg-muted hover:text-foreground'
       )}
     >
       <Icon className="h-5 w-5" />
