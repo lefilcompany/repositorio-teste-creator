@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/sidebar';
 import TopBar from '@/components/topbar';
-import { Toaster } from "@/components/ui/sonner" 
+import { Toaster } from "@/components/ui/sonner"
 import { Loader2 } from 'lucide-react';
+import Tutorial from '@/components/tutorial';
 
 export default function AppLayout({
   children,
@@ -51,7 +52,8 @@ export default function AppLayout({
             {children}
           </div>
         </main>
-        <Toaster richColors /> 
+        <Toaster richColors />
+        <Tutorial />
       </div>
     </div>
   );

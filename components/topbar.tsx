@@ -270,7 +270,7 @@ export default function TopBar() {
 
   return (
     <header className="flex h-20 items-center justify-between shadow-sm shadow-primary/10 bg-card px-4 md:px-8 flex-shrink-0">
-      <div className="relative flex-1 max-w-2xl" ref={searchRef}>
+      <div className="relative flex-1 max-w-2xl" ref={searchRef} data-tour="top-search">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
         {isSearching && (
           <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin z-10" />
@@ -352,6 +352,7 @@ export default function TopBar() {
       </div>
       <div className="flex items-center gap-3 md:gap-4 ml-6">
         <Button
+          data-tour="top-notifications"
           variant="ghost"
           size="icon"
           className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent hover:border-primary/40 hover:shadow-md"
@@ -364,6 +365,7 @@ export default function TopBar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
+                data-tour="top-settings"
                 variant="ghost"
                 size="icon"
                 className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent hover:border-primary/40 hover:shadow-md"
@@ -423,8 +425,9 @@ export default function TopBar() {
         </Dialog>
 
         <Link
+          data-tour="top-profile"
           href="/perfil"
-          className="flex h-12 w-12 items-center justify-center rounded-2xl 
+          className="flex h-12 w-12 items-center justify-center rounded-2xl
             bg-gradient-to-br from-primary via-purple-600 to-secondary text-white font-bold text-lg
             transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25
             border-2 border-transparent hover:border-white/20"
