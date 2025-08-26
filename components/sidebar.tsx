@@ -135,8 +135,8 @@ function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string;
   );
 }
 
-function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
-  const { href, icon: Icon } = item;
+function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: string; href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
+  const { id, href, icon: Icon, label } = item;
 
   const content = (
     <>
@@ -155,13 +155,13 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { href: 
 
   if (isAdmin) {
     return (
-      <Link href={href} className={classes}>
+      <Link id={id} href={href} className={classes} aria-label={label}>
         {content}
       </Link>
     );
   }
 
-  return <div className={classes}>{content}</div>;
+  return <div id={id} className={classes} aria-label={label}>{content}</div>;
 }
 
 export default function Sidebar() {
