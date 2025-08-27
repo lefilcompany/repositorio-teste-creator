@@ -65,7 +65,7 @@ const saveActionToHistory = async (actionData: any, teamId: string | undefined, 
           result: actionData.result,
         }),
       });
-      }
+    }
   } catch (error) {
     toast.error("Erro ao salvar no histórico. O conteúdo será criado, mas pode não aparecer no histórico.");
   }
@@ -92,7 +92,7 @@ export default function Creator() {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId || !user.id) return;
-      
+
       try {
         const [brandsRes, themesRes, personasRes, teamsRes] = await Promise.all([
           fetch(`/api/brands?teamId=${user.teamId}`),
@@ -100,28 +100,28 @@ export default function Creator() {
           fetch(`/api/personas?teamId=${user.teamId}`),
           fetch(`/api/teams?userId=${user.id}`)
         ]);
-        
+
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
         } else {
           toast.error('Erro ao carregar marcas');
         }
-        
+
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
         } else {
           toast.error('Erro ao carregar temas estratégicos');
         }
-        
+
         if (personasRes.ok) {
           const personasData: Persona[] = await personasRes.json();
           setPersonas(personasData);
         } else {
           toast.error('Erro ao carregar personas');
         }
-        
+
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
@@ -133,7 +133,7 @@ export default function Creator() {
         toast.error('Houve um problema ao carregar seus dados. Tente recarregar a página.');
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -211,13 +211,13 @@ export default function Creator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: team.id, credits: updatedCredits }),
       });
-      
+
       if (updateRes.ok) {
         const updatedTeam = await updateRes.json();
         setTeam(updatedTeam);
       }
     } catch (error) {
-      }
+    }
   };
 
   const handleGenerateContent = async () => {
@@ -277,14 +277,14 @@ export default function Creator() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        
+
         // Se é um erro crítico que deve redirecionar para histórico
         if (errorData.shouldRedirectToHistory) {
           toast.error('Erro crítico no sistema. Redirecionando para o histórico.');
           router.push('/historico');
           return;
         }
-        
+
         // Outros erros são mostrados ao usuário para tentar novamente
         throw new Error(errorData.error || 'Falha ao gerar o conteúdo.');
       }
@@ -326,6 +326,11 @@ export default function Creator() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">Imagem</span>
+                  <Switch checked={isVideoMode} onCheckedChange={setIsVideoMode} />
+                  <span className="text-sm font-medium text-foreground">Vídeo</span>
+                </div>
                 {team && (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                     <CardContent className="p-4">
@@ -348,15 +353,10 @@ export default function Creator() {
                     </CardContent>
                   </Card>
                 )}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Imagem</span>
-                  <Switch checked={isVideoMode} onCheckedChange={setIsVideoMode} />
-                  <span className="text-sm font-medium">Vídeo</span>
-                </div>
               </div>
-          </div>
-        </CardHeader>
-      </Card>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Main Content with proper padding */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6">
@@ -382,7 +382,7 @@ export default function Creator() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-3">
                   <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
                   <Select onValueChange={(value) => handleSelectChange('theme', value)} value={formData.theme} disabled={!formData.brand}>
@@ -402,7 +402,7 @@ export default function Creator() {
                       <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione uma persona"} />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-border/20">
-                      {personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p => 
+                      {personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p =>
                         <SelectItem key={p.id} value={p.name} className="rounded-lg">{p.name}</SelectItem>
                       )}
                     </SelectContent>
@@ -423,15 +423,15 @@ export default function Creator() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-3">
                   <Label htmlFor="audience" className="text-sm font-semibold text-foreground">Público-Alvo *</Label>
-                  <Input 
-                    id="audience" 
-                    placeholder="Ex: Jovens de 18-25 anos" 
-                    value={formData.audience} 
-                    onChange={handleInputChange} 
-                    className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20" 
+                  <Input
+                    id="audience"
+                    placeholder="Ex: Jovens de 18-25 anos"
+                    value={formData.audience}
+                    onChange={handleInputChange}
+                    className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
@@ -506,23 +506,23 @@ export default function Creator() {
               <CardContent className="space-y-6 p-6">
                 <div className="space-y-3">
                   <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo do Post *</Label>
-                  <Textarea 
-                    id="objective" 
-                    placeholder="Ex: Gerar engajamento, anunciar um novo produto, educar o público..." 
-                    value={formData.objective} 
-                    onChange={handleInputChange} 
-                    className="min-h-[120px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
+                  <Textarea
+                    id="objective"
+                    placeholder="Ex: Gerar engajamento, anunciar um novo produto, educar o público..."
+                    value={formData.objective}
+                    onChange={handleInputChange}
+                    className="min-h-[120px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
                 <div className="space-y-3">
                   <Label htmlFor="description" className="text-sm font-semibold text-foreground">Descrição Visual da Imagem *</Label>
-                  <Textarea 
-                    id="description" 
-                    placeholder="Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição..." 
-                    value={formData.description} 
-                    onChange={handleInputChange} 
-                    className="min-h-[140px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
+                  <Textarea
+                    id="description"
+                    placeholder="Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição..."
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="min-h-[140px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
@@ -540,7 +540,7 @@ export default function Creator() {
                       ))}
                     </SelectContent>
                   </Select>
-                  
+
                   <div className="flex flex-wrap gap-2 min-h-[50px] p-3 rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
                     {formData.tone.length === 0 ? (
                       <span className="text-sm text-muted-foreground italic self-center">Nenhum tom selecionado</span>
@@ -548,8 +548,8 @@ export default function Creator() {
                       formData.tone.map(tone => (
                         <div key={tone} className="flex items-center gap-2 bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-primary text-sm font-semibold px-3 py-1.5 rounded-xl transition-all duration-300 hover:scale-105">
                           {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                          <button 
-                            onClick={() => handleToneRemove(tone)} 
+                          <button
+                            onClick={() => handleToneRemove(tone)}
                             className="ml-1 text-primary hover:text-destructive transition-colors p-0.5 rounded-full hover:bg-destructive/10"
                           >
                             <X size={14} />
@@ -562,37 +562,37 @@ export default function Creator() {
 
                 <div className="space-y-3">
                   <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Extras</Label>
-                  <Textarea 
-                    id="additionalInfo" 
-                    placeholder="Cores específicas, elementos obrigatórios, estilo preferido, referências..." 
-                    value={formData.additionalInfo} 
-                    onChange={handleInputChange} 
-                    className="min-h-[100px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" 
+                  <Textarea
+                    id="additionalInfo"
+                    placeholder="Cores específicas, elementos obrigatórios, estilo preferido, referências..."
+                    value={formData.additionalInfo}
+                    onChange={handleInputChange}
+                    className="min-h-[100px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-        
+
         {/* Action Button Section */}
         <div className="mt-8">
           <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex flex-col items-center gap-4">
-                <Button 
-                  onClick={handleGenerateContent} 
-                  disabled={loading || !isFormValid()} 
+                <Button
+                  onClick={handleGenerateContent}
+                  disabled={loading || !isFormValid()}
                   className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 hover:via-purple-600/90 hover:to-secondary/90 shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border-2 border-white/20"
                 >
                   {loading ? (
                     <>
-                      <Loader className="animate-spin mr-3 h-5 w-5" /> 
+                      <Loader className="animate-spin mr-3 h-5 w-5" />
                       <span>Gerando conteúdo...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-3 h-5 w-5" /> 
+                      <Sparkles className="mr-3 h-5 w-5" />
                       <span>Gerar Conteúdo</span>
                     </>
                   )}

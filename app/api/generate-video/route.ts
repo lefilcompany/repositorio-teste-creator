@@ -19,26 +19,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Runway API key not configured' }, { status: 500 });
     }
 
+    let model = '';
+    let ratio = '1280:720';
     let endpoint = '';
-    const body: any = { prompt, ...rest };
-    switch (transformationType) {
-      case 'image_to_video':
-        endpoint = 'https://api.runwayml.com/v1/image_to_video';
-        body.image = referenceFile;
-        break;
-      case 'video_to_video':
-        endpoint = 'https://api.runwayml.com/v1/video_to_video';
-        body.video = referenceFile;
-        break;
-      default:
-        endpoint = 'https://api.runwayml.com/v1/text_to_video';
-        break;
+    let body: any = {};
+    if (transformationType === 'image_to_video') {
+      model = 'gen4_turbo';
+      endpoint = 'https://api.dev.runwayml.com/v1/image_to_video';
+      body = {
+        model,
+        promptImage: referenceFile,
+        promptText: prompt,
+        ratio,
+        ...rest
+      };
+    } else if (transformationType === 'video_to_video') {
+      model = 'gen4_aleph';
+      endpoint = 'https://api.dev.runwayml.com/v1/video_to_video';
+      body = {
+        model,
+        videoUri: referenceFile,
+        promptText: prompt,
+        ratio,
+        ...rest
+      };
+    } else {
+      model = 'gen4_aleph';
+      endpoint = 'https://api.dev.runwayml.com/v1/text_to_video';
+      body = {
+        model,
+        promptText: prompt,
+        ratio,
+        ...rest
+      };
     }
 
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${runwayKey}`,
+        'X-Runway-Version': '2024-11-06',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
@@ -46,7 +66,8 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.text();
-      return NextResponse.json({ error: 'Falha ao gerar vídeo', details: err }, { status: 500 });
+      console.error('[RunwayML Error]', err);
+      return NextResponse.json({ error: 'Falha ao gerar vídeo', details: typeof err === 'string' ? err : JSON.stringify(err) }, { status: 500 });
     }
 
     const data = await res.json();
@@ -71,6 +92,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
+    console.error('[API generate-video ERROR]', error);
+    return NextResponse.json({ error: error?.message || JSON.stringify(error) || 'Erro interno' }, { status: 500 });
   }
 }
