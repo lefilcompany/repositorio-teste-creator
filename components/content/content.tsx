@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Loader, Sparkles, Zap, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/types/brand';
@@ -84,7 +85,9 @@ export default function Creator() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [isVideoMode, setIsVideoMode] = useState<boolean>(false);
+  const [transformationType, setTransformationType] = useState<'text_to_video' | 'image_to_video' | 'video_to_video'>('text_to_video');
 
   useEffect(() => {
     const loadData = async () => {
@@ -165,7 +168,28 @@ export default function Creator() {
   };
 
   const isFormValid = () => {
-    return formData.brand && formData.theme && formData.objective && formData.platform && formData.description && formData.audience && formData.tone.length > 0 && referenceImage;
+    if (isVideoMode) {
+      return (
+        formData.brand &&
+        formData.theme &&
+        formData.objective &&
+        formData.platform &&
+        formData.description &&
+        formData.audience &&
+        formData.tone.length > 0 &&
+        (transformationType === 'text_to_video' || referenceFile)
+      );
+    }
+    return (
+      formData.brand &&
+      formData.theme &&
+      formData.objective &&
+      formData.platform &&
+      formData.description &&
+      formData.audience &&
+      formData.tone.length > 0 &&
+      referenceFile
+    );
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -205,7 +229,7 @@ export default function Creator() {
       toast.error('Seus créditos para criação de conteúdo acabaram.');
       return;
     }
-    if (!isFormValid() || !referenceImage) {
+    if (!isFormValid()) {
       toast.error('Por favor, preencha todos os campos obrigatórios (*).');
       return;
     }
@@ -217,7 +241,7 @@ export default function Creator() {
     setLoading(true);
 
     try {
-      const base64Image = await fileToBase64(referenceImage);
+      const base64File = referenceFile ? await fileToBase64(referenceFile) : undefined;
 
       // Busca o brandId baseado no nome da marca selecionada
       const selectedBrand = brands.find(b => b.name === formData.brand);
@@ -226,16 +250,26 @@ export default function Creator() {
         return;
       }
 
-      const requestData = {
+      const requestData: any = {
         prompt: formData.description,
         ...formData,
-        referenceImage: base64Image,
+        transformationType,
         teamId: user?.teamId,
         brandId: selectedBrand.id,
         userId: user?.id,
       };
 
-      const response = await fetch('/api/generate-image', {
+      if (base64File) {
+        if (isVideoMode) {
+          requestData.referenceFile = base64File;
+        } else {
+          requestData.referenceImage = base64File;
+        }
+      }
+
+      const endpoint = isVideoMode ? '/api/generate-video' : '/api/generate-image';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
@@ -291,30 +325,35 @@ export default function Creator() {
                   </p>
                 </div>
               </div>
-              {team && (
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                {team && (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
-                        <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                          <Zap className="h-4 w-4" />
+                          <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
+                            <Zap className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center gap-1">
+                            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                              {team.credits?.contentSuggestions || 0}
+                            </span>
+                          </div>
+                          <span className="text-sm text-muted-foreground font-medium">criações restantes</span>
                         </div>
                       </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits?.contentSuggestions || 0}
-                          </span>
-                        </div>
-                        <span className="text-sm text-muted-foreground font-medium">criações restantes</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Imagem</span>
+                  <Switch checked={isVideoMode} onCheckedChange={setIsVideoMode} />
+                  <span className="text-sm font-medium">Vídeo</span>
+                </div>
               </div>
-            )}
           </div>
         </CardHeader>
       </Card>
@@ -396,23 +435,60 @@ export default function Creator() {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="referenceImage" className="text-sm font-semibold text-foreground">Imagem de Referência *</Label>
-                  <div className="relative">
-                    <Input
-                      id="referenceImage"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setReferenceImage(e.target.files?.[0] || null)}
-                      className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                    />
-                  </div>
-                  {referenceImage && (
-                    <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      ✓ Arquivo selecionado: {referenceImage.name}
+                {isVideoMode ? (
+                  <>
+                    <div className="space-y-3">
+                      <Label htmlFor="transformation" className="text-sm font-semibold text-foreground">Tipo de Transformação *</Label>
+                      <Select value={transformationType} onValueChange={(value) => setTransformationType(value as any)}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          <SelectItem value="text_to_video" className="rounded-lg">Texto para Vídeo</SelectItem>
+                          <SelectItem value="image_to_video" className="rounded-lg">Imagem para Vídeo</SelectItem>
+                          <SelectItem value="video_to_video" className="rounded-lg">Vídeo para Vídeo</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </div>
+                    {transformationType !== 'text_to_video' && (
+                      <div className="space-y-3">
+                        <Label htmlFor="referenceFile" className="text-sm font-semibold text-foreground">{transformationType === 'image_to_video' ? 'Imagem de Referência *' : 'Vídeo de Referência *'}</Label>
+                        <div className="relative">
+                          <Input
+                            id="referenceFile"
+                            type="file"
+                            accept={transformationType === 'image_to_video' ? 'image/*' : 'video/*'}
+                            onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+                            className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                          />
+                        </div>
+                        {referenceFile && (
+                          <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                            ✓ Arquivo selecionado: {referenceFile.name}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <Label htmlFor="referenceFile" className="text-sm font-semibold text-foreground">Imagem de Referência *</Label>
+                    <div className="relative">
+                      <Input
+                        id="referenceFile"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+                        className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                      />
+                    </div>
+                    {referenceFile && (
+                      <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        ✓ Arquivo selecionado: {referenceFile.name}
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
