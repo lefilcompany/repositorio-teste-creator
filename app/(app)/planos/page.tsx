@@ -268,7 +268,7 @@ export default function PlanosPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-9">
+        <div className="space-y-6">
           {/* Ações rápidas */}
           <Card>
             <CardHeader>
@@ -296,30 +296,90 @@ export default function PlanosPage() {
             </CardContent>
           </Card>
 
-          {/* Informações do plano */}
-          <Card className="bg-muted/50">
-            <CardHeader>
-              <CardTitle className="text-lg">Plano FREE</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm">Todas as funcionalidades básicas</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm">Suporte via email</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <X className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Funcionalidades Plano Pro</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <X className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Suporte prioritário</span>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Card do plano assinado */}
+          {(() => {
+            const planos = [
+              {
+                key: 'free',
+                name: 'Plano Free',
+                price: 'R$0',
+                cor: 'border-gray-300',
+                info: [
+                  { label: 'Todas as funcionalidades básicas', included: true },
+                  { label: 'Suporte via email', included: true },
+                  { label: 'Funcionalidades Plano Pro', included: false },
+                  { label: 'Suporte prioritário', included: false },
+                ],
+              },
+              {
+                key: 'pro',
+                name: 'Profissional',
+                price: 'R$99,90',
+                cor: 'border-purple-400',
+                info: [
+                  { label: 'Tudo do plano Free', included: true },
+                  { label: 'Funcionalidades avançadas', included: true },
+                  { label: 'Suporte prioritário', included: true },
+                  { label: 'Integrações avançadas', included: false },
+                ],
+              },
+              {
+                key: 'enterprise',
+                name: 'Enterprise',
+                price: 'R$499,90',
+                cor: 'border-blue-500',
+                info: [
+                  { label: 'Tudo do plano Profissional', included: true },
+                  { label: 'Recursos ilimitados', included: true },
+                  { label: 'Importação de guidelines', included: true },
+                  { label: 'Integrações avançadas', included: true },
+                ],
+              },
+              {
+                key: 'lefil',
+                name: 'LeFil',
+                price: 'R$999,90',
+                cor: 'border-yellow-400',
+                info: [
+                  { label: 'Tudo do plano Enterprise', included: true },
+                  { label: 'Recursos ilimitados', included: true },
+                  { label: 'Importação de guidelines', included: true },
+                  { label: 'Integrações avançadas', included: true },
+                ],
+              },
+            ];
+            const planoEquipe = (plan?.name || '').toLowerCase();
+            let planoAtual = planos.find(p =>
+              (p.key === 'free' && planoEquipe.includes('free')) ||
+              (p.key === 'pro' && planoEquipe.includes('pro')) ||
+              (p.key === 'enterprise' && planoEquipe.includes('enterprise'))
+            );
+            // fallback para free se não encontrar
+            if (!planoAtual) planoAtual = planos[0];
+            return (
+              <Card className={"bg-white border border-secondary flex flex-col justify-between"}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    {planoAtual.name}
+                    <span className="ml-2 px-2 py-1 bg-primary text-white text-xs rounded">Seu Plano</span>
+                  </CardTitle>
+                  <div className="text-2xl font-bold mt-1">{planoAtual.price} <span className="text-base font-normal text-muted-foreground">/mês</span></div>
+                </CardHeader>
+                <CardContent className="space-y-2 pt-0 pb-3">
+                  {planoAtual.info.map((b, i) => (
+                    <div className="flex items-center gap-2" key={i}>
+                      {b.included ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className={`text-sm ${b.included ? '' : 'text-muted-foreground line-through'}`}>{b.label}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </main>
     </div>
