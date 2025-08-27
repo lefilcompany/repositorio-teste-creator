@@ -197,7 +197,7 @@ export default function Sidebar() {
           <PlanAction {...planAction} />
         </div>
         <div className="">
-          <TeamPlanSection item={navFooter[0]} teamName={teamName} planName={planName} isAdmin={!!isAdmin} />
+          <TeamPlanSection item={navFooter[0]} teamName={teamName} planName={planName.toUpperCase()} isAdmin={!!isAdmin} />
         </div>
       </nav>
     </aside>

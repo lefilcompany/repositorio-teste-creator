@@ -1,8 +1,12 @@
 
+
 'use client';
+
+import { useState } from 'react';
 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -14,28 +18,34 @@ interface LeaveTeamDialogProps {
 
 export default function LeaveTeamDialog({ isOpen, onOpenChange }: LeaveTeamDialogProps) {
   const { user, logout } = useAuth();
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const handleLeaveTeam = async () => {
     if (!user || !user.teamId) return;
-
+    setIsLeaving(true);
     try {
       const res = await fetch(`/api/teams/${user.teamId}/members/${user.id}`, {
         method: 'DELETE',
         headers: { 'content-type': 'application/json' }
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(data?.error || 'Falha ao sair da equipe');
+        // Ajuste para mensagem de admin
+        if (data?.error && data.error.toLowerCase().includes('admin')) {
+          toast.error('O administrador não pode sair da equipe. Transfira a administração ou delete a conta.');
+        } else {
+          toast.error(data?.error || 'Falha ao sair da equipe');
+        }
+        setIsLeaving(false);
         return;
       }
-
       toast.success('Você saiu da equipe');
       onOpenChange(false);
-      // Atualizar estado local ao deslogar para forçar refetch de user
       logout();
     } catch (error) {
       toast.error('Erro ao processar a solicitação. Tente novamente.');
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -87,8 +97,9 @@ export default function LeaveTeamDialog({ isOpen, onOpenChange }: LeaveTeamDialo
           <Button 
             onClick={handleLeaveTeam} 
             className="flex-1 h-10 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm"
+            disabled={isLeaving}
           >
-            Sair da Equipe
+            {isLeaving ? (<><Loader2 className="animate-spin h-4 w-4 mr-2 inline" />Saindo...</>) : 'Sair da Equipe'}
           </Button>
         </DialogFooter>
       </DialogContent>
