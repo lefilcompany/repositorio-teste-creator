@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Team {
@@ -15,7 +16,6 @@ model Team {
   adminId       String
   plan          Json
   credits       Json
-  // Contadores para melhorar performance
   totalContents Int              @default(0)
   totalBrands   Int              @default(0)
   actions       Action[]
@@ -45,10 +45,10 @@ model User {
   brands           Brand[]
   joinRequests     JoinRequest[]
   notifications    Notification[]
-  personas      Persona[]
-  themes        StrategicTheme[]
-  adminTeams    Team[]           @relation("TeamAdmin")
-  team          Team?            @relation("TeamMembers", fields: [teamId], references: [id])
+  personas         Persona[]
+  themes           StrategicTheme[]
+  adminTeams       Team[]           @relation("TeamAdmin")
+  team             Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
 model Brand {
