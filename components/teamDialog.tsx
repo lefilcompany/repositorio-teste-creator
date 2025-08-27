@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -33,6 +33,8 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
   const [joinCode, setJoinCode] = useState('');
   const [showCreateCode, setShowCreateCode] = useState(false);
   const [showJoinCode, setShowJoinCode] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
   const router = useRouter();
   const { completeLogin } = useAuth();
 
@@ -56,12 +58,11 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
 
   const handleCreateTeam = async () => {
     if (!user) return;
-    
     if (!teamName.trim() || !teamCode.trim()) {
       toast.error('Por favor, preencha o nome e código da equipe');
       return;
     }
-    
+    setIsCreating(true);
     try {
       const freePlan = {
         name: 'Free',
@@ -90,18 +91,14 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
           },
         }),
       });
-      
       if (res.ok) {
         const updatedTeam = await res.json();
         toast.success('Equipe criada com sucesso!');
         handleClose();
-        
         if (isFromLogin && user) {
-          // Se vem do login, completar o login com os dados atualizados
           const updatedUser = { ...user, status: 'ACTIVE' as const, teamId: updatedTeam.id, role: 'ADMIN' as const };
           await completeLogin(updatedUser);
         } else {
-          // Se vem do cadastro, redirecionar para login
           router.push('/login');
         }
       } else {
@@ -110,45 +107,42 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
       }
     } catch (error) {
       toast.error('Erro de conexão ao criar equipe');
+    } finally {
+      setIsCreating(false);
     }
   };
 
   const handleJoinTeam = async () => {
     if (!user) return;
-    
     if (!joinCode.trim()) {
       toast.error('Por favor, digite o código da equipe');
       return;
     }
-    
+    setIsRequesting(true);
     try {
       const res = await fetch('/api/teams/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, code: joinCode }),
       });
-      
       const data = await res.json();
-      
       if (!res.ok) {
         toast.error(data.error || 'Código de equipe inválido');
         return;
       }
-      
       if (isFromLogin && user) {
-        // Se vem do login, fechar dialog (usuário fica com PENDING)
         const updatedUser = { ...user, status: 'PENDING' as const };
         handleClose();
-        // Não completar login pois status é PENDING - usuário deve aguardar aprovação
         toast.success('Solicitação enviada! Você será redirecionado para aguardar aprovação.');
         router.push('/login');
       } else {
-        // Se vem do cadastro, mostrar tela de pending
         setTeamStep('pending');
         toast.success('Solicitação enviada! Aguarde aprovação do administrador.');
       }
     } catch (error) {
       toast.error('Erro de conexão ao solicitar entrada na equipe');
+    } finally {
+      setIsRequesting(false);
     }
   };
 
@@ -227,10 +221,12 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
               </div>
             </div>
             <DialogFooter className="space-x-2">
-              <Button variant="outline" onClick={() => setTeamStep('choice')}>
+              <Button variant="outline" onClick={() => setTeamStep('choice')} disabled={isCreating}>
                 Voltar
               </Button>
-              <Button onClick={handleCreateTeam}>Criar equipe</Button>
+              <Button onClick={handleCreateTeam} disabled={isCreating}>
+                {isCreating ? (<><Loader2 className="animate-spin h-4 w-4 mr-2 inline" />Criando...</>) : 'Criar equipe'}
+              </Button>
             </DialogFooter>
           </>
         );
@@ -271,10 +267,12 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
               </div>
             </div>
             <DialogFooter className="space-x-2">
-              <Button variant="outline" onClick={() => setTeamStep('choice')}>
+              <Button variant="outline" onClick={() => setTeamStep('choice')} disabled={isRequesting}>
                 Voltar
               </Button>
-              <Button onClick={handleJoinTeam}>Solicitar entrada</Button>
+              <Button onClick={handleJoinTeam} disabled={isRequesting}>
+                {isRequesting ? (<><Loader2 className="animate-spin h-4 w-4 mr-2 inline" />Solicitando...</>) : 'Solicitar entrada'}
+              </Button>
             </DialogFooter>
           </>
         );

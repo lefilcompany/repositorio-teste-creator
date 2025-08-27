@@ -335,6 +335,18 @@ export default function PlanosPage() {
                   { label: 'Integrações avançadas', included: true },
                 ],
               },
+              {
+                key: 'lefil',
+                name: 'LeFil',
+                price: 'R$999,90',
+                cor: 'border-yellow-400',
+                info: [
+                  { label: 'Tudo do plano Enterprise', included: true },
+                  { label: 'Recursos ilimitados', included: true },
+                  { label: 'Importação de guidelines', included: true },
+                  { label: 'Integrações avançadas', included: true },
+                ],
+              },
             ];
             const planoEquipe = (plan?.name || '').toLowerCase();
             let planoAtual = planos.find(p =>
