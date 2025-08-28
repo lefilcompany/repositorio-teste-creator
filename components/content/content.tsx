@@ -444,31 +444,28 @@ export default function Creator() {
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border/20">
-                          <SelectItem value="text_to_video" className="rounded-lg">Texto para Vídeo</SelectItem>
                           <SelectItem value="image_to_video" className="rounded-lg">Imagem para Vídeo</SelectItem>
                           <SelectItem value="video_to_video" className="rounded-lg">Vídeo para Vídeo</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    {transformationType !== 'text_to_video' && (
-                      <div className="space-y-3">
-                        <Label htmlFor="referenceFile" className="text-sm font-semibold text-foreground">{transformationType === 'image_to_video' ? 'Imagem de Referência *' : 'Vídeo de Referência *'}</Label>
-                        <div className="relative">
-                          <Input
-                            id="referenceFile"
-                            type="file"
-                            accept={transformationType === 'image_to_video' ? 'image/*' : 'video/*'}
-                            onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
-                            className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                          />
-                        </div>
-                        {referenceFile && (
-                          <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                            ✓ Arquivo selecionado: {referenceFile.name}
-                          </div>
-                        )}
+                    <div className="space-y-3">
+                      <Label htmlFor="referenceFile" className="text-sm font-semibold text-foreground">{transformationType === 'image_to_video' ? 'Imagem de Referência *' : 'Vídeo de Referência *'}</Label>
+                      <div className="relative">
+                        <Input
+                          id="referenceFile"
+                          type="file"
+                          accept={transformationType === 'image_to_video' ? 'image/*' : 'video/*'}
+                          onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+                          className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
                       </div>
-                    )}
+                      {referenceFile && (
+                        <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          ✓ Arquivo selecionado: {referenceFile.name}
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <div className="space-y-3">

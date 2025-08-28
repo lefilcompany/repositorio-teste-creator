@@ -43,15 +43,6 @@ export async function POST(req: NextRequest) {
         ratio,
         ...rest
       };
-    } else {
-      model = 'gen4_aleph';
-      endpoint = 'https://api.dev.runwayml.com/v1/text_to_video';
-      body = {
-        model,
-        promptText: prompt,
-        ratio,
-        ...rest
-      };
     }
 
     const res = await fetch(endpoint, {

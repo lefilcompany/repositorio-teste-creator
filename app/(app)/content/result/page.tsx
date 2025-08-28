@@ -31,7 +31,8 @@ import { downloadImage } from '@/lib/download-utils';
 // Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
   id: string;           // ID único do conteúdo
-  imageUrl: string;     // URL da imagem gerada
+  imageUrl: string;     // URL da imagem gerada (para compatibilidade)
+  videoUrl?: string;    // URL do vídeo gerado (novo campo)
   title: string;        // Título/legenda principal
   body: string;         // Corpo do texto/descrição
   hashtags: string[];   // Lista de hashtags
@@ -39,6 +40,7 @@ interface GeneratedContent {
   brand?: string;       // Nome da marca (opcional)
   theme?: string;       // Tema estratégico usado (opcional)
   actionId: string;     // ID da Action no banco (para rastreamento)
+  contentType?: 'image' | 'video'; // Tipo de conteúdo
 }
 
 // Interface para controle de versões do conteúdo
@@ -46,7 +48,7 @@ interface ContentVersion {
   id: string;
   content: GeneratedContent;
   timestamp: string;
-  type: 'original' | 'image_revision' | 'text_revision';
+  type: 'original' | 'image_revision' | 'video_revision' | 'text_revision';
 }
 
 export default function ResultPage() {
@@ -60,7 +62,7 @@ export default function ResultPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
-  const [revisionType, setRevisionType] = useState<'image' | 'text' | null>(null);
+  const [revisionType, setRevisionType] = useState<'image' | 'video' | 'text' | null>(null);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [brandId, setBrandId] = useState<string>('');
 
@@ -85,13 +87,15 @@ export default function ResultPage() {
             const parsedContent: GeneratedContent = {
               id: action.id,
               actionId: action.id,
-              imageUrl: action.result?.imageUrl || "",
+              imageUrl: action.result?.imageUrl || action.result?.videoUrl || "",
+              videoUrl: action.result?.videoUrl,
               title: action.result?.title || "",
               body: action.result?.body || "",
               hashtags: Array.isArray(action.result?.hashtags) ? action.result.hashtags : [],
               revisions: action.revisions || 0,
               brand: action.brand?.name,
-              theme: action.details?.theme
+              theme: action.details?.theme,
+              contentType: action.result?.videoUrl ? 'video' : 'image'
             };
 
             setContent(parsedContent);
@@ -251,6 +255,7 @@ export default function ResultPage() {
           body: JSON.stringify({
             requesterUserId: user.id,
             newImageUrl: updatedContent.imageUrl,
+            newVideoUrl: updatedContent.videoUrl,
             newTitle: updatedContent.title,
             newBody: updatedContent.body,
             newHashtags: updatedContent.hashtags
@@ -335,10 +340,10 @@ export default function ResultPage() {
   };
 
   /**
-   * Inicia o processo de revisão (imagem ou texto)
+   * Inicia o processo de revisão (imagem, vídeo ou texto)
    * Verifica se o usuário tem créditos suficientes e se não excedeu o limite de revisões
    */
-  const handleStartRevision = (type: 'image' | 'text') => {
+  const handleStartRevision = (type: 'image' | 'video' | 'text') => {
     if (team && team.credits.contentReviews <= 0) {
       toast.error('Você não tem créditos de revisão suficientes.');
       return;
@@ -372,7 +377,7 @@ export default function ResultPage() {
         id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         content: contentWithRevision,
         timestamp: new Date().toISOString(),
-        type: revisionType === 'image' ? 'image_revision' : 'text_revision'
+        type: revisionType === 'image' ? 'image_revision' : revisionType === 'video' ? 'video_revision' : 'text_revision'
       };
 
       // Adiciona a nova versão à lista
@@ -426,22 +431,21 @@ export default function ResultPage() {
         
         // Atualiza a Action no banco com o conteúdo revertido mas mantendo o contador de revisões
         if (user?.id && user?.teamId && revertedContent.actionId) {
-          const response = await fetch(`/api/actions/${revertedContent.actionId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              result: {
-                imageUrl: revertedContent.imageUrl,
-                title: revertedContent.title,
-                body: revertedContent.body,
-                hashtags: revertedContent.hashtags
-              },
-              // NÃO diminui o contador de revisões - mantém os créditos gastos
-              revisions: content?.revisions || 0
-            })
-          });
-          
-          if (response.ok) {
+            const response = await fetch(`/api/actions/${revertedContent.actionId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                result: {
+                  imageUrl: revertedContent.imageUrl,
+                  videoUrl: revertedContent.videoUrl,
+                  title: revertedContent.title,
+                  body: revertedContent.body,
+                  hashtags: revertedContent.hashtags
+                },
+                // NÃO diminui o contador de revisões - mantém os créditos gastos
+                revisions: content?.revisions || 0
+              })
+            });          if (response.ok) {
             // Conteúdo revertido na Action (créditos mantidos)
           } else {
             throw new Error('Falha ao reverter na Action');
@@ -490,6 +494,50 @@ export default function ResultPage() {
         description: 'Verifique sua conexão e tente novamente.'
       });
       
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  /**
+   * Faz o download do vídeo gerado
+   */
+  const handleDownloadVideo = async () => {
+    if (!content?.videoUrl) {
+      toast.error('URL do vídeo não encontrada.');
+      return;
+    }
+
+    setIsDownloading(true);
+    toast.info("Iniciando download do vídeo...");
+
+    try {
+      // Determinar o nome do arquivo
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+      const filename = `creator-ai-video-${timestamp}`;
+
+      // Criar link de download para o vídeo
+      const response = await fetch(content.videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Download do vídeo concluído com sucesso!');
+    } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Erro desconhecido ao baixar o vídeo';
+
+      toast.error(`Falha no download: ${errorMessage}`, {
+        description: 'Verifique sua conexão e tente novamente.'
+      });
+
     } finally {
       setIsDownloading(false);
     }
@@ -556,11 +604,14 @@ export default function ResultPage() {
               <h1 className="text-2xl font-bold">Conteúdo Gerado</h1>
               <p className="text-muted-foreground">
                 Revise, edite, aprove ou baixe seus resultados.
+                {content.contentType === 'video' && <span className="text-primary font-medium"> (Vídeo)</span>}
+                {content.contentType === 'image' && <span className="text-primary font-medium"> (Imagem)</span>}
                 {versions.length > 1 && (
                   <span className="block text-sm text-primary mt-1">
                     Versão {currentVersionIndex + 1} de {versions.length} - {
                       versions[currentVersionIndex]?.type === 'original' ? 'Original' :
                         versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
+                        versions[currentVersionIndex]?.type === 'video_revision' ? 'Vídeo Revisado' :
                           'Texto Revisado'
                     }
                 </span>
@@ -605,8 +656,24 @@ export default function ResultPage() {
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
             <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
-              <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
-              <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
+              {content.contentType === 'video' && content.videoUrl ? (
+                <video
+                  src={content.videoUrl}
+                  controls
+                  className="w-full h-full object-cover"
+                  poster={content.imageUrl} // Usa thumbnail se disponível
+                >
+                  Seu navegador não suporta a tag de vídeo.
+                </video>
+              ) : (
+                <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
+              )}
+              <Button
+                onClick={content.contentType === 'video' ? handleDownloadVideo : handleDownloadImage}
+                disabled={isDownloading}
+                size="icon"
+                className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg"
+              >
                 {isDownloading ? <Loader className="animate-spin" /> : <Download />}
               </Button>
             </Card>
@@ -649,12 +716,25 @@ export default function ResultPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
-              Ajustar a Imagem
-            </Button>
-            <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
-              Ajustar a Legenda
-            </Button>
+            {content.contentType === 'video' ? (
+              <>
+                <Button onClick={() => handleStartRevision('video')} className="flex-1" variant="secondary">
+                  Ajustar o Vídeo
+                </Button>
+                <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
+                  Ajustar a Legenda
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
+                  Ajustar a Imagem
+                </Button>
+                <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
+                  Ajustar a Legenda
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
