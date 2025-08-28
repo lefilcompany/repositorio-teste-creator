@@ -13,7 +13,6 @@ interface RevisionFormProps {
   content: {
     id: string;
     imageUrl: string;
-    videoUrl?: string;
     title: string;
     body: string;
     hashtags: string[];
@@ -21,7 +20,7 @@ interface RevisionFormProps {
     brand?: string;
     theme?: string;
   };
-  revisionType: 'image' | 'video' | 'text';
+  revisionType: 'image' | 'text';
   onRevisionComplete: (updatedContent: any) => void;
   onCancel: () => void;
   teamId?: string;
@@ -75,29 +74,6 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
         const data = await response.json();
         updatedContent = { ...content, imageUrl: data.imageUrl, revisions: content.revisions + 1 };
 
-      } else if (revisionType === 'video') {
-        // Para revisão de vídeo, usamos a API de geração de vídeo novamente
-        const response = await fetch('/api/generate-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            transformationType: 'text_to_video', // Revisão baseada em texto
-            teamId: teamId || user.teamId,
-            brandId: brandId,
-            userId: user.id,
-            // Adicionar outros campos necessários se houver
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Falha ao revisar vídeo.');
-        }
-        
-        const data = await response.json();
-        updatedContent = { ...content, videoUrl: data.videoUrl, revisions: content.revisions + 1 };
-
       } else { // revisionType === 'text'
         const response = await fetch('/api/refatorar-text', {
           method: 'POST',
@@ -136,7 +112,7 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
   return (
     <div className="p-4 md:p-8 h-full flex items-center justify-center">
       <div className="w-full max-w-2xl bg-card p-8 rounded-2xl shadow-2xl border-2 border-primary/20 space-y-6">
-        <h2 className="text-2xl font-bold">Revisar {revisionType === 'image' ? 'Imagem' : revisionType === 'video' ? 'Vídeo' : 'Legenda'}</h2>
+        <h2 className="text-2xl font-bold">Revisar {revisionType === 'image' ? 'Imagem' : 'Legenda'}</h2>
         <p className="text-muted-foreground">
           Descreva detalhadamente os ajustes que você deseja fazer. A IA usará sua descrição e o conteúdo original como base.
         </p>
@@ -145,13 +121,7 @@ export default function RevisionForm({ content, revisionType, onRevisionComplete
           <Label htmlFor="prompt">Prompt de Ajuste</Label>
           <Textarea
             id="prompt"
-            placeholder={
-              revisionType === 'image'
-                ? "Ex: Deixe o fundo mais escuro e adicione um brilho dourado ao produto."
-                : revisionType === 'video'
-                  ? "Ex: Adicione mais movimento à cena e melhore a iluminação."
-                  : "Ex: Faça a legenda mais curta e com um tom mais divertido."
-            }
+            placeholder={revisionType === 'image' ? "Ex: Deixe o fundo mais escuro e adicione um brilho dourado ao produto." : "Ex: Faça a legenda mais curta e com um tom mais divertido."}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-[150px]"

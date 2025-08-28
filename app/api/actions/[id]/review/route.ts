@@ -7,8 +7,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const data = await req.json();
     const { 
       requesterUserId, 
-      newImageUrl,
-      newVideoUrl,
+      newImageUrl, 
       newTitle, 
       newBody, 
       newHashtags 
@@ -55,7 +54,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           result: {
             ...(action.result as any || {}),
             imageUrl: newImageUrl || (action.result as any)?.imageUrl || "",
-            videoUrl: newVideoUrl || (action.result as any)?.videoUrl || "",
             title: newTitle || (action.result as any)?.title || "",
             body: newBody || (action.result as any)?.body || "",
             hashtags: newHashtags || (action.result as any)?.hashtags || []
