@@ -608,7 +608,15 @@ export default function ResultPage() {
           <div className="space-y-4">
             <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
               {content.videoUrl ? (
-                <video src={content.videoUrl} controls typeof='video/mp4' className="w-full h-full object-cover" />
+                <video
+                  key={content.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full h-full object-cover"
+                >
+                  <source src={content.videoUrl} type="video/mp4" />
+                </video>
               ) : (
                 <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
               )}

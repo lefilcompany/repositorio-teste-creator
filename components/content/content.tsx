@@ -87,7 +87,9 @@ export default function Creator() {
   const [loading, setLoading] = useState<boolean>(false);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [isVideoMode, setIsVideoMode] = useState<boolean>(false);
-  const [transformationType, setTransformationType] = useState<'text_to_video' | 'image_to_video' | 'video_to_video'>('text_to_video');
+  const [transformationType, setTransformationType] = useState<'image_to_video' | 'video_to_video'>('image_to_video');
+  const [ratio, setRatio] = useState<string>('1280:720');
+  const [duration, setDuration] = useState<string>('10');
 
   useEffect(() => {
     const loadData = async () => {
@@ -177,7 +179,9 @@ export default function Creator() {
         formData.description &&
         formData.audience &&
         formData.tone.length > 0 &&
-        (transformationType === 'text_to_video' || referenceFile)
+        referenceFile &&
+        ratio &&
+        (transformationType !== 'image_to_video' || duration)
       );
     }
     return (
@@ -258,6 +262,13 @@ export default function Creator() {
         brandId: selectedBrand.id,
         userId: user?.id,
       };
+
+      if (isVideoMode) {
+        requestData.ratio = ratio;
+        if (transformationType === 'image_to_video') {
+          requestData.duration = Number(duration);
+        }
+      }
 
       if (base64File) {
         if (isVideoMode) {
@@ -439,7 +450,7 @@ export default function Creator() {
                   <>
                     <div className="space-y-3">
                       <Label htmlFor="transformation" className="text-sm font-semibold text-foreground">Tipo de Transformação *</Label>
-                      <Select value={transformationType} onValueChange={(value) => setTransformationType(value as any)}>
+                      <Select value={transformationType} onValueChange={(value) => setTransformationType(value as 'image_to_video' | 'video_to_video')}>
                         <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
@@ -466,6 +477,36 @@ export default function Creator() {
                         </div>
                       )}
                     </div>
+                    <div className="space-y-3">
+                      <Label htmlFor="ratio" className="text-sm font-semibold text-foreground">Proporção *</Label>
+                      <Select value={ratio} onValueChange={setRatio}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder="Selecione a proporção" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          {(transformationType === 'image_to_video'
+                            ? ['1280:720','720:1280','1104:832','832:1104','960:960','1584:672']
+                            : ['1280:720','720:1280','1104:832','960:960','832:1104','1584:672','848:480','640:480']
+                          ).map((opt) => (
+                            <SelectItem key={opt} value={opt} className="rounded-lg">{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {transformationType === 'image_to_video' && (
+                      <div className="space-y-3">
+                        <Label htmlFor="duration" className="text-sm font-semibold text-foreground">Duração (s) *</Label>
+                        <Select value={duration} onValueChange={setDuration}>
+                          <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                            <SelectValue placeholder="Selecione a duração" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-border/20">
+                            <SelectItem value="5" className="rounded-lg">5</SelectItem>
+                            <SelectItem value="10" className="rounded-lg">10</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="space-y-3">
@@ -513,10 +554,16 @@ export default function Creator() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="description" className="text-sm font-semibold text-foreground">Descrição Visual da Imagem *</Label>
+                  <Label htmlFor="description" className="text-sm font-semibold text-foreground">
+                    {isVideoMode ? 'Descrição Visual do Vídeo *' : 'Descrição Visual da Imagem *'}
+                  </Label>
                   <Textarea
                     id="description"
-                    placeholder="Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição..."
+                    placeholder={
+                      isVideoMode
+                        ? 'Descreva detalhadamente o que você deseja ver no vídeo. Considere movimento, ambiente, iluminação, estilo...'
+                        : 'Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição...'
+                    }
                     value={formData.description}
                     onChange={handleInputChange}
                     className="min-h-[140px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"

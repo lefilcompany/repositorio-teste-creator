@@ -272,7 +272,7 @@ export default function CadastroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">''
+              <div className="space-y-2">
                 <Label htmlFor="city" className="text-muted-foreground text-xs">Cidade</Label>
                 <Select value={formData.city} onValueChange={(value) => handleSelectChange('city', value)} disabled={!formData.state || loadingCities}>
                   <SelectTrigger className="h-12">{loadingCities ? 'Carregando...' : <SelectValue placeholder="Selecione" />}</SelectTrigger>
