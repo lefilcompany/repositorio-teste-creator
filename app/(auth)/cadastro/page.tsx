@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { User } from '@/types/user';
 import { Loader2, User as UserIcon, Mail, Lock, Phone, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,6 +50,11 @@ export default function CadastroPage() {
 
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [pendingUser, setPendingUser] = useState<User | null>(null);
+
+  // Consentimento de política de privacidade
+  const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   // Validações de senha
   const passwordsMatch = formData.password === confirmPassword;
@@ -118,20 +125,22 @@ export default function CadastroPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     // Validações
+    if (!privacyChecked || !privacyAccepted) {
+      setError('É necessário aceitar a Política de Privacidade para se cadastrar.');
+      toast.error('É necessário aceitar a Política de Privacidade para se cadastrar.');
+      return;
+    }
     if (formData.password !== confirmPassword) {
       setError('As senhas não coincidem');
       toast.error('As senhas não coincidem');
       return;
     }
-    
     if (!formData.password || formData.password.length < 6) {
       setError('A senha deve ter no mínimo 6 caracteres');
       toast.error('A senha deve ter no mínimo 6 caracteres');
       return;
     }
-    
     setIsLoading(true);
     setError('');
     try {
@@ -181,7 +190,6 @@ export default function CadastroPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="email" type="email" placeholder="E-mail" required value={formData.email} onChange={handleInputChange} className="pl-10 h-12" />
             </div>
-            
             {/* Campos de senha lado a lado */}
             <div className="grid grid-cols-2 gap-4">
               <div className="relative">
@@ -219,7 +227,6 @@ export default function CadastroPage() {
                 />
               </div>
             </div>
-
             {/* Indicadores de validação da senha */}
             {formData.password && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200/50 shadow-md">
@@ -255,7 +262,6 @@ export default function CadastroPage() {
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="phone" type="tel" placeholder="(XX) XXXXX-XXXX" value={formData.phone} onChange={handleInputChange} className="pl-10 h-12" maxLength={15} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="state" className="text-muted-foreground text-xs">Estado</Label>
@@ -266,7 +272,7 @@ export default function CadastroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2">''
                 <Label htmlFor="city" className="text-muted-foreground text-xs">Cidade</Label>
                 <Select value={formData.city} onValueChange={(value) => handleSelectChange('city', value)} disabled={!formData.state || loadingCities}>
                   <SelectTrigger className="h-12">{loadingCities ? 'Carregando...' : <SelectValue placeholder="Selecione" />}</SelectTrigger>
@@ -276,10 +282,34 @@ export default function CadastroPage() {
                 </Select>
               </div>
             </div>
-
+            {/* Checkbox de política de privacidade */}
+            <div className="flex items-center gap-2 mt-2">
+              <Checkbox id="privacy" checked={privacyChecked} onCheckedChange={(checked) => {
+                if (checked) {
+                  setPrivacyModalOpen(true);
+                } else {
+                  setPrivacyChecked(false);
+                  setPrivacyAccepted(false);
+                }
+              }} />
+              <Label htmlFor="privacy" className="text-xs text-muted-foreground select-none cursor-pointer">
+                Li e concordo com a <button type="button" className="underline text-primary hover:text-secondary transition-colors" onClick={() => setPrivacyModalOpen(true)}>Política de Privacidade</button>
+              </Label>
+            </div>
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
-
-            <Button type="submit" className="w-full rounded-lg text-base py-5 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-lg text-base py-5 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider"
+              disabled={
+                isLoading ||
+                !formData.name ||
+                !formData.email ||
+                !formData.password ||
+                !confirmPassword ||
+                !privacyChecked ||
+                !privacyAccepted
+              }
+            >
               {isLoading ? <Loader2 className="animate-spin" /> : 'CRIAR CONTA'}
             </Button>
           </form>
@@ -291,7 +321,6 @@ export default function CadastroPage() {
           </div>
         </div>
       </div>
-
       {/* Coluna Direita: Showcase */}
       <div className="hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-primary to-secondary text-white text-center">
         <div className="max-w-md space-y-4">
@@ -309,14 +338,56 @@ export default function CadastroPage() {
         </div>
       </div>
     </div>
-
+    {/* Modal de Política de Privacidade */}
+    <Dialog open={privacyModalOpen} onOpenChange={setPrivacyModalOpen}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Política de Privacidade – Uso de Dados e IA</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm text-muted-foreground max-h-72 overflow-y-auto">
+          <p>👋 Olá! Antes de usar nossa plataforma, é importante que você saiba como cuidamos dos seus dados:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><b>O que coletamos:</b> informações de cadastro (nome, e-mail, telefone), dados de navegação, histórico de uso e, quando necessário, informações de pagamento.</li>
+            <li><b>Como usamos:</b> para oferecer e melhorar os serviços, personalizar sua experiência, enviar novidades e cumprir obrigações legais.</li>
+            <li><b>Inteligência Artificial:</b> usamos IA para recomendar conteúdos, apoiar no suporte e ajudar na criação de materiais. Mas sempre com transparência e sem usar dados sensíveis sem sua permissão.</li>
+            <li><b>Compartilhamento:</b> nunca vendemos seus dados. Só compartilhamos com parceiros essenciais para o funcionamento da plataforma ou quando a lei exigir.</li>
+            <li><b>Seus direitos:</b> você pode pedir acesso, correção, exclusão ou portabilidade dos seus dados, além de cancelar comunicações de marketing a qualquer momento.</li>
+            <li><b>Segurança:</b> seus dados ficam protegidos com medidas avançadas de segurança e só são armazenados pelo tempo necessário.</li>
+          </ul>
+          <p className="mt-2">📌 Ao continuar, você concorda com nossa <a href="#" className="underline text-primary">Política de Privacidade completa</a>.</p>
+        </div>
+        <DialogFooter className="flex flex-row gap-2 justify-end mt-4">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setPrivacyModalOpen(false);
+              setPrivacyChecked(false);
+              setPrivacyAccepted(false);
+            }}
+          >
+            Não aceito
+          </Button>
+          <Button
+            type="button"
+            className="bg-gradient-to-r from-primary to-secondary font-bold"
+            onClick={() => {
+              setPrivacyModalOpen(false);
+              setPrivacyChecked(true);
+              setPrivacyAccepted(true);
+            }}
+          >
+            Aceito e concordo
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <TeamDialog 
       isOpen={teamDialogOpen} 
       onClose={() => setTeamDialogOpen(false)} 
       user={pendingUser} 
       isFromLogin={false}
     />
-
     </>
   );
 }
