@@ -27,6 +27,7 @@ import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { downloadImage } from '@/lib/download-utils';
+import { cn } from '@/lib/utils';
 
 // Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
@@ -606,7 +607,12 @@ export default function ResultPage() {
 
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
+            <Card
+              className={cn(
+                'w-full bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative',
+                content.videoUrl ? 'aspect-video' : 'aspect-square'
+              )}
+            >
               {content.videoUrl ? (
                 <video
                   key={content.videoUrl}
