@@ -151,14 +151,15 @@ async function pollForVideoResult(taskId: string, runwayKey: string): Promise<an
       }
 
       const taskData = await res.json();
+      const status = (taskData.status || '').toLowerCase();
       console.log(`[Runway Polling] Status atual: ${taskData.status}`);
 
-      if (taskData.status === 'succeeded') {
+      if (status === 'succeeded') {
         console.log(`[Runway Polling] Tarefa ${taskId} concluída com sucesso!`);
         return taskData.output;
       }
 
-      if (taskData.status === 'failed') {
+      if (status === 'failed') {
         console.error(`[Runway Polling] Tarefa ${taskId} falhou:`, taskData.error);
         throw new Error(`A geração do vídeo falhou. Motivo: ${taskData.error || 'Erro desconhecido'}`);
       }
