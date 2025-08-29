@@ -105,23 +105,24 @@ Responda somente com JSON válido contendo {"title","body","hashtags"}.
 
 const RUNWAY_API_BASE_URL = 'https://api.dev.runwayml.com';
 
-function extractVideoUrl(output: any): string {
-  if (!output) return '';
-  if (typeof output === 'string') return output;
-  if (output.videoUrl) return output.videoUrl;
-  if (output.url) return output.url;
-  if (output.video?.url) return output.video.url;
-  if (output.video?.uri) return output.video.uri;
-  if (output.video?.download_url) return output.video.download_url;
-  if (Array.isArray(output.videos) && output.videos.length > 0) {
-    const v = output.videos[0];
-    return v.url || v.uri || v.download_url || '';
+// Helper robusto para extrair a URL do vídeo
+function extractVideoUrl(task: any): string | null {
+  const out = task?.output ?? task?.result ?? task;
+
+  if (typeof out === 'string') return out;
+  if (Array.isArray(out) && out.length && typeof out[0] === 'string') return out[0];
+  if (Array.isArray(out) && out.length && typeof out[0] === 'object') {
+    const cand = out.find((o: any) => o?.asset_url || o?.url);
+    return cand?.asset_url || cand?.url || null;
   }
-  if (Array.isArray(output.assets) && output.assets.length > 0) {
-    const a = output.assets[0];
-    return a.url || a.uri || a.download_url || '';
+  if (out && typeof out === 'object') {
+    if (out.asset_url) return out.asset_url;
+    if (out.url) return out.url;
+    const v = out.assets?.video;
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v) && v.length && typeof v[0] === 'string') return v[0];
   }
-  return '';
+  return null;
 }
 
 async function pollForVideoResult(taskId: string, runwayKey: string): Promise<any> {
@@ -430,12 +431,11 @@ export async function POST(req: NextRequest) {
 
     // Extrai a URL do vídeo do objeto de saída da Runway
     const videoUrl = extractVideoUrl(videoOutput);
-
     if (!videoUrl) {
-      console.error('[API generate-video] URL do vídeo não encontrada na resposta:', videoOutput);
+      console.error('[API generate-video] output recebido do Runway:', videoOutput);
       return NextResponse.json(
-        { error: 'Vídeo gerado mas URL não encontrada. Entre em contato com o suporte.' },
-        { status: 500 }
+        { error: 'URL do vídeo não encontrada', raw: videoOutput },
+        { status: 502 }
       );
     }
 
@@ -505,7 +505,7 @@ export async function POST(req: NextRequest) {
     console.log('[API generate-video] Processamento concluído com sucesso');
 
     return NextResponse.json({
-      videoUrl,
+      url: videoUrl,
       title: postContent.title,
       body: postContent.body,
       hashtags: postContent.hashtags,

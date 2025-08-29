@@ -79,7 +79,10 @@ export default function ResultPage() {
         
         if (response.ok) {
           const actions = await response.json();
-          
+
+          // Adicione este log:
+          console.log('[ResultPage] Dados retornados da API /api/actions:', actions);
+
           if (actions && actions.length > 0) {
             const action = actions[0];
             
@@ -610,25 +613,44 @@ export default function ResultPage() {
             <Card
               className={cn(
                 'w-full bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative',
-                content.videoUrl ? 'aspect-video' : 'aspect-square'
+                content.videoUrl ? 'aspect-[5/3]' : 'aspect-square'
               )}
             >
               {content.videoUrl ? (
                 <video
                   key={content.videoUrl}
+                  src={content.videoUrl}
                   controls
                   playsInline
                   preload="metadata"
+                  crossOrigin="anonymous" 
+                  poster={content.imageUrl}
+                  onError={() => {
+                    // Log e fallback
+                    console.error('Erro ao carregar vídeo:', content.videoUrl);
+                    toast.error('Erro ao carregar vídeo. Tente abrir em nova aba.');
+                  }}
                   className="w-full h-full object-cover"
-                >
-                  <source src={content.videoUrl} type="video/mp4" />
-                </video>
+                />
               ) : (
                 <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
               )}
               {!content.videoUrl && (
                 <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
                   {isDownloading ? <Loader className="animate-spin" /> : <Download />}
+                </Button>
+              )}
+              {content.videoUrl && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="absolute bottom-4 right-4 rounded-full"
+                  title="Abrir vídeo em nova aba"
+                >
+                  <a href={content.videoUrl} target="_blank" rel="noopener noreferrer">
+                    Abrir vídeo
+                  </a>
                 </Button>
               )}
             </Card>
