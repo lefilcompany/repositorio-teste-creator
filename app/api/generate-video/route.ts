@@ -288,7 +288,8 @@ export async function POST(req: NextRequest) {
     console.log('[API generate-video] Iniciando processamento de requisição');
 
     const body = await req.json();
-    const {
+
+    let {
       prompt,
       transformationType,
       referenceFile,
@@ -306,6 +307,13 @@ export async function POST(req: NextRequest) {
       ratio = '1280:720',
       duration = 5,
     } = body;
+
+    // Corrige o ratio para os valores aceitos pela Runway
+    const allowedRatios = ['768:1280', '1280:768'];
+    if (!allowedRatios.includes(ratio)) {
+      // Ajusta para o mais próximo (1280:768)
+      ratio = '1280:768';
+    }
 
     // Validação de parâmetros obrigatórios
     if (!prompt || !transformationType || !referenceFile) {

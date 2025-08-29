@@ -484,10 +484,7 @@ export default function Creator() {
                           <SelectValue placeholder="Selecione a proporção" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border/20">
-                          {(transformationType === 'image_to_video'
-                            ? ['1280:720','720:1280','1104:832','832:1104','960:960','1584:672']
-                            : ['1280:720','720:1280','1104:832','960:960','832:1104','1584:672','848:480','640:480']
-                          ).map((opt) => (
+                          {['1280:768', '768:1280'].map((opt) => (
                             <SelectItem key={opt} value={opt} className="rounded-lg">{opt}</SelectItem>
                           ))}
                         </SelectContent>
