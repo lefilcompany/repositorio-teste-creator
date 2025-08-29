@@ -105,6 +105,25 @@ Responda somente com JSON válido contendo {"title","body","hashtags"}.
 
 const RUNWAY_API_BASE_URL = 'https://api.dev.runwayml.com';
 
+function extractVideoUrl(output: any): string {
+  if (!output) return '';
+  if (typeof output === 'string') return output;
+  if (output.videoUrl) return output.videoUrl;
+  if (output.url) return output.url;
+  if (output.video?.url) return output.video.url;
+  if (output.video?.uri) return output.video.uri;
+  if (output.video?.download_url) return output.video.download_url;
+  if (Array.isArray(output.videos) && output.videos.length > 0) {
+    const v = output.videos[0];
+    return v.url || v.uri || v.download_url || '';
+  }
+  if (Array.isArray(output.assets) && output.assets.length > 0) {
+    const a = output.assets[0];
+    return a.url || a.uri || a.download_url || '';
+  }
+  return '';
+}
+
 async function pollForVideoResult(taskId: string, runwayKey: string): Promise<any> {
   const pollEndpoint = `${RUNWAY_API_BASE_URL}/v1/tasks/${taskId}`;
 
@@ -400,8 +419,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extrai a URL do vídeo
-    const videoUrl = videoOutput?.videoUrl || videoOutput?.url || '';
+    // Extrai a URL do vídeo do objeto de saída da Runway
+    const videoUrl = extractVideoUrl(videoOutput);
 
     if (!videoUrl) {
       console.error('[API generate-video] URL do vídeo não encontrada na resposta:', videoOutput);
