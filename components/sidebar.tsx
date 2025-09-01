@@ -93,6 +93,7 @@ function ContentAction({ id, href, icon: Icon, label }: { id: string; href: stri
   );
 }
 
+// BOTÃO DE REVISAR COM ESTILO CORRIGIDO
 function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -102,10 +103,10 @@ function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: strin
       id={id}
       href={href}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-accent",
+        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105",
         isActive
-          ? 'bg-background border border-accent text-accent shadow-lg scale-105'
-          : 'text-background hover:bg-background hover:text-accent hover:border hover:border-accent'
+          ? 'bg-primary/10 border border-primary text-primary shadow-lg scale-105'
+          : 'bg-background border text-foreground hover:bg-muted'
       )}
     >
       <Icon className="h-5 w-5" />
@@ -114,6 +115,7 @@ function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: strin
   );
 }
 
+// BOTÃO DE PLANEJAR COM ESTILO CORRIGIDO
 function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -123,10 +125,10 @@ function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string;
       id={id}
       href={href}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-border",
+        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-secondary",
         isActive
-          ? 'bg-background border border-border text-secondary shadow-lg scale-105'
-          : 'text-background hover:bg-background hover:text-border hover:border hover:border-border'
+          ? 'bg-background border border-secondary text-secondary shadow-lg scale-105'
+          : 'text-secondary-foreground hover:bg-background hover:text-secondary hover:border hover:border-secondary'
       )}
     >
       <Icon className="h-5 w-5" />
@@ -191,11 +193,13 @@ export default function Sidebar() {
             <NavItem key={link.href} {...link} />
           ))}
         </div>
+        
         <div className='flex flex-col gap-4'>
           <ContentAction {...contentAction} />
           <ReviewAction {...reviewAction} />
           <PlanAction {...planAction} />
         </div>
+        
         <div className="">
           <TeamPlanSection item={navFooter[0]} teamName={teamName} planName={planName.toUpperCase()} isAdmin={!!isAdmin} />
         </div>

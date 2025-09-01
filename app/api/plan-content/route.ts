@@ -5,6 +5,279 @@ import { ActionType } from '@prisma/client';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
+const HTML_STRUCTURE_START = `
+<div class="planning-document">
+  <style>
+    .planning-document {
+      /* Variáveis de cor isoladas para evitar conflitos de renderização */
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --accent-dark: #4f46e5;
+      --muted: #64748b;
+      --muted-light: #94a3b8;
+      --bg: #f8fafc;
+      --bg-light: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-light: #475569;
+      
+      /* Estilos base do documento */
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg-light);
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .planning-document h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 1.5rem;
+      color: var(--accent-dark);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 0.75rem;
+      letter-spacing: -0.025em;
+    }
+    
+    .planning-document h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem;
+      color: var(--text);
+      position: relative;
+      padding-left: 1rem;
+    }
+    
+    .planning-document h2::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.25rem;
+      bottom: 0.25rem;
+      width: 4px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      border-radius: 2px;
+    }
+    
+    .planning-document h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--text);
+    }
+    
+    .planning-document h4 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: var(--text);
+    }
+    
+    .planning-document p {
+      margin: 0 0 1rem;
+      color: var(--text-light);
+      line-height: 1.7;
+    }
+    
+    .planning-document ul {
+      margin: 0 0 1rem;
+      padding-left: 1.5rem;
+    }
+    
+    .planning-document li {
+      margin: 0.5rem 0;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+    
+    .post {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      background: var(--bg-light);
+      transition: all 0.2s ease;
+    }
+    
+    .post:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .meta {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    
+    .meta li {
+      margin: 0.5rem 0;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .meta li:last-child {
+      border-bottom: none;
+    }
+    
+    .meta strong {
+      color: var(--accent-dark);
+      min-width: 140px;
+      font-weight: 600;
+    }
+    
+    .list-item {
+      margin: 0.75rem 0;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      font-weight: 500;
+    }
+    
+    .persona-var {
+      background: linear-gradient(135deg, var(--bg), var(--bg-light));
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .persona-var strong {
+      color: var(--accent-dark);
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    
+    .highlight {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(129, 140, 248, 0.04));
+      padding: 1.25rem;
+      border-radius: 8px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      margin: 1rem 0;
+    }
+    
+    .persona-extract {
+      font-style: italic;
+      color: var(--muted);
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 6px;
+      border-left: 3px solid var(--muted-light);
+    }
+    
+    .use-prose {
+      max-width: 65ch;
+      line-height: 1.7;
+    }
+    
+    .hashtags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    .hashtag {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+    }
+    
+    .hashtag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+    }
+    
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+    
+    .concept, .visual, .direcionamento-texto, .personas, .hashtags, .tactics, .excellence {
+      margin: 1.5rem 0;
+      padding: 1.25rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    
+    .concept h4, .visual h4, .direcionamento-texto h4, .personas h4, .hashtags h4, .tactics h4, .excellence h4 {
+      color: var(--accent-dark);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .concept h4::before, .visual h4::before, .direcionamento-texto h4::before, .personas h4::before, .hashtags h4::before, .tactics h4::before, .excellence h4::before {
+      content: '✦';
+      margin-right: 0.75rem;
+      color: var(--accent);
+      font-size: 1.2em;
+    }
+    
+    footer {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: var(--bg);
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    
+    footer p {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    
+    @media (max-width: 768px) {
+      .planning-document {
+        padding: 1rem;
+        margin: 0;
+        border-radius: 0;
+      }
+      
+      .planning-document h1 {
+        font-size: 1.5rem;
+      }
+      
+      .planning-document h2 {
+        font-size: 1.25rem;
+      }
+      
+      .meta li {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .meta strong {
+        min-width: auto;
+        margin-bottom: 0.25rem;
+      }
+    }
+  </style>
+`;
+const HTML_STRUCTURE_END = `</div>`;
+
 export async function POST(req: NextRequest) {
   if (!apiKey) {
     return NextResponse.json({ error: 'A chave da API da OpenAI não está configurada.' }, { status: 500 });
@@ -54,7 +327,7 @@ export async function POST(req: NextRequest) {
 
     // --- PROMPT ATUALIZADO E REFINADO ---
     const planningPrompt = `
-Gere um único bloco de HTML válido contendo um briefing de conteúdo estratégico (DIRECIONAMENTO PARA CRIAÇÃO). Retorne APENAS o HTML (nenhum texto fora das tags). Não use emojis nem markdown. Use marcação semântica e espaçamento legível. Inclua um pequeno bloco <style> inline para garantir leitura (margens e paddings mínimos).
+Gere o conteúdo HTML INTERNO para um briefing de conteúdo estratégico. Retorne APENAS as tags HTML do conteúdo, começando com <header> e terminando com <footer>. NÃO inclua a tag <div class="planning-document"> nem a tag <style>, pois elas serão adicionadas externamente.
 
 --- INÍCIO DO CONTEXTO OBRIGATÓRIO ---
 Estes são os temas estratégicos e seus respectivos tons de voz. Aderir a eles é a prioridade máxima.
@@ -69,15 +342,15 @@ Prioridade de harmonização (se houver conflito de tons): ${themeList}.
 
 
 Diretrizes essenciais para o redator (OBRIGATÓRIO):
-  - Gere uma seção global antes dos posts com “Sugestões de Ângulos para a Legenda” (3 bullets concisos) alinhados ao objetivo “${objective}” e aos tons de voz acima.
-  - Gere também a “Chamada de Ação (CTA)” principal (1 recomendação central + 1–2 variações curtas), indicando intenção e melhor posicionamento (início/meio/final).
+  - Gere uma seção global antes dos posts com "Sugestões de Ângulos para a Legenda" (3 bullets concisos) alinhados ao objetivo "${objective}" e aos tons de voz acima.
+  - Gere também a "Chamada de Ação (CTA)" principal (1 recomendação central + 1–2 variações curtas), indicando intenção e melhor posicionamento (início/meio/final).
 
 Visão geral: o planejamento deve integrar elementos, mensagens e ganchos de todos os temas selecionados ao longo do calendário; quando adequado, atribua posts que enfatizem subtemas específicos ou combine temas em um único post com justificativa estratégica clara. Em cada seção de post, inclua um pequeno bloco "Checklist de aplicação do tom" que mostre exatamente como o tom foi aplicado (quais frases/tokens usar e evitar).
 
 Estrutura e requisitos obrigatórios:
 - Header com metadados (marca, tema(s), plataforma, quantidade, objetivo, informações adicionais e a lista consolidada dos tons de voz fornecidos).
 - Missão criativa resumida (1 frase, alinhada ao objetivo e aos tons de voz fornecidos).
-- Seção “Orientações gerais para o redator” (antes dos posts) com:
+- Seção "Orientações gerais para o redator" (antes dos posts) com:
   * Sugestões de Ângulos para a Legenda (3 bullets, diretos e acionáveis).
   * Chamada de Ação (CTA) principal + 1–2 variações curtas, com micro-argumento e posicionamento sugerido.
 - Para cada um dos ${quantity} posts, gere uma seção contendo:
@@ -98,118 +371,97 @@ Estrutura e requisitos obrigatórios:
   * Exemplo de excelência visual: descrição curta e técnica para referência criativa dentro da mesma seção.
 
 Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e substitua o conteúdo de exemplo pelos textos gerados. Garanta que o HTML esteja bem formado e pronto para injeção em uma UI:
-<div class="planning-document" data-brand="${brand}" data-themes="${themeList}" data-platform="${platform}">
-  <style>
-    :root{ --accent:#6b46c1; --muted:#6b6b6b; --bg:#fbfbfb }
-    .planning-document{font-family:system-ui,Arial,sans-serif;line-height:1.5;color:var(--text,#111);background:transparent}
-    .planning-document h1{font-size:22px;margin:0 0 14px;color:var(--accent,#222);font-weight:700}
-    .planning-document h2{font-size:18px;margin:18px 0 10px;color:#222}
-    .planning-document h3{font-size:15px;margin:12px 0 8px;color:#222}
-    .planning-document p{margin:0 0 12px;color:var(--muted,#333)}
-    .post{border-top:1px solid #eee;padding:14px 0}
-    .meta p{margin:0 0 8px;color:var(--muted,#444)}
-    .list-item{margin:8px 0;padding-left:0}
-    .persona-var{background:var(--bg,#f7f7f7);padding:10px;border-radius:6px;margin-top:10px;border:1px solid #ececec}
-    .highlight{background:linear-gradient(90deg,rgba(107,70,193,0.08),transparent);padding:6px;border-radius:4px}
-    .persona-extract{font-style:italic;color:var(--muted,#666);margin-top:8px}
-    .use-prose{max-width:72ch}
-    .hashtags-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .hashtag{display:inline-block;background:rgba(107,70,193,0.08);color:var(--accent,#6b46c1);padding:6px 10px;border-radius:999px;font-size:13px;border:1px solid rgba(107,70,193,0.12)}
-  </style>
+<header>
+  <h1>DIRETIVA DE CRIAÇÃO: PLANEJAMENTO DE CONTEÚDO ESTRATÉGICO</h1>
+  <ul class="meta">
+    <li><strong>Marca:</strong> ${brand}</li>
+    <li><strong>Tema(s):</strong> ${themeList}</li>
+    <li><strong>Plataforma:</strong> ${platform}</li>
+    <li><strong>Quantidade:</strong> ${quantity}</li>
+    <li><strong>Objetivo:</strong> ${objective}</li>
+    <li><strong>Informações adicionais:</strong> ${additionalInfo || 'Nenhuma'}</li>
+    <li><strong>Tons de Voz dos Temas:</strong> <div style="padding: 8px 0 0 0; white-space: pre-wrap; font-family: inherit; font-size: 14px;">${themeToneLines || 'Não especificado'}</div></li>
+  </ul>
+</header>
 
-      <header>
-    <h1>DIRETIVA DE CRIAÇÃO: PLANEJAMENTO DE CONTEÚDO ESTRATÉGICO</h1>
-    <ul class="meta">
-      <li><strong>Marca:</strong> ${brand}</li>
-      <li><strong>Tema(s):</strong> ${themeList}</li>
-      <li><strong>Plataforma:</strong> ${platform}</li>
-      <li><strong>Quantidade:</strong> ${quantity}</li>
-      <li><strong>Objetivo:</strong> ${objective}</li>
-      <li><strong>Informações adicionais:</strong> ${additionalInfo || 'Nenhuma'}</li>
-      <li><strong>Tons de Voz dos Temas:</strong> <div style="padding: 8px 0 0 0; white-space: pre-wrap; font-family: inherit; font-size: 14px;">${themeToneLines || 'Não especificado'}</div></li>
-    </ul>
-  </header>
+<section id="guidelines">
+  <h2>Orientações gerais para o redator</h2>
+  <div class="highlight">
+    <h3>Sugestões de Ângulos para a Legenda</h3>
+    <p class="use-prose">Forneça 3 bullets concisos conectando os temas e o objetivo "${objective}". Ex.: enfatizar silêncio, economia de energia, inovação aplicada ao dia a dia.</p>
+    <h3 style="margin-top:10px">Chamada de Ação (CTA)</h3>
+    <p class="use-prose">Defina 1 CTA principal (com micro-argumento) e 1–2 variações curtas, com indicação de melhor posicionamento (início/meio/final).</p>
+  </div>
+</section>
 
-  <section id="guidelines">
-    <h2><strong>Orientações gerais para o redator</strong></h2>
-    <div class="highlight">
-      <h3>Sugestões de Ângulos para a Legenda</h3>
-      <p class="use-prose">Forneça 3 bullets concisos conectando os temas e o objetivo "${objective}". Ex.: enfatizar silêncio, economia de energia, inovação aplicada ao dia a dia.</p>
-      <h3 style="margin-top:10px">Chamada de Ação (CTA)</h3>
-      <p class="use-prose">Defina 1 CTA principal (com micro-argumento) e 1–2 variações curtas, com indicação de melhor posicionamento (início/meio/final).</p>
-    </div>
-  </section>
+<section id="posts">
+  <h2>Detalhamento por post</h2>
+  ${Array.from({ length: parseInt(quantity) }, (_, i) => `
+  <article class="post" data-index="${i + 1}">
+    <h3>Post ${i + 1} / ${quantity}</h3>
 
-  <section id="posts">
-    <h2><strong>Detalhamento por post</strong></h2>
-    ${Array.from({ length: parseInt(quantity) }, (_, i) => `
-    <article class="post" data-index="${i + 1}">
-      <h3><strong>Post ${i + 1} / ${quantity}</strong></h3>
+    <section class="concept">
+      <h4>Conceito criativo</h4>
+      <p class="use-prose">(Forneça um texto detalhado de ~150 palavras: ideia central, mensagem emocional, diferencial, conexão com a marca e impacto esperado.)</p>
+      <p class="list-item">• Ideia central: (resuma em 1 frase)</p>
+      <p class="list-item">• Mensagem emocional: (sentimento a evocar)</p>
+      <p class="list-item">• Diferencial: (o que torna memorável)</p>
+      <p class="list-item">• Conexão com a marca: (como reforça ${brand})</p>
+      <p class="list-item">• Temas que influenciaram este conceito: (liste e justifique)</p>
+    </section>
 
-      <section class="concept">
-        <h4><strong>Conceito criativo</strong></h4>
-        <p class="use-prose">(Forneça um texto detalhado de ~150 palavras: ideia central, mensagem emocional, diferencial, conexão com a marca e impacto esperado.)</p>
-        <p class="list-item">• Ideia central: (resuma em 1 frase)</p>
-        <p class="list-item">• Mensagem emocional: (sentimento a evocar)</p>
-        <p class="list-item">• Diferencial: (o que torna memorável)</p>
-        <p class="list-item">• Conexão com a marca: (como reforça ${brand})</p>
-        <p class="list-item">• Temas que influenciaram este conceito: (liste e justifique)</p>
-      </section>
+    <section class="visual">
+      <h4>Briefing visual</h4>
+      <p class="use-prose">(Forneça um texto técnico e descritivo de ~250 palavras incluindo: estilo fotográfico/ilustrativo, composição, elementos-chave, paleta de cores com exemplos #hex, tipo de iluminação, texturas e notas técnicas como resolução, proporção e profundidade de campo.)</p>
+      <p class="list-item">• Exemplo de referência técnica: (2–4 frases com referência de excelência)</p>
+    </section>
 
-      <section class="visual">
-        <h4><strong>Briefing visual</strong></h4>
-        <p class="use-prose">(Forneça um texto técnico e descritivo de ~250 palavras incluindo: estilo fotográfico/ilustrativo, composição, elementos-chave, paleta de cores com exemplos #hex, tipo de iluminação, texturas e notas técnicas como resolução, proporção e profundidade de campo.)</p>
-        <p class="list-item">• Exemplo de referência técnica: (2–4 frases com referência de excelência)</p>
-      </section>
+    <section class="direcionamento-texto">
+      <h4>Direcionamento de texto</h4>
+      <p>Forneça instruções práticas e acionáveis para redatores. Todas as recomendações abaixo devem demonstrar explicitamente como o Tom de Voz fornecido pelos temas foi aplicado.</p>
+      <p class="list-item">• Tom de voz aplicável (2–4 traços escolhidos dos temas) e qual(is) tema(s) influenciaram cada traço — inclua 2 palavras-chave recomendadas e 1 termo a evitar por traço.</p>
+      <p class="list-item">• Sugestões de ângulos/temas de abertura (3–5 bullets) e, para cada bullet, indique qual traço de tom sustenta essa sugestão.</p>
+      <p class="list-item">• 2–3 Exemplos de linhas de abertura (frases curtas para inspirar a legenda) — marque qual traço de tom cada linha representa.</p>
+      <p class="list-item">• Recomendações de comprimento e formato (quando usar 60–90 palavras vs 120–200 palavras) e qual tom justificaría cada formato.</p>
+      <p class="list-item">• Pergunta sugerida para engajamento (1) + 2 variações mais curtas — indique o tom que deve permear a pergunta.</p>
+      <p class="list-item">• CTA(s) recomendados (2 opções) e posicionamento sugerido (final / meio) — escreva também 1 micro-argumento (10–20 palavras) alinhado ao tom para cada CTA.</p>
+      <p class="list-item">• Notas de estilo: evitar/usar (ex.: evitar emojis, incluir prova social, linguagem inclusiva) e termos a evitar em função do tom.</p>
+      <p class="list-item">• Checklist de aplicação do tom (OBRIGATÓRIO): para cada traço extraído, liste: 1) palavras-chave a usar, 2) palavras a evitar, 3) onde no texto aplicar (abertura / corpo / CTA).</p>
+    </section>
 
-      <section class="direcionamento-texto">
-        <h4><strong>Direcionamento de texto</strong></h4>
-        <p>Forneça instruções práticas e acionáveis para redatores. Todas as recomendações abaixo devem demonstrar explicitamente como o Tom de Voz fornecido pelos temas foi aplicado.</p>
-        <p class="list-item">• Tom de voz aplicável (2–4 traços escolhidos dos temas) e qual(is) tema(s) influenciaram cada traço — inclua 2 palavras-chave recomendadas e 1 termo a evitar por traço.</p>
-        <p class="list-item">• Sugestões de ângulos/temas de abertura (3–5 bullets) e, para cada bullet, indique qual traço de tom sustenta essa sugestão.</p>
-        <p class="list-item">• 2–3 Exemplos de linhas de abertura (frases curtas para inspirar a legenda) — marque qual traço de tom cada linha representa.</p>
-        <p class="list-item">• Recomendações de comprimento e formato (quando usar 60–90 palavras vs 120–200 palavras) e qual tom justificaría cada formato.</p>
-        <p class="list-item">• Pergunta sugerida para engajamento (1) + 2 variações mais curtas — indique o tom que deve permear a pergunta.</p>
-        <p class="list-item">• CTA(s) recomendados (2 opções) e posicionamento sugerido (final / meio) — escreva também 1 micro-argumento (10–20 palavras) alinhado ao tom para cada CTA.</p>
-        <p class="list-item">• Notas de estilo: evitar/usar (ex.: evitar emojis, incluir prova social, linguagem inclusiva) e termos a evitar em função do tom.</p>
-        <p class="list-item">• Checklist de aplicação do tom (OBRIGATÓRIO): para cada traço extraído, liste: 1) palavras-chave a usar, 2) palavras a evitar, 3) onde no texto aplicar (abertura / corpo / CTA).</p>
-      </section>
+    <section class="personas">
+      <h4>Orientação por persona</h4>
+      <p>Para cada persona, entregue 1–2 linhas indicando como ajustar o foco e o tom (não escrever a legenda completa).</p>
+      <div class="persona-var"><strong>Persona 1 (ex: profissional):</strong> [linha de ajuste — 1–2 linhas]</div>
+      <div class="persona-var"><strong>Persona 2 (ex: jovem trend):</strong> [linha de ajuste — 1–2 linhas]</div>
+    </section>
 
-      <section class="personas">
-        <h4><strong>Orientação por persona</strong></h4>
-        <p>Para cada persona, entregue 1–2 linhas indicando como ajustar o foco e o tom (não escrever a legenda completa).</p>
-        <div class="persona-var"><strong>Persona 1 (ex: profissional):</strong> [linha de ajuste — 1–2 linhas]</div>
-        <div class="persona-var"><strong>Persona 2 (ex: jovem trend):</strong> [linha de ajuste — 1–2 linhas]</div>
-      </section>
-      <br />
-      <section class="hashtags">
-        <h4>Hashtags:</h4>
-        <p>Liste 8–12 hashtags começando com o símbolo '#' e renderize cada uma como um bloco visual usando a classe <code>hashtag</code>. Categorize por alcance/nicho/marca e inclua 1 linha explicativa por categoria.</p>
-        <p class="hashtags-list"><span class="hashtag">#exemplo</span>
-        </p>
-      </section>
+    <section class="hashtags">
+      <h4>Hashtags</h4>
+      <p>Liste 8–12 hashtags começando com o símbolo '#' e renderize cada uma como um bloco visual usando a classe <code>hashtag</code>. Categorize por alcance/nicho/marca e inclua 1 linha explicativa por categoria.</p>
+      <p class="hashtags-list"><span class="hashtag">#exemplo</span></p>
+    </section>
 
-      <section class="tactics">
-        <h4><strong>Táticas e KPIs</strong></h4>
-        <ul>
-          <li><strong>• CTA recomendado:</strong> (ex: link na bio, comente)</li>
-          <li><strong>• Janela de postagem sugerida:</strong> (ex: 18:00–20:00)</li>
-          <li><strong>• KPI principal:</strong> (ex: taxa de engajamento, cliques). Indique objetivo numérico sugerido quando aplicável.</li>
-        </ul>
-      </section>
+    <section class="tactics">
+      <h4>Táticas e KPIs</h4>
+      <ul>
+        <li><strong>• CTA recomendado:</strong> (ex: link na bio, comente)</li>
+        <li><strong>• Janela de postagem sugerida:</strong> (ex: 18:00–20:00)</li>
+        <li><strong>• KPI principal:</strong> (ex: taxa de engajamento, cliques). Indique objetivo numérico sugerido quando aplicável.</li>
+      </ul>
+    </section>
 
-      <section class="excellence">
-        <h4><strong>Exemplo de excelência visual</strong></h4>
-        <p>Descrição curta e técnica para referência criativa.</p>
-      </section>
-    </article>
-    `).join('')}
-  </section>
+    <section class="excellence">
+      <h4>Exemplo de excelência visual</h4>
+      <p>Descrição curta e técnica para referência criativa.</p>
+    </section>
+  </article>
+  `).join('')}
+</section>
 
-  <footer>
-    <p>Documento pronto para ser encaminhado à equipe de criação.</p>
-  </footer>
-</div>`;
+<footer>
+  <p>Documento pronto para ser encaminhado à equipe de criação.</p>
+</footer>`;
 
     console.log('Criando prompt profissional (HTML) para OpenAI...');
     let response;
@@ -225,7 +477,7 @@ Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e sub
           messages: [
             {
               role: 'system',
-              content: 'Você é um Diretor de Criação Sênior. Sua especialidade é criar briefings detalhados em formato HTML. Sua resposta deve ser um bloco de código HTML único, bem estruturado, com tópicos e parágrafos curtos para máxima legibilidade profissional.'
+              content: 'Você é um Diretor de Criação Sênior. Sua especialidade é criar o conteúdo INTERNO de briefings detalhados em formato HTML. Sua resposta deve conter apenas as tags do conteúdo, começando com <header> e terminando com <footer>.'
             },
             {
               role: 'user',
@@ -255,6 +507,8 @@ Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e sub
     }
 
     const cleanPlanContent = planContent.replace(/^```html\n?/, '').replace(/\n?```$/, '').trim();
+    
+    const finalHtml = HTML_STRUCTURE_START + cleanPlanContent + HTML_STRUCTURE_END;
 
     let action;
     try {
@@ -274,7 +528,7 @@ Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e sub
             additionalInfo,
             selectedThemeTones: (selectedThemes || []).map(t => ({ title: t.title, toneOfVoice: t.toneOfVoice }))
           },
-          result: { plan: cleanPlanContent },
+          result: { plan: finalHtml },
           approved: true,
           status: 'Aprovado'
         },
@@ -283,7 +537,7 @@ Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e sub
       throw new Error('Falha ao salvar no banco de dados');
     }
 
-    return NextResponse.json({ plan: cleanPlanContent, actionId: action.id });
+    return NextResponse.json({ plan: finalHtml, actionId: action.id });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
