@@ -103,10 +103,10 @@ function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: strin
       id={id}
       href={href}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105",
+        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-accent",
         isActive
-          ? 'bg-primary/10 border border-primary text-primary shadow-lg scale-105'
-          : 'bg-background border text-foreground hover:bg-muted'
+          ? 'bg-background border border-accent text-accent shadow-lg scale-105'
+          : 'text-background hover:bg-background hover:text-accent hover:border hover:border-accent'
       )}
     >
       <Icon className="h-5 w-5" />
