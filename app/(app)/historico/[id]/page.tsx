@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DownloadButton } from '@/components/ui/download-button';
-import { ArrowLeft, Calendar, CheckCircle, Sparkles, Eye, Download, Copy } from 'lucide-react';
+import { ArrowLeft, Copy } from 'lucide-react';
 import type { Action } from '@/types/action';
 import { ACTION_TYPE_DISPLAY, ACTION_STYLE_MAP } from '@/types/action';
 import { useAuth } from '@/hooks/useAuth';
@@ -325,14 +325,29 @@ export default function ActionViewPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => copyToClipboard(action.result!.plan!, 'Planejamento')}
-                    className="h-6 w-6 p-0"
+                    className="h-6 w-6 p-0 hover:text-primary hover:border-1 hover:border transition-colors"
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
-                <p className="font-semibold text-foreground whitespace-pre-line p-3 bg-muted/50 rounded-lg">
-                  {action.result.plan}
-                </p>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto bg-card rounded-xl border border-border/20 p-4"
+                  style={{ minHeight: 200 }}
+                  dangerouslySetInnerHTML={{
+                    __html: (() => {
+                      // Agrupa todos os <p class="list-item"> consecutivos em uma única <ul>
+                      let html = action.result.plan || '';
+                      // Encontra blocos de <p class="list-item">...</p> consecutivos
+                      html = html.replace(/(<p class=\"list-item\">[\s\S]*?<\/p>)+/g, (match) => {
+                        // Transforma cada <p class="list-item">...</p> em <li>...</li>
+                        const items = match.match(/<p class=\"list-item\">([\s\S]*?)<\/p>/g) || [];
+                        const lis = items.map(p => p.replace(/<p class=\"list-item\">([\s\S]*?)<\/p>/, '<li style="margin:8px 0 8px 24px;list-style:disc inside;">$1</li>')).join('');
+                        return `<ul>${lis}</ul>`;
+                      });
+                      return html;
+                    })()
+                  }}
+                />
               </div>
             )}
           </CardContent>
