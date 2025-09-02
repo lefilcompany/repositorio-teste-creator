@@ -13,7 +13,9 @@ import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap, Clipboard, Check,
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
+import { useThemesRealtime } from '@/hooks/useThemesRealtime';
+import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 import { toast } from 'sonner';
 
 interface FormData {
@@ -37,59 +39,31 @@ export default function Plan() {
 
   const { user } = useAuth();
   const router = useRouter();
-  const [team, setTeam] = useState<Team | null>(null);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const { brands, loading: isLoadingBrands, error: brandsError } = useBrandsRealtime(user?.teamId);
+  const { themes, loading: isLoadingThemes, error: themesError } = useThemesRealtime(user?.teamId);
+  const { teams, loading: isLoadingTeams, refetch: refetchTeams, error: teamsError } = useTeamsRealtime(user?.id);
+  const team = teams.find((t) => t.id === user?.teamId) || null;
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const isLoadingData = isLoadingBrands || isLoadingThemes || isLoadingTeams;
 
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!user?.teamId || !user.id) return;
+    if (brandsError) toast.error('Erro ao carregar marcas');
+  }, [brandsError]);
 
-      try {
-        const [brandsRes, themesRes, teamsRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
+  useEffect(() => {
+    if (themesError) toast.error('Erro ao carregar temas estratégicos');
+  }, [themesError]);
 
-        if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
-          setBrands(brandsData);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
+  useEffect(() => {
+    if (teamsError) toast.error('Erro ao carregar dados da equipe');
+  }, [teamsError]);
 
-        if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
-          setThemes(themesData);
-        } else {
-          toast.error('Erro ao carregar temas estratégicos');
-        }
-
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          const currentTeam = teamsData.find(t => t.id === user.teamId);
-          if (currentTeam) setTeam(currentTeam);
-        } else {
-          toast.error('Erro ao carregar dados da equipe');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar dados para planejamento');
-      } finally {
-        setIsLoadingData(false);
-      }
-    };
-
-    loadData();
-  }, [user]);
 
   useEffect(() => {
     if (!formData.brand || !brands.length) {
@@ -200,14 +174,13 @@ export default function Plan() {
           });
 
           if (updateRes.ok) {
-            const updatedTeam = await updateRes.json();
-            setTeam(updatedTeam);
+            await refetchTeams();
           } else {
-            console.error('Falha ao atualizar créditos da equipe após gerar planejamento');
+            toast.error('Falha ao atualizar créditos da equipe após gerar planejamento');
           }
         }
       } catch (err) {
-        console.error('Erro ao atualizar créditos da equipe:', err);
+        toast.error('Erro ao atualizar créditos da equipe');
       }
 
     } catch (err: any) {
@@ -254,18 +227,16 @@ export default function Plan() {
         }
       }
       const textToCopy = cleanedLines.join('\n').trim();
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        setIsCopied(true);
-        toast.success('Conteúdo copiado para a área de transferência!');
-        setTimeout(() => setIsCopied(false), 2000);
-      }).catch((err) => {
-        toast.error('Falha ao copiar o texto.');
-        console.error('Copy failed', err);
-      });
-    } catch (err) {
-      toast.error('Erro ao preparar o conteúdo para cópia.');
-      console.error(err);
-    }
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          setIsCopied(true);
+          toast.success('Conteúdo copiado para a área de transferência!');
+          setTimeout(() => setIsCopied(false), 2000);
+        }).catch(() => {
+          toast.error('Falha ao copiar o texto.');
+        });
+      } catch (err) {
+        toast.error('Erro ao preparar o conteúdo para cópia.');
+      }
   };
 
   if (!isResultView) {
