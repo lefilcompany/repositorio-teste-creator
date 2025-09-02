@@ -91,11 +91,11 @@ export function useNotifications(userId?: string, teamId?: string) {
     const channel = supabase
       .channel(`notifications:${userId}`)
       .on("postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "notifications", 
-          filter: `user_id=eq.${userId}` 
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           const newNotification = payload.new as any;
@@ -134,8 +134,16 @@ export function useNotifications(userId?: string, teamId?: string) {
       )
       .subscribe();
 
+    // Fallback polling: caso o Realtime falhe ou esteja indisponível,
+    // garantimos que novas notificações sejam carregadas periodicamente
+    // sem a necessidade de refresh manual da página.
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 15000); // 15s
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [userId, teamId, fetchNotifications]);
 

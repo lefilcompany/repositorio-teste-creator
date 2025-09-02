@@ -45,8 +45,12 @@ export function usePersonasRealtime(teamId?: string) {
         fetchPersonas
       )
       .subscribe();
+    const interval = setInterval(() => {
+      fetchPersonas();
+    }, 15000);
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [teamId, fetchPersonas]);
 
