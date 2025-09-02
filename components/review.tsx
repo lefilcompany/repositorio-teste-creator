@@ -14,6 +14,9 @@ import type { StrategicTheme } from '@/types/theme';
 import { useAuth } from '@/hooks/useAuth';
 import type { Team } from '@/types/team';
 import { toast } from 'sonner';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
+import { useThemesRealtime } from '@/hooks/useThemesRealtime';
+import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -34,44 +37,11 @@ export default function Revisar() {
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
   const { user } = useAuth();
-  const [team, setTeam] = useState<Team | null>(null);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const { brands } = useBrandsRealtime(user?.teamId);
+  const { themes } = useThemesRealtime(user?.teamId);
+  const { teams, refetch: refetchTeams } = useTeamsRealtime(user?.id);
+  const team = teams.find((t) => t.id === user?.teamId) || null;
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user?.teamId || !user.id) return;
-
-      try {
-        const [brandsRes, themesRes, teamsRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-
-        if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
-          setBrands(brandsData);
-        }
-
-        if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
-          setThemes(themesData);
-        }
-
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          const currentTeam = teamsData.find(t => t.id === user.teamId);
-          if (currentTeam) setTeam(currentTeam);
-        }
-      } catch (error) {
-        // Error loading data - handle silently or with proper error handling
-      }
-    };
-
-    loadData();
-  }, [user]);
 
   // Filtrar temas quando a marca for selecionada
   useEffect(() => {
@@ -172,16 +142,12 @@ export default function Revisar() {
       if (team && user?.id) {
         try {
           const updatedCredits = { ...team.credits, contentReviews: team.credits.contentReviews - 1 };
-          const updateRes = await fetch('/api/teams', {
+          await fetch('/api/teams', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: team.id, credits: updatedCredits }),
           });
-
-          if (updateRes.ok) {
-            const updatedTeam = await updateRes.json();
-            setTeam(updatedTeam);
-          }
+          await refetchTeams();
         } catch (error) {
           // Error updating team credits - handle silently or with proper error handling
         }

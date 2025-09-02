@@ -1,50 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Team } from '@/types/team';
 import { toast } from 'sonner';
-import { ArrowLeft, Rocket, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
+import { ArrowLeft, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
 import Link from 'next/link';
+import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 
 export default function PlanosPage() {
   const { user } = useAuth();
-  const [team, setTeam] = useState<Team | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { teams, loading: isLoading, error: teamsError } = useTeamsRealtime(user?.id);
+  const team = teams.find(t => t.id === user?.teamId) || null;
 
   useEffect(() => {
-    const fetchTeamData = async () => {
-      if (!user) return;
-
-      // Debug log
-
-      try {
-        const response = await fetch(`/api/teams?userId=${user.id}`);
-        if (response.ok) {
-          const teamsData = await response.json();
-          // A API retorna um array de teams, precisamos encontrar o team do usuário
-          if (Array.isArray(teamsData) && teamsData.length > 0) {
-            const currentTeam = teamsData.find(t => t.id === user.teamId) || teamsData[0];
-            setTeam(currentTeam);
-          } else {
-            throw new Error('Nenhum time encontrado');
-          }
-        } else {
-          const errorText = await response.text();
-          throw new Error('Falha ao carregar dados do time');
-        }
-      } catch (error) {
-        toast.error('Erro ao carregar informações do plano');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTeamData();
-  }, [user]);
+    if (teamsError) toast.error('Erro ao carregar informações do plano');
+  }, [teamsError]);
 
   if (isLoading) {
     return (
