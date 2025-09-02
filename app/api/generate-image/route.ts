@@ -1,9 +1,9 @@
 // app/api/generate-image/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { GoogleGenAI, Modality } from '@google/genai';
-import { prisma } from '@/lib/prisma';
-import { ActionType } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { GoogleGenAI, Modality } from "@google/genai";
+import { prisma } from "@/lib/prisma";
+import { ActionType } from "@prisma/client";
 
 // Inicializa o cliente da OpenAI com suas configurações.
 const openai = new OpenAI({
@@ -15,7 +15,10 @@ const MAX_PROMPT_LENGTH = 3950;
 /**
  * Converte dados de imagem base64 para data URL
  */
-function createImageDataUrl(base64Data: string, mimeType: string = 'image/png'): string {
+function createImageDataUrl(
+  base64Data: string,
+  mimeType: string = "image/png"
+): string {
   return `data:${mimeType};base64,${base64Data}`;
 }
 
@@ -25,20 +28,20 @@ function createImageDataUrl(base64Data: string, mimeType: string = 'image/png'):
  * NÃO remove palavras nem faz substituições, preservando a intenção original do usuário.
  */
 function cleanInput(text: string | string[] | undefined | null): string {
-  if (!text) return '';
-  
+  if (!text) return "";
+
   // Se for um array, junta os elementos com vírgula
   if (Array.isArray(text)) {
-    return text.map(item => cleanInput(item)).join(', ');
+    return text.map((item) => cleanInput(item)).join(", ");
   }
-  
+
   // Converte para string se não for
   const textStr = String(text);
-  
+
   // Remove apenas caracteres potencialmente perigosos para a sintaxe do prompt.
-  let cleanedText = textStr.replace(/[<>{}[\]"'`]/g, '');
+  let cleanedText = textStr.replace(/[<>{}[\]"'`]/g, "");
   // Normaliza múltiplos espaços para apenas um e remove espaços nas pontas.
-  cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+  cleanedText = cleanedText.replace(/\s+/g, " ").trim();
   return cleanedText;
 }
 
@@ -53,18 +56,35 @@ function buildDetailedImagePrompt(formData: any): string {
   const objective = cleanInput(formData.objective);
   const platform = cleanInput(formData.platform);
   const audience = cleanInput(formData.audience);
-  const tones = Array.isArray(formData.tone) ? formData.tone : (formData.tone ? [formData.tone] : []); // Garante que seja um array
+  const tones = Array.isArray(formData.tone)
+    ? formData.tone
+    : formData.tone
+      ? [formData.tone]
+      : [];
   const persona = cleanInput(formData.persona);
   const additionalInfo = cleanInput(formData.additionalInfo);
 
   let promptParts: string[] = [];
 
-  // 1. Assunto Principal e Qualidade Central
-  if (description) {
-    promptParts.push(`Uma obra-prima de fotografia comercial, hiper-detalhada e fotorrealista de: ${description}`);
+  // 0. Marca e Tema sempre explícitos no início
+  if (brand && theme) {
+    promptParts.push(
+      `Imagem publicitária criada para a marca "${brand}", destacando o tema "${theme}".`
+    );
+  } else if (brand) {
+    promptParts.push(`Imagem comercial para a marca "${brand}".`);
+  } else if (theme) {
+    promptParts.push(`Imagem temática sobre "${theme}".`);
   }
 
-  // 2. Contexto Estratégico (Marca, Tema, Objetivo)
+  // 1. Assunto Principal e Qualidade Central
+  if (description) {
+    promptParts.push(
+      `Uma obra-prima de fotografia comercial, hiper-detalhada e fotorrealista de: ${description}`
+    );
+  }
+
+  // 2. Contexto Estratégico (Marca, Tema, Objetivo) — reforço
   if (brand || theme || objective) {
     let strategicContext = "A imagem deve incorporar a identidade";
     if (brand) strategicContext += ` da marca ${brand}`;
@@ -76,50 +96,81 @@ function buildDetailedImagePrompt(formData: any): string {
   // 3. Tom e Atmosfera
   if (tones.length > 0) {
     const toneMap: { [key: string]: string } = {
-      'inspirador': 'banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves',
-      'motivacional': 'energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação',
-      'profissional': 'estética corporativa limpa, com iluminação de estúdio neutra e foco nítido, transmitindo confiança e expertise',
-      'casual': 'atmosfera relaxada com iluminação natural e suave, como a de uma janela, criando um ambiente amigável e convidativo',
-      'elegante': 'estilo sofisticado com uma paleta de cores refinada, iluminação suave e composição minimalista para um toque luxuoso',
-      'moderno': 'design contemporâneo com linhas arrojadas, iluminação de alto contraste e uma estética de vanguarda',
-      'tradicional': 'apelo atemporal com cores clássicas, iluminação equilibrada e composição simétrica, transmitindo herança e confiabilidade',
-      'divertido': 'humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética',
-      'sério': 'tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade'
+      inspirador:
+        "banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves",
+      motivacional:
+        "energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação",
+      profissional:
+        "estética corporativa limpa, com iluminação de estúdio neutra e foco nítido, transmitindo confiança e expertise",
+      casual:
+        "atmosfera relaxada com iluminação natural e suave, como a de uma janela, criando um ambiente amigável e convidativo",
+      elegante:
+        "estilo sofisticado com uma paleta de cores refinada, iluminação suave e composição minimalista para um toque luxuoso",
+      moderno:
+        "design contemporâneo com linhas arrojadas, iluminação de alto contraste e uma estética de vanguarda",
+      tradicional:
+        "apelo atemporal com cores clássicas, iluminação equilibrada e composição simétrica, transmitindo herança e confiabilidade",
+      divertido:
+        "humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética",
+      sério:
+        "tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade",
     };
-    const mappedTones = tones.map(tone => {
-      const cleanTone = cleanInput(tone);
-      return toneMap[cleanTone.toLowerCase()] || `com uma estética ${cleanTone}`;
-    }).join(', ');
+    const mappedTones = tones
+      .map((tone) => {
+        const cleanTone = cleanInput(tone);
+        return (
+          toneMap[cleanTone.toLowerCase()] || `com uma estética ${cleanTone}`
+        );
+      })
+      .join(", ");
     promptParts.push(`O clima da imagem é uma combinação de: ${mappedTones}`);
   }
 
   // 4. Detalhes Técnicos da Câmera
-  promptParts.push("Detalhes técnicos: foto tirada com uma câmera DSLR profissional (como uma Canon EOS R5) e uma lente de 85mm f/1.4, resultando em uma profundidade de campo rasa e um belo efeito bokeh no fundo");
+  promptParts.push(
+    "Detalhes técnicos: foto tirada com uma câmera DSLR profissional (como uma Canon EOS R5) e uma lente de 85mm f/1.4, resultando em uma profundidade de campo rasa e um belo efeito bokeh no fundo"
+  );
 
   // 5. Otimização para Plataforma
   const platformStyles: { [key: string]: string } = {
-    'instagram': 'formato quadrado 1:1, cores vibrantes, otimizado para feed do Instagram',
-    'facebook': 'composição envolvente, focada na comunidade, otimizada para compartilhamento social',
-    'linkedin': 'estética profissional e corporativa, ideal para posts de negócios',
-    'twitter': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
-    'x': 'design limpo e chamativo, otimizado para visibilidade no Twitter/X',
-    'tiktok': 'formato vertical 9:16, composição dinâmica e energia jovem, perfeito para TikTok',
-    'youtube': 'estilo thumbnail de alto contraste, otimizado para taxas de clique no YouTube'
+    instagram:
+      "formato quadrado 1:1, cores vibrantes, otimizado para feed do Instagram",
+    facebook:
+      "composição envolvente, focada na comunidade, otimizada para compartilhamento social",
+    linkedin:
+      "estética profissional e corporativa, ideal para posts de negócios",
+    twitter:
+      "design limpo e chamativo, otimizado para visibilidade no Twitter/X",
+    x: "design limpo e chamativo, otimizado para visibilidade no Twitter/X",
+    tiktok:
+      "formato vertical 9:16, composição dinâmica e energia jovem, perfeito para TikTok",
+    youtube:
+      "estilo thumbnail de alto contraste, otimizado para taxas de clique no YouTube",
   };
   if (platform && platformStyles[platform.toLowerCase()]) {
-    promptParts.push(`Otimizado para a plataforma: ${platformStyles[platform.toLowerCase()]}`);
+    promptParts.push(
+      `Otimizado para a plataforma: ${platformStyles[platform.toLowerCase()]}`
+    );
   }
 
   // 6. Público-Alvo e Informações Adicionais
-  if (audience) promptParts.push(`Direcionado especificamente para ${audience}`);
+  if (audience)
+    promptParts.push(`Direcionado especificamente para ${audience}`);
   if (persona) promptParts.push(`Conectando-se com a persona de ${persona}`);
-  if (additionalInfo) promptParts.push(`Incorporando os seguintes elementos visuais: ${additionalInfo}`);
+  if (additionalInfo)
+    promptParts.push(
+      `Incorporando os seguintes elementos visuais: ${additionalInfo}`
+    );
 
   // 7. Palavras-chave de Reforço e "Prompt Negativo"
-  promptParts.push("Você é um gerador de posts para Instagram que aplica princípios avançados de design e marketing digital para criar artes de alto impacto visual e alta taxa de engajamento.Siga as diretrizes abaixo: - Utilize teorias de design como a Regra dos Terços, Gestalt, contraste de cores e tipografia legível. - Aplique psicologia das cores para gerar a emoção desejada no público-alvo. - Otimize a composição para retenção visual, considerando a taxa média de atenção de 3 segundos no feed. - Formato da arte: 1080x1080 pixels (padrão Instagram feed) ou 1080x1920 (stories), mantendo proporção 1:1 ou 9:16. - Utilize hierarquia visual clara para guiar o olhar do espectador. - Considere métricas de performance: taxa de engajamento >5%, CTR elevado, aumento de alcance orgânico. - Inclua elementos gráficos modernos e consistentes com identidade visual da marca. - Adicione espaço estratégico para inserção de textos curtos de impacto (até 5 palavras principais). - Mantenha equilíbrio entre elementos visuais e áreas de respiro para não sobrecarregar a composição. - Estilo e tom adaptados ao público-alvo, alinhados às tendências atuais de conteúdo visual no Instagram. - A imagem final deve ser realista, de alta qualidade, com iluminação e cores ajustadas para destacar no feed.");
+  promptParts.push(
+    `Esta imagem é para um anúncio da marca "${brand}" sobre o tema "${theme}".`
+  );
 
-  const finalPrompt = promptParts.join('. ');
-  return finalPrompt.length > MAX_PROMPT_LENGTH ? finalPrompt.substring(0, MAX_PROMPT_LENGTH) : finalPrompt;
+  const finalPrompt = promptParts.join(". ");
+  return finalPrompt.length > MAX_PROMPT_LENGTH
+    ? finalPrompt.substring(0, MAX_PROMPT_LENGTH)
+    : finalPrompt;
 }
 
 /**
@@ -186,32 +237,38 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API,
 });
 
-async function generateImage(prompt: string, referenceImage?: string, actionId?: string): Promise<any> {
+async function generateImage(
+  prompt: string,
+  referenceImage?: string,
+  actionId?: string
+): Promise<any> {
   try {
     // Limitar o tamanho do prompt para evitar erros
     const maxPromptLength = 2000;
-    let basePrompt = prompt.length > maxPromptLength ? prompt.substring(0, maxPromptLength) : prompt;
-    
+    let basePrompt =
+      prompt.length > maxPromptLength
+        ? prompt.substring(0, maxPromptLength)
+        : prompt;
+
     const fullPrompt = `${basePrompt}. Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vibrantes.`;
 
     const contents: any[] = [];
     if (referenceImage) {
       try {
-        const [meta, data] = referenceImage.split(',');
+        const [meta, data] = referenceImage.split(",");
         const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
         contents.push({
           inlineData: {
             data,
-            mimeType: mimeMatch ? mimeMatch[1] : 'image/png',
+            mimeType: mimeMatch ? mimeMatch[1] : "image/png",
           },
         });
-      } catch (refError) {
-        }
+      } catch (refError) {}
     }
     contents.push({ text: fullPrompt });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation",
+      model: "gemini-2.0-flash-preview-image-generation", 
       contents,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
@@ -231,15 +288,15 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
 
         if (part && part.inlineData) {
           const imageData = part.inlineData.data;
-          
+
           // Retorna a imagem como data URL em vez de salvar arquivo
-          const mimeType = part.inlineData.mimeType || 'image/png';
+          const mimeType = part.inlineData.mimeType || "image/png";
           const dataUrl = createImageDataUrl(imageData, mimeType);
-          
-          return { 
+
+          return {
             imageUrl: dataUrl,
             base64Data: imageData,
-            mimeType: mimeType
+            mimeType: mimeType,
           };
         } else {
           throw new Error("Image data is missing in the response");
@@ -258,11 +315,15 @@ async function generateImage(prompt: string, referenceImage?: string, actionId?:
 /**
  * Fallback para DALL-E quando Gemini falha
  */
-async function generateImageWithDALLE(prompt: string, actionId?: string): Promise<any> {
+async function generateImageWithDALLE(
+  prompt: string,
+  actionId?: string
+): Promise<any> {
   try {
     // Simplificar o prompt para DALL-E
-    const simplePrompt = prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
-    
+    const simplePrompt =
+      prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
+
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt: `${simplePrompt}. Professional Instagram post design with high quality and modern aesthetic.`,
@@ -273,13 +334,13 @@ async function generateImageWithDALLE(prompt: string, actionId?: string): Promis
 
     if (response.data && response.data[0] && response.data[0].b64_json) {
       const imageData = response.data[0].b64_json;
-      const mimeType = 'image/png';
+      const mimeType = "image/png";
       const dataUrl = createImageDataUrl(imageData, mimeType);
-      
+
       return {
         imageUrl: dataUrl,
         base64Data: imageData,
-        mimeType: mimeType
+        mimeType: mimeType,
       };
     } else {
       throw new Error("No image data returned from DALL-E");
@@ -302,7 +363,11 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
   for (let i = 0; i < prompts.length; i++) {
     const currentPrompt = prompts[i];
     try {
-      const response = await generateImage(currentPrompt, formData.referenceImage, actionId);
+      const response = await generateImage(
+        currentPrompt,
+        formData.referenceImage,
+        actionId
+      );
 
       if (response.imageUrl) {
         return {
@@ -312,33 +377,49 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
           mimeType: response.mimeType,
           promptUsed: currentPrompt,
           attemptNumber: i + 1,
-          model: 'gemini-2.0-flash-preview-image-generation',
-          quality: 'high',
-          size: '1080x1080',
-          output_format: 'png'
+          model: "gemini-2.5-flash-preview-image-generation",
+          quality: "high",
+          size: "1080x1080",
+          output_format: "png",
         };
       }
     } catch (error) {
       // Se é erro 500 do Gemini, tenta o DALL-E imediatamente
-      if (error.status === 500 || error.message?.includes('INTERNAL')) {
+      if (error.status === 500 || error.message?.includes("INTERNAL")) {
         break;
       }
-      
-      if (error.message?.includes('content policy') || error.message?.includes('safety')) {
+
+      if (
+        error.message?.includes("content policy") ||
+        error.message?.includes("safety")
+      ) {
         continue;
       }
-      if (error.message?.includes('quota') || error.message?.includes('limit')) {
-        throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos.');
+      if (
+        error.message?.includes("quota") ||
+        error.message?.includes("limit")
+      ) {
+        throw new Error(
+          "Limite de requisições excedido. Tente novamente em alguns minutos."
+        );
       }
-      if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
-        throw new Error('Chave da API inválida ou não autorizada para Gemini.');
+      if (
+        error.message?.includes("authentication") ||
+        error.message?.includes("unauthorized")
+      ) {
+        throw new Error("Chave da API inválida ou não autorizada para Gemini.");
       }
-      if (error.message?.includes('not found') || error.message?.includes('model')) {
-        throw new Error('Modelo Gemini não encontrado. Verifique se sua conta tem acesso.');
+      if (
+        error.message?.includes("not found") ||
+        error.message?.includes("model")
+      ) {
+        throw new Error(
+          "Modelo Gemini não encontrado. Verifique se sua conta tem acesso."
+        );
       }
 
       if (i === prompts.length - 1) {
-        }
+      }
     }
   }
 
@@ -352,17 +433,17 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
       mimeType: response.mimeType,
       promptUsed: prompts[0],
       attemptNumber: 1,
-      model: 'dall-e-3',
-      quality: 'high',
-      size: '1024x1024',
-      output_format: 'png'
+      model: "dall-e-3",
+      quality: "high",
+      size: "1024x1024",
+      output_format: "png",
     };
-  } catch (dalleError) {
-    }
+  } catch (dalleError) {}
 
   return {
     success: false,
-    error: 'Todos os serviços de geração de imagem falharam. Tente novamente em alguns minutos.'
+    error:
+      "Todos os serviços de geração de imagem falharam. Tente novamente em alguns minutos.",
   };
 }
 
@@ -372,7 +453,7 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
 async function generateTextContent(formData: any) {
   // --- PROMPT APRIMORADO E MAIS SEGURO ---
   const cleanedTones = Array.isArray(formData.tone)
-    ? formData.tone.map(cleanInput).join(', ')
+    ? formData.tone.map(cleanInput).join(", ")
     : cleanInput(formData.tone);
 
   const textPrompt = `
@@ -383,100 +464,75 @@ async function generateTextContent(formData: any) {
 - **Objetivo Estratégico**: ${cleanInput(formData.objective)}
 - **Descrição Visual da Imagem**: ${cleanInput(formData.prompt)}
 - **Público-Alvo**: ${cleanInput(formData.audience)}
-- **Persona Específica**: ${cleanInput(formData.persona) || 'Não especificada'}
-- **Tom de Voz/Comunicação**: ${cleanedTones || 'Não especificado'}
-- **Informações Complementares**: ${cleanInput(formData.additionalInfo) || 'Não informado'}
+- **Persona Específica**: ${cleanInput(formData.persona) || "Não especificada"}
+- **Tom de Voz/Comunicação**: ${cleanedTones || "Não especificado"}
+- **Informações Complementares**: ${cleanInput(formData.additionalInfo) || "Não informado"}
 
-# SUA MISSÃO COMO COPYWRITER ESPECIALISTA
-Você é um copywriter especialista em redes sociais com mais de 10 anos de experiência criando conteúdos virais e de alto engajamento. Sua tarefa é criar uma legenda COMPLETA e ENVOLVENTE que:
+  # SUA MISSÃO COMO COPYWRITER ESPECIALISTA
+  Você é um copywriter especialista em redes sociais com mais de 10 anos de experiência criando conteúdos virais e de alto engajamento. Sua tarefa é criar uma legenda COMPLETA e ENVOLVENTE para a descrição da ${cleanInput(formData.platform)}, seguindo as melhores práticas de marketing digital, storytelling e copywriting.
 
-1. **CONECTE EMOCIONALMENTE** com o público através de storytelling
-2. **DESCREVA A IMAGEM** de forma rica e envolvente, fazendo o leitor "enxergar" mesmo sem ver
-3. **INCORPORE ELEMENTOS DE COPYWRITING** como gatilhos mentais, urgência, exclusividade
-4. **UTILIZE TÉCNICAS DE ENGAJAMENTO** como perguntas, call-to-actions, elementos interativos
-5. **SEJA OTIMIZADA PARA ALGORITMO** com linguagem natural e palavras-chave estratégicas
+  # ESTRUTURA IDEAL DA LEGENDA (SIGA RIGOROSAMENTE)
 
-# ESTRUTURA IDEAL DA LEGENDA (SIGA RIGOROSAMENTE)
+  ## ABERTURA IMPACTANTE (1 linhas)
+  - Hook que desperta curiosidade ou emoção
+  - Pode ser uma pergunta, declaração ousada, ou estatística impressionante
+  - Deve conectar diretamente com a imagem
 
-## ABERTURA IMPACTANTE (1-2 linhas)
-- Hook que desperta curiosidade ou emoção
-- Pode ser uma pergunta, declaração ousada, ou estatística impressionante
-- Deve conectar diretamente com a imagem
+  ## CALL-TO-ACTION PODEROSO (1-2 linhas)
+  - Comando claro e específico
+  - Use verbos de ação: "Descubra", "Experimente", "Transforme", "Acesse"
+  - Inclua senso de urgência quando apropriado
 
-## DESENVOLVIMENTO DO CONTEÚDO (3-5 parágrafos)
-- **Parágrafo 1**: Descreva a imagem de forma envolvente, criando uma cena mental rica
-- **Parágrafo 2**: Conecte a imagem ao contexto da marca/tema, conte uma história
-- **Parágrafo 3**: Apresente o valor/benefício/solução que está sendo oferecido
-- **Parágrafo 4**: Inclua prova social, dados, ou elementos de credibilidade
-- **Parágrafo 5**: Crie conexão emocional e identificação com o público
+  ## ELEMENTOS VISUAIS E INTERATIVOS
+  - Use emojis estrategicamente (1 por parágrafo máximo)
+  - Adicione elementos que incentivem interação
 
-## CALL-TO-ACTION PODEROSO (1-2 linhas)
-- Comando claro e específico
-- Use verbos de ação: "Descubra", "Experimente", "Transforme", "Acesse"
-- Inclua senso de urgência quando apropriado
+  # DIRETRIZES DE LINGUAGEM E ESTILO
 
-## ELEMENTOS VISUAIS E INTERATIVOS
-- Use emojis estrategicamente (2-3 por parágrafo máximo)
-- Inclua separadores visuais como "✨", "🔥", "💡"
-- Adicione elementos que incentivem interação
+  ## Para Instagram/Facebook:
+  - Máximo 2.200 caracteres
+  - Primeiro parágrafo até 125 caracteres (antes do "ver mais")
+  - Use quebras de linha estratégicas para facilitar leitura
+  - Linguagem conversacional e próxima
 
-# DIRETRIZES DE LINGUAGEM E ESTILO
+  ## Para LinkedIn:
+  - Máximo 3.000 caracteres
+  - Tom mais profissional mas ainda humano
+  - Inclua insights e valor educacional
+  - Use dados e estatísticas quando relevante
 
-## Para Instagram/Facebook:
-- Máximo 2.200 caracteres
-- Primeiro parágrafo até 125 caracteres (antes do "ver mais")
-- Use quebras de linha estratégicas para facilitar leitura
-- Linguagem conversacional e próxima
+  ## Para TikTok/Reels:
+  - Máximo 2.200 caracteres
+  - Linguagem jovem e dinâmica
+  - Referências a tendências quando apropriado
+  - Foco em entretenimento e valor rápido
 
-## Para LinkedIn:
-- Máximo 3.000 caracteres
-- Tom mais profissional mas ainda humano
-- Inclua insights e valor educacional
-- Use dados e estatísticas quando relevante
+  # REGRAS TÉCNICAS DE SAÍDA (CRÍTICAS)
+  - Resposta EXCLUSIVAMENTE em JSON válido
+  - ZERO texto adicional, explicações ou markdown
+  - Estrutura EXATA: {"title", "body", "hashtags"}
 
-## Para TikTok/Reels:
-- Máximo 2.200 caracteres
-- Linguagem jovem e dinâmica
-- Referências a tendências quando apropriado
-- Foco em entretenimento e valor rápido
+  ## ESPECIFICAÇÕES:
+  - **"title"**: Título magnético de 45-60 caracteres que funcione como headline
+  - **"body"**: Legenda completa de 800-1500 caracteres, rica em detalhes e engajamento
+  - **"hashtags"**: Array com 8-12 hashtags estratégicas (MIX de nicho + populares)
 
-# TÉCNICAS DE COPYWRITING OBRIGATÓRIAS
-- **Storytelling**: Conte uma história, mesmo que pequena
-- **Prova Social**: Mencione resultados, depoimentos, ou números
-- **Gatilhos Mentais**: Escassez, autoridade, reciprocidade, compromisso
-- **Benefícios > Características**: Foque no que o público ganha
-- **Linguagem Sensorial**: Use palavras que ativem os 5 sentidos
+  ## FORMATAÇÃO DA LEGENDA:
+  - Use '\\n\\n' para parágrafos
+  - Use '\\n' para quebras simples
+  - Máximo 3 emojis por parágrafo
+  - Inclua pelo menos 1 pergunta para engajamento
+  - Termine com CTA forte e claro
 
-# REGRAS TÉCNICAS DE SAÍDA (CRÍTICAS)
-- Resposta EXCLUSIVAMENTE em JSON válido
-- ZERO texto adicional, explicações ou markdown
-- Estrutura EXATA: {"title", "body", "hashtags"}
-
-## ESPECIFICAÇÕES:
-- **"title"**: Título magnético de 45-60 caracteres que funcione como headline
-- **"body"**: Legenda completa de 800-1500 caracteres, rica em detalhes e engajamento
-- **"hashtags"**: Array com 8-12 hashtags estratégicas (MIX de nicho + populares)
-
-## FORMATAÇÃO DA LEGENDA:
-- Use '\\n\\n' para parágrafos
-- Use '\\n' para quebras simples
-- Máximo 3 emojis por parágrafo
-- Inclua pelo menos 1 pergunta para engajamento
-- Termine com CTA forte e claro
-
-# EXEMPLO DE SAÍDA PROFISSIONAL:
-{
-  "title": "O Segredo Por Trás Desta Transformação Incrível 🚀",
-  "body": "🌟 Você já parou para observar como pequenos detalhes podem transformar completamente nossa perspectiva?\\n\\nNesta imagem, cada elemento foi cuidadosamente pensado para despertar uma sensação específica. As cores vibrantes não são apenas estética - elas representam energia, movimento e possibilidade. A composição visual conta uma história que vai muito além do que nossos olhos conseguem capturar no primeiro olhar.\\n\\n💡 Quando falamos sobre [tema], não estamos apenas apresentando um produto ou serviço. Estamos compartilhando uma filosofia, um estilo de vida, uma nova forma de enxergar as possibilidades que estão bem na nossa frente.\\n\\nMais de 10.000 pessoas já descobriram como essa abordagem transformou não apenas seus resultados, mas toda sua mentalidade. E o mais incrível? Tudo começa com uma decisão simples.\\n\\n🔥 A pergunta que não quer calar: você está pronto para dar esse próximo passo?\\n\\n👆 Comente 'QUERO' se você se identificou com essa mensagem!\\n\\n✨ Marque aquela pessoa que precisa ver isso hoje!\",\n  \"hashtags\": [\"transformacao\", \"mindset\", \"resultados\", \"inspiracao\", \"motivacao\", \"sucesso\", \"empreendedorismo\", \"crescimento\", \"foco\", \"determinacao\", \"vibesdigitais\", \"conquistadiaria\"]\n}
-`;
+  `;
 
   try {
     const chatCompletion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: textPrompt }],
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: textPrompt }],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 1000,
     });
 
     const rawContent = chatCompletion.choices[0].message.content;
@@ -488,33 +544,45 @@ Você é um copywriter especialista em redes sociais com mais de 10 anos de expe
     const postContent = JSON.parse(rawContent);
 
     // --- LÓGICA DE CORREÇÃO E VALIDAÇÃO ---
-    if (!postContent || typeof postContent !== 'object') {
+    if (!postContent || typeof postContent !== "object") {
       throw new Error("Conteúdo não é um objeto válido");
     }
-    
+
     // Se a IA retornar uma string em vez de um array, tentamos corrigir.
-    if (typeof postContent.hashtags === 'string') {
-        postContent.hashtags = postContent.hashtags.replace(/#/g, '').split(/[\s,]+/).filter(Boolean);
+    if (typeof postContent.hashtags === "string") {
+      postContent.hashtags = postContent.hashtags
+        .replace(/#/g, "")
+        .split(/[\s,]+/)
+        .filter(Boolean);
     }
 
-    if (!Array.isArray(postContent.hashtags) || postContent.hashtags.length === 0) {
-      throw new Error("Hashtags ausentes ou em formato inválido após tentativa de correção");
+    if (
+      !Array.isArray(postContent.hashtags) ||
+      postContent.hashtags.length === 0
+    ) {
+      throw new Error(
+        "Hashtags ausentes ou em formato inválido após tentativa de correção"
+      );
     }
-    
-    postContent.hashtags = postContent.hashtags.map((tag: any) => 
-      String(tag).replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ]/g, '').toLowerCase()
-    ).filter((tag: string) => tag.length > 0);
-    
+
+    postContent.hashtags = postContent.hashtags
+      .map((tag: any) =>
+        String(tag)
+          .replace(/[^a-zA-Z0-9áéíóúàèìòùâêîôûãõçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ]/g, "")
+          .toLowerCase()
+      )
+      .filter((tag: string) => tag.length > 0);
+
     return postContent;
-
   } catch (error: any) {
     // Fallback com conteúdo personalizado mais rico e envolvente
-    const brandName = cleanInput(formData.brand) || 'nossa marca';
-    const themeName = cleanInput(formData.theme) || 'novidades';
-    const objective = cleanInput(formData.objective) || 'trazer inovação e valor';
-    const audience = cleanInput(formData.audience) || 'nosso público';
-    const platform = cleanInput(formData.platform) || 'redes sociais';
-    
+    const brandName = cleanInput(formData.brand) || "nossa marca";
+    const themeName = cleanInput(formData.theme) || "novidades";
+    const objective =
+      cleanInput(formData.objective) || "trazer inovação e valor";
+    const audience = cleanInput(formData.audience) || "nosso público";
+    const platform = cleanInput(formData.platform) || "redes sociais";
+
     // Cria uma legenda rica mesmo no fallback
     const fallbackBody = `🌟 Cada imagem conta uma história, e esta não é diferente!
 
@@ -535,19 +603,21 @@ Nossa conexão com ${audience} vai além das palavras. É uma conversa visual qu
       title: `${brandName}: Descobrindo ${themeName} 🚀`,
       body: fallbackBody,
       hashtags: [
-        brandName.toLowerCase().replace(/\s+/g, '').substring(0, 15), 
-        themeName.toLowerCase().replace(/\s+/g, '').substring(0, 15),
+        brandName.toLowerCase().replace(/\s+/g, "").substring(0, 15),
+        themeName.toLowerCase().replace(/\s+/g, "").substring(0, 15),
         "conteudovisual",
-        "marketingdigital", 
+        "marketingdigital",
         "storytelling",
-        "engajamento", 
+        "engajamento",
         "estrategia",
         "inspiracao",
         "crescimento",
         "inovacao",
         "conexao",
-        "transformacao"
-      ].filter(tag => tag && tag.length > 2).slice(0, 12)
+        "transformacao",
+      ]
+        .filter((tag) => tag && tag.length > 2)
+        .slice(0, 12),
     };
   }
 }
@@ -558,11 +628,17 @@ Nossa conexão com ${audience} vai além das palavras. É uma conversa visual qu
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'Chave da API OpenAI não configurada no servidor.' }, { status: 500 });
+      return NextResponse.json(
+        { error: "Chave da API OpenAI não configurada no servidor." },
+        { status: 500 }
+      );
     }
 
     if (!process.env.GOOGLE_API) {
-      return NextResponse.json({ error: 'Chave da API Google não configurada no servidor.' }, { status: 500 });
+      return NextResponse.json(
+        { error: "Chave da API Google não configurada no servidor." },
+        { status: 500 }
+      );
     }
 
     const formData = await req.json();
@@ -570,15 +646,18 @@ export async function POST(req: NextRequest) {
 
     // Validação mais detalhada
     const missingFields = [];
-    if (!actionDetails.prompt) missingFields.push('prompt');
-    if (!teamId) missingFields.push('teamId');
-    if (!brandId) missingFields.push('brandId');
-    if (!userId) missingFields.push('userId');
+    if (!actionDetails.prompt) missingFields.push("prompt");
+    if (!teamId) missingFields.push("teamId");
+    if (!brandId) missingFields.push("brandId");
+    if (!userId) missingFields.push("userId");
 
     if (missingFields.length > 0) {
-      return NextResponse.json({ 
-        error: `Dados obrigatórios ausentes: ${missingFields.join(', ')}` 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Dados obrigatórios ausentes: ${missingFields.join(", ")}`,
+        },
+        { status: 400 }
+      );
     }
 
     // --- 1. CRIAÇÃO DA AÇÃO PRIMEIRO PARA OBTER O ID ---
@@ -590,30 +669,38 @@ export async function POST(req: NextRequest) {
         userId,
         details: actionDetails,
         result: null, // Será atualizado após a geração
-        status: 'Em revisão',
+        status: "Em revisão",
         approved: false,
         revisions: 0,
       },
     });
 
     // --- 2. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS (usando actionId) ---
-    const imageResult = await generateImageWithFallbacks(actionDetails, action.id);
+    const imageResult = await generateImageWithFallbacks(
+      actionDetails,
+      action.id
+    );
 
     if (!imageResult.success) {
       // Atualiza a ação com erro
       await prisma.action.update({
         where: { id: action.id },
         data: {
-          status: 'Rejeitada',
+          status: "Rejeitada",
           result: {
-            error: imageResult.error || 'Falha na geração da imagem'
-          }
-        }
+            error: imageResult.error || "Falha na geração da imagem",
+          },
+        },
       });
 
-      return NextResponse.json({
-        error: imageResult.error || 'Não foi possível gerar a imagem com Gemini. Tente uma descrição diferente.'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            imageResult.error ||
+            "Não foi possível gerar a imagem com Gemini. Tente uma descrição diferente.",
+        },
+        { status: 400 }
+      );
     }
 
     // --- 3. GERAÇÃO DO TEXTO COM GPT-4O-MINI ---
@@ -625,8 +712,8 @@ export async function POST(req: NextRequest) {
       data: {
         result: {
           imageUrl: `/api/image/${action.id}`, // URL para servir a imagem do banco
-          base64Data: imageResult.base64Data,  // Dados base64 da imagem
-          mimeType: imageResult.mimeType,      // Tipo MIME da imagem
+          base64Data: imageResult.base64Data, // Dados base64 da imagem
+          mimeType: imageResult.mimeType, // Tipo MIME da imagem
           title: postContent.title,
           body: postContent.body,
           hashtags: postContent.hashtags,
@@ -648,20 +735,27 @@ export async function POST(req: NextRequest) {
         output_format: imageResult.output_format,
         promptUsed: imageResult.promptUsed,
         attemptNumber: imageResult.attemptNumber,
-        originalData: actionDetails
-      }
+        originalData: actionDetails,
+      },
     });
-
   } catch (error) {
     let errorMessage = "Ocorreu um erro interno no servidor.";
     let statusCode = 500;
-    
+
     if (error instanceof Error) {
       errorMessage = error.message;
-      if (error.message.includes('Limite de requisições')) statusCode = 429;
-      else if (error.message.includes('não autorizada') || error.message.includes('inválida')) statusCode = 401;
-      else if (error.message.includes('não encontrado')) statusCode = 404;
-      else if (error.message.includes('Falha ao salvar') || error.message.includes('Falha ao processar')) statusCode = 500;
+      if (error.message.includes("Limite de requisições")) statusCode = 429;
+      else if (
+        error.message.includes("não autorizada") ||
+        error.message.includes("inválida")
+      )
+        statusCode = 401;
+      else if (error.message.includes("não encontrado")) statusCode = 404;
+      else if (
+        error.message.includes("Falha ao salvar") ||
+        error.message.includes("Falha ao processar")
+      )
+        statusCode = 500;
     }
 
     // Se há um actionId disponível (ação foi criada), marca como rejeitada
@@ -671,21 +765,23 @@ export async function POST(req: NextRequest) {
         await prisma.action.update({
           where: { id: formData.actionId },
           data: {
-            status: 'Rejeitada',
+            status: "Rejeitada",
             result: {
-              error: errorMessage
-            }
-          }
+              error: errorMessage,
+            },
+          },
         });
-        } catch (updateError) {
-        }
+      } catch (updateError) {}
     }
 
-    return NextResponse.json({
-      error: errorMessage,
-      model: 'gemini-2.0-flash-preview-image-generation',
-      timestamp: new Date().toISOString(),
-      shouldRedirectToHistory: statusCode === 500 // Só redireciona para histórico em erros críticos
-    }, { status: statusCode });
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        model: "gemini-2.0-flash-preview-image-generation",
+        timestamp: new Date().toISOString(),
+        shouldRedirectToHistory: statusCode === 500, // Só redireciona para histórico em erros críticos
+      },
+      { status: statusCode }
+    );
   }
 }
