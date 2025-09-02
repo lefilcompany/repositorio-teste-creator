@@ -1,28 +1,39 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase-browser";
-
 import type { StrategicTheme } from "@/types/theme";
-
 
 export function useThemesRealtime(teamId?: string) {
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchThemes = useCallback(async () => {
     if (!teamId) return;
     setLoading(true);
-    supabase
-      .from("themes")
-      .select("*")
-      .eq("team_id", teamId)
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        else setThemes(data || []);
-        setLoading(false);
+    setError(null);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+      const res = await fetch(`/api/themes?teamId=${teamId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      if (res.ok) {
+        const data: StrategicTheme[] = await res.json();
+        setThemes(data);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Failed to fetch themes");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch themes");
+    } finally {
+      setLoading(false);
+    }
   }, [teamId]);
+
+  useEffect(() => {
+    fetchThemes();
+  }, [fetchThemes]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -31,26 +42,14 @@ export function useThemesRealtime(teamId?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "themes", filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          setThemes((prev) => {
-            if (payload.eventType === "INSERT") {
-              return [...prev, payload.new as StrategicTheme];
-            }
-            if (payload.eventType === "UPDATE") {
-              return prev.map((t) => (t.id === payload.new.id ? (payload.new as StrategicTheme) : t));
-            }
-            if (payload.eventType === "DELETE") {
-              return prev.filter((t) => t.id !== payload.old.id);
-            }
-            return prev;
-          });
-        }
-      );
-    channel.subscribe();
+        fetchThemes
+      )
+      .subscribe();
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, [teamId]);
+  }, [teamId, fetchThemes]);
 
-  return { themes, loading, error };
+  return { themes, loading, error, refetch: fetchThemes };
 }
+

@@ -12,61 +12,30 @@ import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
+import { useThemesRealtime } from '@/hooks/useThemesRealtime';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function TemasPage() {
   const { user } = useAuth();
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { themes, loading: isLoadingThemes } = useThemesRealtime(user?.teamId);
+  const { brands } = useBrandsRealtime(user?.teamId);
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
-  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
-  
+
   useEffect(() => {
-    const load = async () => {
-      if (!user?.teamId) return;
-      
-      try {
-        // Load themes
-        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
-        if (themesRes.ok) {
-          const data: StrategicTheme[] = await themesRes.json();
-          setThemes(data);
-        } else {
-          toast.error('Erro ao carregar temas estratégicos');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar temas');
-      } finally {
-        setIsLoadingThemes(false);
+    const loadTeam = async () => {
+      if (!user?.id) {
+        setIsLoadingTeam(false);
+        return;
       }
-    };
-    
-    load();
-  }, [user]);
-
-  useEffect(() => {
-    const loadBrandsAndTeam = async () => {
-      if (!user?.teamId) return;
-      
       try {
-        const [brandsRes, teamRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-        
-        if (brandsRes.ok) {
-          const data: Brand[] = await brandsRes.json();
-          setBrands(data);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
-
+        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamRes.ok) {
           const teamsData: Team[] = await teamRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
@@ -80,8 +49,8 @@ export default function TemasPage() {
         setIsLoadingTeam(false);
       }
     };
-    
-    loadBrandsAndTeam();
+
+    loadTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
@@ -118,9 +87,6 @@ export default function TemasPage() {
           throw new Error('Falha ao salvar tema');
         }
         const saved: StrategicTheme = await res.json();
-        setThemes(prev =>
-          themeToEdit ? prev.map(t => (t.id === saved.id ? saved : t)) : [...prev, saved]
-        );
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
         }
@@ -137,7 +103,6 @@ export default function TemasPage() {
     try {
       const res = await fetch(`/api/themes/${selectedTheme.id}`, { method: 'DELETE' });
       if (res.ok) {
-        setThemes(prev => prev.filter(t => t.id !== selectedTheme.id));
         setSelectedTheme(null);
         toast.success('Tema deletado com sucesso!');
       } else {
@@ -150,7 +115,7 @@ export default function TemasPage() {
   }, [selectedTheme]);
 
   // Verificar se o limite foi atingido
-  const isAtThemeLimit = team && typeof team.plan === 'object' 
+  const isAtThemeLimit = team && typeof team.plan === 'object'
     ? themes.length >= (team.plan.limits?.themes || 3)
     : false;
 

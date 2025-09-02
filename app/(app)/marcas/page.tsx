@@ -10,6 +10,7 @@ import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
@@ -17,40 +18,20 @@ type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | '
 
 export default function MarcasPage() {
   const { user } = useAuth();
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { brands, loading: isLoadingBrands } = useBrandsRealtime(user?.teamId);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
-  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      if (!user?.teamId) {
-        setIsLoadingBrands(false);
+    const loadTeam = async () => {
+      if (!user?.id) {
         setIsLoadingTeam(false);
         return;
       }
-
       try {
-        // Carregar marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
-        if (brandsRes.ok) {
-          const data: Brand[] = await brandsRes.json();
-          setBrands(data);
-        } else {
-          const error = await brandsRes.json();
-          toast.error('Erro ao carregar marcas da equipe');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar marcas');
-      } finally {
-        setIsLoadingBrands(false);
-      }
-
-      try {
-        // Carregar dados do team
         const teamRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamRes.ok) {
           const teamsData: Team[] = await teamRes.json();
@@ -65,7 +46,7 @@ export default function MarcasPage() {
         setIsLoadingTeam(false);
       }
     };
-    load();
+    loadTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
@@ -103,9 +84,6 @@ export default function MarcasPage() {
       }
       
       const saved: Brand = await res.json();
-      setBrands(prev =>
-        brandToEdit ? prev.map(b => (b.id === saved.id ? saved : b)) : [...prev, saved]
-      );
       if (brandToEdit && selectedBrand?.id === saved.id) {
         setSelectedBrand(saved);
       }
@@ -119,11 +97,10 @@ export default function MarcasPage() {
   const handleDeleteBrand = useCallback(async () => {
     if (!selectedBrand || !user?.teamId || !user?.id) return;
     try {
-      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, { 
-        method: 'DELETE' 
+      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
-        setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
         setSelectedBrand(null);
         toast.success('Marca deletada com sucesso!');
       } else {
