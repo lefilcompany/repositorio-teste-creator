@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 import type { Brand } from '@/types/brand';
 import type { Action } from '@/types/action';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
@@ -29,12 +30,13 @@ export default function HomePage() {
   const { user, team } = useAuth();
   const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
-  
+  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+
   // Estados de carregamento independentes
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+  const { team: teamRealtime, loading: loadingTeamRealtime } = useTeamRealtime(user?.teamId);
 
   // Detecta quando a autenticação está carregada
   useEffect(() => {
@@ -202,11 +204,11 @@ export default function HomePage() {
   }, [user, isAuthLoaded]);
 
   // Calculando créditos corretamente - os créditos no team.credits são os créditos restantes
-  const creditos = team ? {
+  const creditos = teamRealtime ? {
     // Garantir que estamos usando os valores corretos do banco
-    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
-    total: (typeof team.plan === 'object' ? 
-      ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5)) 
+    restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
+    total: (typeof teamRealtime.plan === 'object' ? 
+      ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5)) 
       : 45) // Valor padrão para plano FREE: 20 + 20 + 5 = 45
   } : { restantes: 0, total: 0 };
 
@@ -345,7 +347,7 @@ export default function HomePage() {
         {/* Grid de Cards de Estatísticas */}
         <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card de Créditos */}
-          {!isAuthLoaded || !team ? (
+          {(!isAuthLoaded || loadingTeamRealtime) ? (
             <CreditsCardSkeleton />
           ) : (
             <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">

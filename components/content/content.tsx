@@ -16,7 +16,10 @@ import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import type { Persona } from '@/types/persona';
 import { useAuth } from '@/hooks/useAuth';
-import type { Team } from '@/types/team';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
+import { useThemesRealtime } from '@/hooks/useThemesRealtime';
+import { usePersonasRealtime } from '@/hooks/usePersonasRealtime';
+import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 
 // Interfaces
 interface FormData {
@@ -79,10 +82,10 @@ export default function Creator() {
     description: '', audience: '', tone: [], additionalInfo: '',
   });
 
-  const [team, setTeam] = useState<Team | null>(null);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [personas, setPersonas] = useState<Persona[]>([]);
+  const { team, refetch: refetchTeam } = useTeamRealtime(user?.teamId);
+  const { brands } = useBrandsRealtime(user?.teamId);
+  const { themes } = useThemesRealtime(user?.teamId);
+  const { personas } = usePersonasRealtime(user?.teamId);
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
@@ -92,52 +95,9 @@ export default function Creator() {
   const [duration, setDuration] = useState<string>('10');
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!user?.teamId || !user.id) return;
-
-      try {
-        const [brandsRes, themesRes, personasRes, teamsRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/personas?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-
-        if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
-          setBrands(brandsData);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
-
-        if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
-          setThemes(themesData);
-        } else {
-          toast.error('Erro ao carregar temas estratégicos');
-        }
-
-        if (personasRes.ok) {
-          const personasData: Persona[] = await personasRes.json();
-          setPersonas(personasData);
-        } else {
-          toast.error('Erro ao carregar personas');
-        }
-
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          const currentTeam = teamsData.find(t => t.id === user.teamId);
-          if (currentTeam) setTeam(currentTeam);
-        } else {
-          toast.error('Erro ao carregar dados da equipe');
-        }
-      } catch (e) {
-        toast.error('Houve um problema ao carregar seus dados. Tente recarregar a página.');
-      }
-    };
-
-    loadData();
-  }, [user]);
+    const selectedBrand = brands.find(b => b.name === formData.brand);
+    setFilteredThemes(selectedBrand ? themes.filter(t => t.brandId === selectedBrand.id) : []);
+  }, [brands, themes, formData.brand]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
@@ -217,8 +177,8 @@ export default function Creator() {
       });
 
       if (updateRes.ok) {
-        const updatedTeam = await updateRes.json();
-        setTeam(updatedTeam);
+        await updateRes.json();
+        refetchTeam();
       }
     } catch (error) {
     }
