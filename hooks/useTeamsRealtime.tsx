@@ -1,26 +1,39 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase-browser";
 import type { Team } from "@/types/team";
 
 export function useTeamsRealtime(userId?: string) {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchTeams = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    supabase
-      .from("teams")
-      .select("*")
-      .contains("members", [userId])
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        else setTeams(data || []);
-        setLoading(false);
+    setError(null);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+      const res = await fetch(`/api/teams?userId=${userId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      if (res.ok) {
+        const data: Team[] = await res.json();
+        setTeams(data);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Failed to fetch teams");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch teams");
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   useEffect(() => {
     if (!userId) return;
@@ -29,26 +42,14 @@ export function useTeamsRealtime(userId?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "teams", filter: `members=cs.{${userId}}` },
-        (payload) => {
-          setTeams((prev) => {
-            if (payload.eventType === "INSERT") {
-              return [...prev, payload.new as Team];
-            }
-            if (payload.eventType === "UPDATE") {
-              return prev.map((t) => (t.id === payload.new.id ? (payload.new as Team) : t));
-            }
-            if (payload.eventType === "DELETE") {
-              return prev.filter((t) => t.id !== payload.old.id);
-            }
-            return prev;
-          });
-        }
-      );
-    channel.subscribe();
+        fetchTeams
+      )
+      .subscribe();
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, fetchTeams]);
 
-  return { teams, loading, error };
+  return { teams, loading, error, refetch: fetchTeams };
 }
+

@@ -1,26 +1,39 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase-browser";
 import type { Persona } from "@/types/persona";
 
 export function usePersonasRealtime(teamId?: string) {
   const [personas, setPersonas] = useState<Persona[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchPersonas = useCallback(async () => {
     if (!teamId) return;
     setLoading(true);
-    supabase
-      .from("personas")
-      .select("*")
-      .eq("team_id", teamId)
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        else setPersonas(data || []);
-        setLoading(false);
+    setError(null);
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+      const res = await fetch(`/api/personas?teamId=${teamId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      if (res.ok) {
+        const data: Persona[] = await res.json();
+        setPersonas(data);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Failed to fetch personas");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch personas");
+    } finally {
+      setLoading(false);
+    }
   }, [teamId]);
+
+  useEffect(() => {
+    fetchPersonas();
+  }, [fetchPersonas]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -29,26 +42,14 @@ export function usePersonasRealtime(teamId?: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "personas", filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          setPersonas((prev) => {
-            if (payload.eventType === "INSERT") {
-              return [...prev, payload.new as Persona];
-            }
-            if (payload.eventType === "UPDATE") {
-              return prev.map((p) => (p.id === payload.new.id ? (payload.new as Persona) : p));
-            }
-            if (payload.eventType === "DELETE") {
-              return prev.filter((p) => p.id !== payload.old.id);
-            }
-            return prev;
-          });
-        }
-      );
-    channel.subscribe();
+        fetchPersonas
+      )
+      .subscribe();
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
-  }, [teamId]);
+  }, [teamId, fetchPersonas]);
 
-  return { personas, loading, error };
+  return { personas, loading, error, refetch: fetchPersonas };
 }
+
