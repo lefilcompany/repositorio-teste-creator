@@ -85,10 +85,14 @@ export function useActionsRealtime(teamId?: string, options: Options = {}) {
         }
       )
       .subscribe();
+    const interval = setInterval(() => {
+      fetchActions();
+    }, 15000);
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [teamId]);
+  }, [teamId, fetchActions]);
 
   return { actions, loading, error, refetch: fetchActions };
 }

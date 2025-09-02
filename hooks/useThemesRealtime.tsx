@@ -45,8 +45,12 @@ export function useThemesRealtime(teamId?: string) {
         fetchThemes
       )
       .subscribe();
+    const interval = setInterval(() => {
+      fetchThemes();
+    }, 15000);
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [teamId, fetchThemes]);
 

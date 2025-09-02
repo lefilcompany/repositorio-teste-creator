@@ -45,8 +45,12 @@ export function useBrandsRealtime(teamId?: string) {
         fetchBrands
       )
       .subscribe();
+    const interval = setInterval(() => {
+      fetchBrands();
+    }, 15000);
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [teamId, fetchBrands]);
 

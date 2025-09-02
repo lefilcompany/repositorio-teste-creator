@@ -45,8 +45,12 @@ export function useTeamsRealtime(userId?: string) {
         fetchTeams
       )
       .subscribe();
+    const interval = setInterval(() => {
+      fetchTeams();
+    }, 15000);
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [userId, fetchTeams]);
 
