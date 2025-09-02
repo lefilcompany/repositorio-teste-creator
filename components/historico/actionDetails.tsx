@@ -99,7 +99,18 @@ export default function ActionDetails({ action }: ActionDetailsProps) {
             <>
               <DetailItem label="Plataforma" value={action.details?.platform} />
               <DetailItem label="Quantidade" value={action.details?.quantity} />
-              <DetailItem label="Planejamento Gerado" value={<p className="font-semibold text-foreground whitespace-pre-line">{action.result?.plan}</p>} />
+              <div className="p-0">
+                <div className="font-semibold text-foreground mb-2">Planejamento Gerado</div>
+                {typeof action.result?.plan === 'string' && action.result.plan.trim().length > 0 ? (
+                  <div
+                    className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto bg-card rounded-xl border border-border/20 p-4"
+                    style={{ minHeight: 200 }}
+                    dangerouslySetInnerHTML={{ __html: action.result.plan }}
+                  />
+                ) : (
+                  <div className="text-muted-foreground italic">Nenhum planejamento disponível</div>
+                )}
+              </div>
             </>
           )}
 

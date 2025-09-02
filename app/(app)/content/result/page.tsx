@@ -27,10 +27,12 @@ import RevisionForm from '@/components/content/revisionForm';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { downloadImage } from '@/lib/download-utils';
+import { cn } from '@/lib/utils';
 
 // Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
   id: string;           // ID único do conteúdo
+  videoUrl?: string;    // URL do vídeo gerado (opcional)
   imageUrl: string;     // URL da imagem gerada
   title: string;        // Título/legenda principal
   body: string;         // Corpo do texto/descrição
@@ -77,7 +79,10 @@ export default function ResultPage() {
         
         if (response.ok) {
           const actions = await response.json();
-          
+
+          // Adicione este log:
+          console.log('[ResultPage] Dados retornados da API /api/actions:', actions);
+
           if (actions && actions.length > 0) {
             const action = actions[0];
             
@@ -85,6 +90,7 @@ export default function ResultPage() {
             const parsedContent: GeneratedContent = {
               id: action.id,
               actionId: action.id,
+              videoUrl: action.result?.videoUrl || "",
               imageUrl: action.result?.imageUrl || "",
               title: action.result?.title || "",
               body: action.result?.body || "",
@@ -604,11 +610,49 @@ export default function ResultPage() {
 
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <Card className="w-full aspect-square bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative">
-              <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
-              <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
-                {isDownloading ? <Loader className="animate-spin" /> : <Download />}
-              </Button>
+            <Card
+              className={cn(
+                'w-full bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative',
+                content.videoUrl ? 'aspect-[5/3]' : 'aspect-square'
+              )}
+            >
+              {content.videoUrl ? (
+                <video
+                  key={content.videoUrl}
+                  src={content.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  crossOrigin="anonymous" 
+                  poster={content.imageUrl}
+                  onError={() => {
+                    // Log e fallback
+                    console.error('Erro ao carregar vídeo:', content.videoUrl);
+                    toast.error('Erro ao carregar vídeo. Tente abrir em nova aba.');
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Image src={content.imageUrl} alt="Imagem Gerada" fill className="object-cover" />
+              )}
+              {!content.videoUrl && (
+                <Button onClick={handleDownloadImage} disabled={isDownloading} size="icon" className="absolute top-4 right-4 rounded-full w-12 h-12 shadow-lg">
+                  {isDownloading ? <Loader className="animate-spin" /> : <Download />}
+                </Button>
+              )}
+              {content.videoUrl && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="absolute bottom-4 right-4 rounded-full"
+                  title="Abrir vídeo em nova aba"
+                >
+                  <a href={content.videoUrl} target="_blank" rel="noopener noreferrer">
+                    Abrir vídeo
+                  </a>
+                </Button>
+              )}
             </Card>
           </div>
 
@@ -649,9 +693,11 @@ export default function ResultPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
-              Ajustar a Imagem
-            </Button>
+            {!content.videoUrl && (
+              <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
+                Ajustar a Imagem
+              </Button>
+            )}
             <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
               Ajustar a Legenda
             </Button>

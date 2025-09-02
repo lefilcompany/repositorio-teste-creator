@@ -5,6 +5,279 @@ import { ActionType } from '@prisma/client';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
+const HTML_STRUCTURE_START = `
+<div class="planning-document">
+  <style>
+    .planning-document {
+      /* Variáveis de cor isoladas para evitar conflitos de renderização */
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --accent-dark: #4f46e5;
+      --muted: #64748b;
+      --muted-light: #94a3b8;
+      --bg: #f8fafc;
+      --bg-light: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-light: #475569;
+      
+      /* Estilos base do documento */
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg-light);
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .planning-document h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 1.5rem;
+      color: var(--accent-dark);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 0.75rem;
+      letter-spacing: -0.025em;
+    }
+    
+    .planning-document h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem;
+      color: var(--text);
+      position: relative;
+      padding-left: 1rem;
+    }
+    
+    .planning-document h2::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.25rem;
+      bottom: 0.25rem;
+      width: 4px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      border-radius: 2px;
+    }
+    
+    .planning-document h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--text);
+    }
+    
+    .planning-document h4 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: var(--text);
+    }
+    
+    .planning-document p {
+      margin: 0 0 1rem;
+      color: var(--text-light);
+      line-height: 1.7;
+    }
+    
+    .planning-document ul {
+      margin: 0 0 1rem;
+      padding-left: 1.5rem;
+    }
+    
+    .planning-document li {
+      margin: 0.5rem 0;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+    
+    .post {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      background: var(--bg-light);
+      transition: all 0.2s ease;
+    }
+    
+    .post:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .meta {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    
+    .meta li {
+      margin: 0.5rem 0;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .meta li:last-child {
+      border-bottom: none;
+    }
+    
+    .meta strong {
+      color: var(--accent-dark);
+      min-width: 140px;
+      font-weight: 600;
+    }
+    
+    .list-item {
+      margin: 0.75rem 0;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      font-weight: 500;
+    }
+    
+    .persona-var {
+      background: linear-gradient(135deg, var(--bg), var(--bg-light));
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .persona-var strong {
+      color: var(--accent-dark);
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    
+    .highlight {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(129, 140, 248, 0.04));
+      padding: 1.25rem;
+      border-radius: 8px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      margin: 1rem 0;
+    }
+    
+    .persona-extract {
+      font-style: italic;
+      color: var(--muted);
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 6px;
+      border-left: 3px solid var(--muted-light);
+    }
+    
+    .use-prose {
+      max-width: 65ch;
+      line-height: 1.7;
+    }
+    
+    .hashtags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    .hashtag {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+    }
+    
+    .hashtag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+    }
+    
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 2rem 0;
+    }
+    
+    .concept, .visual, .direcionamento-texto, .personas, .hashtags, .tactics, .excellence {
+      margin: 1.5rem 0;
+      padding: 1.25rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    
+    .concept h4, .visual h4, .direcionamento-texto h4, .personas h4, .hashtags h4, .tactics h4, .excellence h4 {
+      color: var(--accent-dark);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .concept h4::before, .visual h4::before, .direcionamento-texto h4::before, .personas h4::before, .hashtags h4::before, .tactics h4::before, .excellence h4::before {
+      content: '✦';
+      margin-right: 0.75rem;
+      color: var(--accent);
+      font-size: 1.2em;
+    }
+    
+    footer {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      background: var(--bg);
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    
+    footer p {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    
+    @media (max-width: 768px) {
+      .planning-document {
+        padding: 1rem;
+        margin: 0;
+        border-radius: 0;
+      }
+      
+      .planning-document h1 {
+        font-size: 1.5rem;
+      }
+      
+      .planning-document h2 {
+        font-size: 1.25rem;
+      }
+      
+      .meta li {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .meta strong {
+        min-width: auto;
+        margin-bottom: 0.25rem;
+      }
+    }
+  </style>
+`;
+const HTML_STRUCTURE_END = `</div>`;
+
 export async function POST(req: NextRequest) {
   if (!apiKey) {
     return NextResponse.json({ error: 'A chave da API da OpenAI não está configurada.' }, { status: 500 });
@@ -24,155 +297,173 @@ export async function POST(req: NextRequest) {
       userId,
     } = body;
 
-    // Validações específicas com mensagens mais detalhadas
-    if (!brand) {
-      return NextResponse.json({ error: 'O campo "marca" é obrigatório.' }, { status: 400 });
-    }
-    if (!theme) {
-      return NextResponse.json({ error: 'O campo "tema" é obrigatório.' }, { status: 400 });
-    }
-    if (!platform) {
-      return NextResponse.json({ error: 'O campo "plataforma" é obrigatório.' }, { status: 400 });
-    }
-    if (!quantity || quantity < 1) {
-      return NextResponse.json({ error: 'O campo "quantidade" deve ser um número maior que zero.' }, { status: 400 });
-    }
-    if (!objective) {
-      return NextResponse.json({ error: 'O campo "objetivo" é obrigatório.' }, { status: 400 });
-    }
-    if (!teamId) {
-      return NextResponse.json({ error: 'ID da equipe não fornecido.' }, { status: 400 });
-    }
-    if (!brandId) {
-      return NextResponse.json({ error: 'ID da marca não fornecido.' }, { status: 400 });
-    }
-    if (!userId) {
-      return NextResponse.json({ error: 'ID do usuário não fornecido.' }, { status: 400 });
+    // Support multiple themes: accept string or array
+    const themes: string[] = Array.isArray(theme) ? theme.map(String).filter(Boolean) : (theme ? [String(theme)] : []);
+    const themeList = themes.join(', ');
+
+    // Validações (mantidas) — exige ao menos um tema
+    if (!brand || themes.length === 0 || !platform || quantity < 1 || !objective || !teamId || !brandId || !userId) {
+      return NextResponse.json({ error: 'Todos os campos obrigatórios devem ser preenchidos.' }, { status: 400 });
     }
 
-    // --- PROMPT DE PLANEJAMENTO PREMIUM ULTRA-DETALHADO ---
+    // Buscar os temas selecionados para obter Tom de Voz e contexto
+    const selectedThemes = await prisma.strategicTheme.findMany({
+      where: {
+        teamId,
+        brandId,
+        title: { in: themes },
+      },
+      select: {
+        title: true,
+        toneOfVoice: true,
+        objectives: true,
+        expectedAction: true,
+        description: true,
+      },
+    });
+
+    const themeToneLines = selectedThemes.map(t => `• ${t.title}: ${t.toneOfVoice}`).join('\n');
+    const themesContext = selectedThemes.map(t => `- ${t.title}: tom="${t.toneOfVoice}"; objetivos="${t.objectives}"; ação esperada="${t.expectedAction}"; resumo="${t.description}".`).join('\n');
+
+    // --- PROMPT ATUALIZADO E REFINADO ---
     const planningPrompt = `
-🚀 **PLANO ESTRATÉGICO DE CONTEÚDO DE ALTA PERFORMANCE** 🚀
+Gere o conteúdo HTML INTERNO para um briefing de conteúdo estratégico. Retorne APENAS as tags HTML do conteúdo, começando com <header> e terminando com <footer>. NÃO inclua a tag <div class="planning-document"> nem a tag <style>, pois elas serão adicionadas externamente.
 
-## 🎭 **PERSONA ESTRATÉGICA**
-**Diretor Criativo Sênior + Estrategista de Conteúdo Premium**
-Especialista em campanhas virais, storytelling magnético e conversão através de conteúdo visual impactante.
+--- INÍCIO DO CONTEXTO OBRIGATÓRIO ---
+Estes são os temas estratégicos e seus respectivos tons de voz. Aderir a eles é a prioridade máxima.
+Contexto dos temas selecionados (fornecido pelo usuário):
+${themesContext || '- (sem contexto detalhado disponível)'}
 
----
+Lista de Tom de Voz por tema (use esta lista como fonte única):
+${themeToneLines || '• (Tom de voz não informado nos temas)'}
 
-## 📋 **CONTEXTO DETALHADO DA CAMPANHA**
+Prioridade de harmonização (se houver conflito de tons): ${themeList}.
+--- FIM DO CONTEXTO OBRIGATÓRIO ---
 
-🏢 **Marca:** \`${brand}\`
-🎨 **Tema Estratégico:** \`${theme}\`  
-📱 **Plataforma Principal:** \`${platform}\`
-📊 **Quantidade de Posts:** \`${quantity} posts\`
-🎯 **Objetivo de Conversão:** \`${objective}\`
-💡 **Insights Adicionais:** ${additionalInfo || '*Nenhuma informação adicional fornecida*'}
 
----
+Diretrizes essenciais para o redator (OBRIGATÓRIO):
+  - Gere uma seção global antes dos posts com "Sugestões de Ângulos para a Legenda" (3 bullets concisos) alinhados ao objetivo "${objective}" e aos tons de voz acima.
+  - Gere também a "Chamada de Ação (CTA)" principal (1 recomendação central + 1–2 variações curtas), indicando intenção e melhor posicionamento (início/meio/final).
 
-## 🎯 **MISSÃO ESTRATÉGICA**
+Visão geral: o planejamento deve integrar elementos, mensagens e ganchos de todos os temas selecionados ao longo do calendário; quando adequado, atribua posts que enfatizem subtemas específicos ou combine temas em um único post com justificativa estratégica clara. Em cada seção de post, inclua um pequeno bloco "Checklist de aplicação do tom" que mostre exatamente como o tom foi aplicado (quais frases/tokens usar e evitar).
 
-Desenvolver um plano de conteúdo **excepcional e ultra-detalhado** para ${platform}, que sirva como **briefing completo premium** para toda a equipe criativa (designers, copywriters e social media).
+Estrutura e requisitos obrigatórios:
+- Header com metadados (marca, tema(s), plataforma, quantidade, objetivo, informações adicionais e a lista consolidada dos tons de voz fornecidos).
+- Missão criativa resumida (1 frase, alinhada ao objetivo e aos tons de voz fornecidos).
+- Seção "Orientações gerais para o redator" (antes dos posts) com:
+  * Sugestões de Ângulos para a Legenda (3 bullets, diretos e acionáveis).
+  * Chamada de Ação (CTA) principal + 1–2 variações curtas, com micro-argumento e posicionamento sugerido.
+- Para cada um dos ${quantity} posts, gere uma seção contendo:
+  * Conceito criativo (descritivo; ~150 palavras: ideia central, mensagem emocional, diferencial, conexão com a marca e impacto esperado). Especifique quais temas influenciaram o conceito.
+  * Briefing visual (detalhado; ~250 palavras: estilo fotográfico/ilustrativo, composição, elementos-chave, paleta de cores com exemplos #hex, iluminação, texturas, proporção e notas técnicas como resolução, profundidade de campo e pós-produção). Indique referências técnicas de excelência.
+  * Direcionamento de texto (substitui a legenda pronta): NÃO gere a legenda final. Em vez disso, entregue orientações acionáveis para a legenda, incluindo:
+    - Tom de voz aplicável: Baseado na "Lista de Tom de Voz por tema" fornecida acima, selecione 2-4 traços chave para este post. Indique qual tema originou cada traço. Para cada traço, forneça 2 palavras-chave recomendadas e 1 a ser evitada.
+    - 3–5 Sugestões de ângulos/temas de abertura que conectem o post ao objetivo; para cada bullet, indique qual traço de tom o sustenta.
+    - 2–3 Exemplos de linhas de abertura (curtas) — marque qual traço de tom cada linha representa.
+    - Recomendações sobre voz e comprimento (ex.: tom profissional, 120–200 palavras; ou tom conciso 60–90 palavras), e quando optar por cada formato.
+    - Pergunta sugerida para engajamento (1) + 2 variações mais curtas — indique o tom que deve permear a pergunta.
+    - CTA(s) recomendados (2 opções) e posicionamento sugerido (final / meio) — escreva também 1 micro-argumento (10–20 palavras) alinhado ao tom para cada CTA.
+    - Notas de estilo: evitar/usar (ex.: evitar emojis, usar linguagem inclusiva, incluir prova social, referências técnicas).
+    - Checklist de aplicação do tom (OBRIGATÓRIO): para cada traço extraído dos temas, liste: 1) palavras-chave a usar, 2) palavras a evitar, 3) onde no texto aplicar (abertura / corpo / CTA).
+  * Variações por persona: em vez de legendas prontas, forneça 2 blocos de 1–2 linhas orientando o ajuste de tom e foco para cada persona (ex.: profissional — enfatizar desempenho; jovem trend — enfatizar estilo e emoção). Não escreva a legenda inteira.
+  * Estratégia de hashtags: liste 8–12 hashtags renderizadas como elementos <span class="hashtag">#exemplo</span>. Categorize por alcance/nicho/marca e inclua 1 linha explicativa por categoria.
+  * Recomendações táticas e KPIs (CTA sugerido, janela de postagem sugerida, KPI principal e objetivo numérico sugerido quando aplicável).
+  * Exemplo de excelência visual: descrição curta e técnica para referência criativa dentro da mesma seção.
 
-### 💡 **DIRETRIZES PRINCIPAIS:**
-✨ **Criatividade Inovadora:** Cada post deve ter abordagem única e memorável
-🎨 **Coesão Visual:** Identidade visual consistente e impactante
-🎯 **Foco em Resultados:** Otimização total para "${objective}"
-📈 **Engajamento Máximo:** Conteúdo otimizado para interação e viralização
+Formato exigido: mantenha a seguinte marcação como modelo (obrigatório) e substitua o conteúdo de exemplo pelos textos gerados. Garanta que o HTML esteja bem formado e pronto para injeção em uma UI:
+<header>
+  <h1>DIRETIVA DE CRIAÇÃO: PLANEJAMENTO DE CONTEÚDO ESTRATÉGICO</h1>
+  <ul class="meta">
+    <li><strong>Marca:</strong> ${brand}</li>
+    <li><strong>Tema(s):</strong> ${themeList}</li>
+    <li><strong>Plataforma:</strong> ${platform}</li>
+    <li><strong>Quantidade:</strong> ${quantity}</li>
+    <li><strong>Objetivo:</strong> ${objective}</li>
+    <li><strong>Informações adicionais:</strong> ${additionalInfo || 'Nenhuma'}</li>
+    <li><strong>Tons de Voz dos Temas:</strong> <div style="padding: 8px 0 0 0; white-space: pre-wrap; font-family: inherit; font-size: 14px;">${themeToneLines || 'Não especificado'}</div></li>
+  </ul>
+</header>
 
----
+<section id="guidelines">
+  <h2>Orientações gerais para o redator</h2>
+  <div class="highlight">
+    <h3>Sugestões de Ângulos para a Legenda</h3>
+    <p class="use-prose">Forneça 3 bullets concisos conectando os temas e o objetivo "${objective}". Ex.: enfatizar silêncio, economia de energia, inovação aplicada ao dia a dia.</p>
+    <h3 style="margin-top:10px">Chamada de Ação (CTA)</h3>
+    <p class="use-prose">Defina 1 CTA principal (com micro-argumento) e 1–2 variações curtas, com indicação de melhor posicionamento (início/meio/final).</p>
+  </div>
+</section>
 
-## 📝 **ESTRUTURA ULTRA-DETALHADA DOS POSTS**
+<section id="posts">
+  <h2>Detalhamento por post</h2>
+  ${Array.from({ length: parseInt(quantity) }, (_, i) => `
+  <article class="post" data-index="${i + 1}">
+    <h3>Post ${i + 1} / ${quantity}</h3>
 
-Para cada um dos **${quantity} posts**, desenvolva seguindo esta estrutura premium:
+    <section class="concept">
+      <h4>Conceito criativo</h4>
+      <p class="use-prose">(Forneça um texto detalhado de ~150 palavras: ideia central, mensagem emocional, diferencial, conexão com a marca e impacto esperado.)</p>
+      <p class="list-item">• Ideia central: (resuma em 1 frase)</p>
+      <p class="list-item">• Mensagem emocional: (sentimento a evocar)</p>
+      <p class="list-item">• Diferencial: (o que torna memorável)</p>
+      <p class="list-item">• Conexão com a marca: (como reforça ${brand})</p>
+      <p class="list-item">• Temas que influenciaram este conceito: (liste e justifique)</p>
+    </section>
 
-${Array.from({length: parseInt(quantity)}, (_, i) => `
+    <section class="visual">
+      <h4>Briefing visual</h4>
+      <p class="use-prose">(Forneça um texto técnico e descritivo de ~250 palavras incluindo: estilo fotográfico/ilustrativo, composição, elementos-chave, paleta de cores com exemplos #hex, tipo de iluminação, texturas e notas técnicas como resolução, proporção e profundidade de campo.)</p>
+      <p class="list-item">• Exemplo de referência técnica: (2–4 frases com referência de excelência)</p>
+    </section>
 
----
+    <section class="direcionamento-texto">
+      <h4>Direcionamento de texto</h4>
+      <p>Forneça instruções práticas e acionáveis para redatores. Todas as recomendações abaixo devem demonstrar explicitamente como o Tom de Voz fornecido pelos temas foi aplicado.</p>
+      <p class="list-item">• Tom de voz aplicável (2–4 traços escolhidos dos temas) e qual(is) tema(s) influenciaram cada traço — inclua 2 palavras-chave recomendadas e 1 termo a evitar por traço.</p>
+      <p class="list-item">• Sugestões de ângulos/temas de abertura (3–5 bullets) e, para cada bullet, indique qual traço de tom sustenta essa sugestão.</p>
+      <p class="list-item">• 2–3 Exemplos de linhas de abertura (frases curtas para inspirar a legenda) — marque qual traço de tom cada linha representa.</p>
+      <p class="list-item">• Recomendações de comprimento e formato (quando usar 60–90 palavras vs 120–200 palavras) e qual tom justificaría cada formato.</p>
+      <p class="list-item">• Pergunta sugerida para engajamento (1) + 2 variações mais curtas — indique o tom que deve permear a pergunta.</p>
+      <p class="list-item">• CTA(s) recomendados (2 opções) e posicionamento sugerido (final / meio) — escreva também 1 micro-argumento (10–20 palavras) alinhado ao tom para cada CTA.</p>
+      <p class="list-item">• Notas de estilo: evitar/usar (ex.: evitar emojis, incluir prova social, linguagem inclusiva) e termos a evitar em função do tom.</p>
+      <p class="list-item">• Checklist de aplicação do tom (OBRIGATÓRIO): para cada traço extraído, liste: 1) palavras-chave a usar, 2) palavras a evitar, 3) onde no texto aplicar (abertura / corpo / CTA).</p>
+    </section>
 
-# 🌟 **POST ${i + 1}** - *Campanha ${theme}*
+    <section class="personas">
+      <h4>Orientação por persona</h4>
+      <p>Para cada persona, entregue 1–2 linhas indicando como ajustar o foco e o tom (não escrever a legenda completa).</p>
+      <div class="persona-var"><strong>Persona 1 (ex: profissional):</strong> [linha de ajuste — 1–2 linhas]</div>
+      <div class="persona-var"><strong>Persona 2 (ex: jovem trend):</strong> [linha de ajuste — 1–2 linhas]</div>
+    </section>
 
-## 🎨 **CONCEITO CRIATIVO DETALHADO**
-**📝 Desenvolva uma descrição completa (mínimo 150 palavras) incluindo:**
+    <section class="hashtags">
+      <h4>Hashtags</h4>
+      <p>Liste 8–12 hashtags começando com o símbolo '#' e renderize cada uma como um bloco visual usando a classe <code>hashtag</code>. Categorize por alcance/nicho/marca e inclua 1 linha explicativa por categoria.</p>
+      <p class="hashtags-list"><span class="hashtag">#exemplo</span></p>
+    </section>
 
-✅ **Ideia Central:** Qual é o conceito principal que queremos comunicar?
-💫 **Mensagem Emocional:** Que sentimento específico queremos despertar?
-⭐ **Diferencial Único:** O que torna este post especial e memorável?
-🏢 **Conexão com a Marca:** Como fortalece a identidade de "${brand}"?
-📊 **Impacto Esperado:** Qual reação específica esperamos do público?
+    <section class="tactics">
+      <h4>Táticas e KPIs</h4>
+      <ul>
+        <li><strong>• CTA recomendado:</strong> (ex: link na bio, comente)</li>
+        <li><strong>• Janela de postagem sugerida:</strong> (ex: 18:00–20:00)</li>
+        <li><strong>• KPI principal:</strong> (ex: taxa de engajamento, cliques). Indique objetivo numérico sugerido quando aplicável.</li>
+      </ul>
+    </section>
 
-**🎯 Exemplo de Qualidade Premium:**
-*"Apresentar o novo sabor de café premium com foco na experiência sensorial completa - desde o aroma envolvente até a textura cremosa única, criando uma jornada emocional que conecta o consumidor com momentos de prazer e sofisticação, posicionando a marca como símbolo de qualidade excepcional e estilo de vida aspiracional."*
+    <section class="excellence">
+      <h4>Exemplo de excelência visual</h4>
+      <p>Descrição curta e técnica para referência criativa.</p>
+    </section>
+  </article>
+  `).join('')}
+</section>
 
----
+<footer>
+  <p>Documento pronto para ser encaminhado à equipe de criação.</p>
+</footer>`;
 
-## 📸 **BRIEFING VISUAL ULTRA-COMPLETO**
-**🎨 Descrição mega-detalhada (mínimo 250 palavras) incluindo:**
-
-📱 **Estilo Fotográfico:** Definir se será fotografia real, ilustração, 3D, mixed media
-📐 **Composição Principal:** Enquadramento, ângulos, regra dos terços, pontos de fuga
-🎭 **Elementos Visuais:** Todos os objetos, pessoas, props que devem aparecer
-🌈 **Paleta de Cores:** Cores primárias (#hex), secundárias, acentos específicos
-💡 **Iluminação Detalhada:** Tipo de luz, direção, intensidade, qualidade das sombras
-🖐️ **Texturas e Materiais:** Superfícies, acabamentos, sensações táteis visuais
-🌟 **Atmosfera e Mood:** Ambiente emocional, temperatura de cor, energia
-⚙️ **Detalhes Técnicos:** Profundidade de campo, foco, movimento, pós-produção
-
-**📸 Exemplo de Excelência Visual:**
-*"Fotografia macro em ultra-alta resolução de xícara de porcelana premium branca com bordas douradas sutis, posicionada seguindo regra dos terços (terço direito). Latte art em formato de roseta perfeita ocupa centro visual. Vapor quente subindo em espirais delicadas, captado com velocidade 1/125s. Fundo desfocado (bokeh cinematográfico f/2.8) com tons de madeira nobre envelhecida e luz natural golden hour vinda 45° esquerda. Grãos de café arábica premium espalhados artisticamente. Paleta: marrons chocolate rico (#8B4513), dourados elegantes (#FFD700), brancos cremosos (#FFF8DC), acentos âmbar (#FFBF00). Atmosfera acolhedora luxury, evocando manhãs especiais e momentos de pausa contemplativa."*
-
----
-
-## ✍️ **LEGENDA ESTRATÉGICA PREMIUM**
-**📝 Desenvolva legenda completa e envolvente (mínimo 200 palavras) com:**
-
-🎣 **Hook Magnético:** Primeira frase que para o scroll instantaneamente
-💭 **Desenvolvimento Emocional:** História envolvente que conecta com audiência
-💎 **Proposta de Valor Clara:** Benefícios tangíveis do produto/serviço
-📚 **Storytelling Poderoso:** Narrativa que ressoa com o público-alvo
-👥 **Prova Social:** Elementos de credibilidade quando aplicável
-🚀 **CTA Ultra-Específico:** Call-to-action otimizado para "${objective}"
-🎭 **Tom de Voz Alinhado:** Personalidade consistente com "${brand}"
-
-**📋 ESTRUTURA RECOMENDADA:**
-• **Linhas 1-2:** Hook + pergunta/afirmação impactante
-• **Linhas 3-6:** Desenvolvimento da narrativa central  
-• **Linhas 7-9:** Benefícios e proposta de valor clara
-• **Linhas 10-11:** CTA específico e irresistível para ${objective}
-
----
-
-## 🏷️ **ESTRATÉGIA AVANÇADA DE HASHTAGS**
-**📊 Selecione 8-12 hashtags seguindo distribuição estratégica:**
-
-🔥 **3-4 Hashtags Populares:** Alto volume (100K+ posts), máximo alcance
-🎯 **3-4 Hashtags de Nicho:** Segmento específico (10K-50K posts), audiência qualificada
-🏢 **2-3 Hashtags da Marca:** Relacionadas "${brand}" e campanha específica
-📈 **1-2 Hashtags Trending:** Tendências atuais relevantes para ${platform}
-
-**💡 Formato Esperado:** Liste em ordem de relevância com breve justificativa estratégica para cada categoria.
-
----
-`).join('')}
-
-## ✨ **DIRETRIZES FINAIS DE EXCELÊNCIA**
-
-🎨 **Coerência Visual Total:** Todos os posts formam campanha visualmente coesa
-📖 **Progressão Narrativa:** Sequência lógica e envolvente entre posts
-📱 **Otimização para ${platform}:** Melhores práticas específicas da plataforma
-📊 **Métricas de Sucesso:** KPIs alinhados com objetivo "${objective}"
-🚀 **Qualidade Premium:** Padrão excepcional em todos os elementos
-
----
-
-## 🎯 **RESULTADO FINAL ESPERADO**
-Um plano de conteúdo **ultra-detalhado e premium** que sirva como **briefing completo** para designers e copywriters, garantindo execução de **máxima qualidade** e **impacto excepcional** na campanha.
-
-**⚠️ IMPORTANTE:** Responda seguindo EXATAMENTE esta estrutura detalhada, usando formatação Markdown rica, emojis relevantes, texto em **negrito** para destaques, e quebras de linha adequadas para máxima legibilidade e organização profissional.
-    `;
-
-    console.log('Criando prompt premium para OpenAI...'); // Debug log
+    console.log('Criando prompt profissional (HTML) para OpenAI...');
     let response;
     try {
       response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -182,21 +473,21 @@ Um plano de conteúdo **ultra-detalhado e premium** que sirva como **briefing co
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini', // Usando modelo mais avançado para prompts complexos
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
-              content: 'Você é um estrategista de conteúdo premium especializado em criar briefings ultra-detalhados e profissionais para equipes criativas. Sempre forneça respostas estruturadas, detalhadas e com alta qualidade visual na formatação.'
+              content: 'Você é um Diretor de Criação Sênior. Sua especialidade é criar o conteúdo INTERNO de briefings detalhados em formato HTML. Sua resposta deve conter apenas as tags do conteúdo, começando com <header> e terminando com <footer>.'
             },
             {
               role: 'user',
               content: planningPrompt,
             },
           ],
-          max_tokens: 4000, // Aumentado significativamente para acomodar respostas mais longas
-          temperature: 0.7, // Equilibrio entre criatividade e consistência
-          presence_penalty: 0.1, // Leve incentivo à diversidade
-          frequency_penalty: 0.1 // Evitar repetições excessivas
+          max_tokens: 4000,
+          temperature: 0.7,
+          presence_penalty: 0.1,
+          frequency_penalty: 0.1
         }),
       });
     } catch (fetchError) {
@@ -208,17 +499,16 @@ Um plano de conteúdo **ultra-detalhado e premium** que sirva como **briefing co
       throw new Error(errorData.error?.message || 'Falha ao gerar o planejamento.');
     }
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (jsonError) {
-      throw new Error('Resposta inválida da OpenAI');
-    }
-
+    const data = await response.json();
     const planContent = data.choices[0]?.message?.content;
+
     if (!planContent) {
       throw new Error('Conteúdo do plano não foi gerado');
     }
+
+    const cleanPlanContent = planContent.replace(/^```html\n?/, '').replace(/\n?```$/, '').trim();
+    
+    const finalHtml = HTML_STRUCTURE_START + cleanPlanContent + HTML_STRUCTURE_END;
 
     let action;
     try {
@@ -228,17 +518,26 @@ Um plano de conteúdo **ultra-detalhado e premium** que sirva como **briefing co
           teamId,
           brandId,
           userId,
-          details: { brand, theme, platform, quantity, objective, additionalInfo },
-          result: { plan: planContent },
-          approved: true, // Aprovar automaticamente
-          status: 'Aprovado' // Definir status como aprovado
+          details: { 
+            brand, 
+            themes: themes, 
+            themeList, 
+            platform, 
+            quantity, 
+            objective, 
+            additionalInfo,
+            selectedThemeTones: (selectedThemes || []).map(t => ({ title: t.title, toneOfVoice: t.toneOfVoice }))
+          },
+          result: { plan: finalHtml },
+          approved: true,
+          status: 'Aprovado'
         },
       });
     } catch (dbError) {
       throw new Error('Falha ao salvar no banco de dados');
     }
 
-    return NextResponse.json({ plan: planContent, actionId: action.id });
+    return NextResponse.json({ plan: finalHtml, actionId: action.id });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";

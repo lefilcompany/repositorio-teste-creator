@@ -12,61 +12,30 @@ import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
+import { usePersonasRealtime } from '@/hooks/usePersonasRealtime';
+import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function PersonasPage() {
   const { user } = useAuth();
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { personas, loading: isLoadingPersonas } = usePersonasRealtime(user?.teamId);
+  const { brands } = useBrandsRealtime(user?.teamId);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
-  const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
-  
+
   useEffect(() => {
-    const load = async () => {
-      if (!user?.teamId) return;
-      
-      try {
-        // Load personas
-        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
-        if (personasRes.ok) {
-          const data: Persona[] = await personasRes.json();
-          setPersonas(data);
-        } else {
-          toast.error('Erro ao carregar personas');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar personas');
-      } finally {
-        setIsLoadingPersonas(false);
+    const loadTeam = async () => {
+      if (!user?.id) {
+        setIsLoadingTeam(false);
+        return;
       }
-    };
-    
-    load();
-  }, [user]);
-
-  useEffect(() => {
-    const loadBrandsAndTeam = async () => {
-      if (!user?.teamId) return;
-      
       try {
-        const [brandsRes, teamRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-        
-        if (brandsRes.ok) {
-          const data: Brand[] = await brandsRes.json();
-          setBrands(data);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
-
+        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamRes.ok) {
           const teamsData: Team[] = await teamRes.json();
           const currentTeam = teamsData.find(t => t.id === user.teamId);
@@ -80,8 +49,8 @@ export default function PersonasPage() {
         setIsLoadingTeam(false);
       }
     };
-    
-    loadBrandsAndTeam();
+
+    loadTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
@@ -118,9 +87,6 @@ export default function PersonasPage() {
           throw new Error('Falha ao salvar persona');
         }
         const saved: Persona = await res.json();
-        setPersonas(prev =>
-          personaToEdit ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
-        );
         if (personaToEdit && selectedPersona?.id === saved.id) {
           setSelectedPersona(saved);
         }
@@ -137,7 +103,6 @@ export default function PersonasPage() {
     try {
       const res = await fetch(`/api/personas/${selectedPersona.id}`, { method: 'DELETE' });
       if (res.ok) {
-        setPersonas(prev => prev.filter(p => p.id !== selectedPersona.id));
         setSelectedPersona(null);
         toast.success('Persona deletada com sucesso!');
       } else {
@@ -150,7 +115,7 @@ export default function PersonasPage() {
   }, [selectedPersona]);
 
   // Verificar se o limite foi atingido
-  const isAtPersonaLimit = team && typeof team.plan === 'object' 
+  const isAtPersonaLimit = team && typeof team.plan === 'object'
     ? personas.length >= (team.plan.limits?.personas || 2)
     : false;
 
