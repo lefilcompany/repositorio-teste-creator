@@ -84,7 +84,6 @@ export async function POST(req: Request) {
         successMetrics: brandData.successMetrics || '',
         references: brandData.references || '',
         specialDates: brandData.specialDates || '',
-        sectorRestrictions: brandData.sectorRestrictions || '',
         promise: brandData.promise || '',
         crisisInfo: brandData.crisisInfo || '',
         milestones: brandData.milestones || '',

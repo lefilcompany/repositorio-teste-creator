@@ -41,7 +41,6 @@ const initialFormData: BrandFormData = {
   successMetrics: '',
   references: '',
   specialDates: '',
-  sectorRestrictions: '',
   promise: '',
   crisisInfo: '',
   milestones: '',
@@ -68,7 +67,6 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
         successMetrics: brandToEdit.successMetrics || '',
         references: brandToEdit.references || '',
         specialDates: brandToEdit.specialDates || '',
-        sectorRestrictions: brandToEdit.sectorRestrictions || '',
         promise: brandToEdit.promise || '',
         crisisInfo: brandToEdit.crisisInfo || '',
         milestones: brandToEdit.milestones || '',
@@ -202,10 +200,6 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
             <div className="space-y-2">
               <Label htmlFor="references">Quais conteúdos são referência para sua marca?</Label>
               <Textarea id="references" value={formData.references} onChange={handleInputChange} placeholder="Cole o link do conteúdo. Ex: Youtube, Instagram" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sectorRestrictions">Restrições de setor</Label>
-              <Textarea id="sectorRestrictions" value={formData.sectorRestrictions} onChange={handleInputChange} placeholder="Escreva as restrições do setor" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="crisisInfo">Existe alguma crise de marca? Ou pode existir?</Label>

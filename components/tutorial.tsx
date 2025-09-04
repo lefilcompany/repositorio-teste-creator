@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 
 interface Step {
   selector: string;
@@ -93,7 +94,7 @@ const steps: Step[] = [
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Tutorial() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
   const [stepIndex, setStepIndex] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -103,9 +104,9 @@ export default function Tutorial() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!isAuthenticated || !user) return;
-    // Checa se já viu tutorial para este usuário
-    const seen = localStorage.getItem(`hasSeenTutorial:${user.id}`);
-    if (!seen) {
+    
+    // Verificar se o tutorial já foi completado no banco de dados
+    if (!user.tutorialCompleted) {
       setIsActive(true);
     }
   }, [isAuthenticated, user]);
@@ -231,13 +232,22 @@ export default function Tutorial() {
     };
   }, [isActive, stepIndex]);
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (stepIndex < steps.length - 1) {
       setStepIndex((i) => i + 1);
     } else {
       setIsActive(false);
-      if (typeof window !== 'undefined' && user) {
-        localStorage.setItem(`hasSeenTutorial:${user.id}`, 'true');
+      
+      // Atualizar no banco de dados que o tutorial foi completado
+      if (user?.id) {
+        try {
+          await api.patch(`/api/users/${user.id}/tutorial`, { tutorialCompleted: true });
+          
+          // Atualizar o estado local do usuário
+          await updateUser({ tutorialCompleted: true });
+        } catch (error) {
+          console.error('Erro ao marcar tutorial como completado:', error);
+        }
       }
     }
   };
@@ -290,22 +300,24 @@ export default function Tutorial() {
           {stepIndex === steps.length - 1 ? 'Finalizar' : 'Próximo'}
         </button>
       </div>
-      <style jsx global>{`
-        .tutorial-highlight {
-          outline: 3px solid rgba(215,38,96,0.95);
-          border-radius: 0.75rem;
-          box-shadow: 0 6px 20px rgba(215,38,96,0.12);
-          transition: outline 0.18s ease, box-shadow 0.18s ease, transform 0.18s;
-          position: relative;
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: none; }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s cubic-bezier(.4,0,.2,1);
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .tutorial-highlight {
+            outline: 3px solid rgba(215,38,96,0.95);
+            border-radius: 0.75rem;
+            box-shadow: 0 6px 20px rgba(215,38,96,0.12);
+            transition: outline 0.18s ease, box-shadow 0.18s ease, transform 0.18s;
+            position: relative;
+          }
+          @keyframes fade-in {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: none; }
+          }
+          .animate-fade-in {
+            animation: fade-in 0.3s cubic-bezier(.4,0,.2,1);
+          }
+        `
+      }} />
     </div>
   );
 }

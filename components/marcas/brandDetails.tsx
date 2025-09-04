@@ -121,7 +121,6 @@ export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsPr
           <DetailField label="Promessa Única" value={brand.promise} />
           <DetailField label="Marcos e Cases" value={brand.milestones} />
           <DetailField label="Restrições" value={brand.restrictions} />
-          <DetailField label="Restrições de Setor" value={brand.sectorRestrictions} />
           <DetailField label="Crises (Existentes ou Potenciais)" value={brand.crisisInfo} />
           <DetailField label="Colaborações e Ações com Influenciadores" value={brand.collaborations} />
           <FileDetailField label="Moodboard/Identidade Visual" file={brand.moodboard} />
