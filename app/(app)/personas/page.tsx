@@ -12,21 +12,55 @@ import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
-import { usePersonasRealtime } from '@/hooks/usePersonasRealtime';
-import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function PersonasPage() {
   const { user } = useAuth();
-  const { personas, loading: isLoadingPersonas } = usePersonasRealtime(user?.teamId);
-  const { brands } = useBrandsRealtime(user?.teamId);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+
+  // Carrega personas, marcas e dados da equipe via API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Carrega personas
+        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
+        if (personasRes.ok) {
+          const personasData: Persona[] = await personasRes.json();
+          setPersonas(personasData);
+        } else {
+          toast.error('Erro ao carregar personas');
+        }
+        
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingPersonas(false);
+        setIsLoadingBrands(false);
+      }
+    };
+    
+    loadData();
+  }, [user]);
 
   useEffect(() => {
     const loadTeam = async () => {
@@ -87,6 +121,14 @@ export default function PersonasPage() {
           throw new Error('Falha ao salvar persona');
         }
         const saved: Persona = await res.json();
+        
+        // Atualiza a lista de personas
+        if (personaToEdit) {
+          setPersonas(prev => prev.map(persona => persona.id === saved.id ? saved : persona));
+        } else {
+          setPersonas(prev => [...prev, saved]);
+        }
+        
         if (personaToEdit && selectedPersona?.id === saved.id) {
           setSelectedPersona(saved);
         }
@@ -103,6 +145,8 @@ export default function PersonasPage() {
     try {
       const res = await fetch(`/api/personas/${selectedPersona.id}`, { method: 'DELETE' });
       if (res.ok) {
+        // Remove a persona da lista local
+        setPersonas(prev => prev.filter(persona => persona.id !== selectedPersona.id));
         setSelectedPersona(null);
         toast.success('Persona deletada com sucesso!');
       } else {

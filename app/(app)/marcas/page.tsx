@@ -10,7 +10,6 @@ import BrandDialog from '@/components/marcas/brandDialog';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
-import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 // Definindo o tipo para os dados do formulário, que é um Brand parcial
@@ -18,12 +17,37 @@ type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | '
 
 export default function MarcasPage() {
   const { user } = useAuth();
-  const { brands, loading: isLoadingBrands } = useBrandsRealtime(user?.teamId);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+
+  // Carrega marcas e dados da equipe via API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar marcas');
+      } finally {
+        setIsLoadingBrands(false);
+      }
+    };
+    
+    loadData();
+  }, [user]);
 
   useEffect(() => {
     const loadTeam = async () => {
@@ -84,6 +108,14 @@ export default function MarcasPage() {
       }
       
       const saved: Brand = await res.json();
+      
+      // Atualiza a lista de marcas
+      if (brandToEdit) {
+        setBrands(prev => prev.map(brand => brand.id === saved.id ? saved : brand));
+      } else {
+        setBrands(prev => [...prev, saved]);
+      }
+      
       if (brandToEdit && selectedBrand?.id === saved.id) {
         setSelectedBrand(saved);
       }
@@ -101,6 +133,8 @@ export default function MarcasPage() {
         method: 'DELETE'
       });
       if (res.ok) {
+        // Remove a marca da lista local
+        setBrands(prev => prev.filter(brand => brand.id !== selectedBrand.id));
         setSelectedBrand(null);
         toast.success('Marca deletada com sucesso!');
       } else {

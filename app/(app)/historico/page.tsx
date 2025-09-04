@@ -5,13 +5,13 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { History } from 'lucide-react';
 import type { Action } from '@/types/action';
+import type { Brand } from '@/types/brand';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import ActionList from '@/components/historico/actionList';
 import ActionDetails from '@/components/historico/actionDetails';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/hooks/useAuth';
-import { useActionsRealtime } from '@/hooks/useActionsRealtime';
-import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
+import { toast } from 'sonner';
 
 export default function HistoricoPage() {
   const { user } = useAuth();
@@ -19,13 +19,81 @@ export default function HistoricoPage() {
   const searchParams = useSearchParams();
   const actionIdFromUrl = searchParams.get('actionId');
   
-  const { actions, loading: isLoadingActions } = useActionsRealtime(user?.teamId, { approved: true });
-  const { brands } = useBrandsRealtime(user?.teamId);
+  const [actions, setActions] = useState<Action[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [isLoadingActions, setIsLoadingActions] = useState(true);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
 
   // Estados para os filtros
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Carrega ações aprovadas e marcas via API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Load actions
+        const actionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true`);
+        if (actionsRes.ok) {
+          const actionsData: Action[] = await actionsRes.json();
+          // Filtro extra para garantir que apenas ações realmente aprovadas sejam mostradas
+          const approvedActions = actionsData.filter(action => 
+            action.approved === true && action.status === 'Aprovado'
+          );
+          setActions(approvedActions);
+          // Se existe um actionId na URL, seleciona automaticamente a ação correspondente
+          if (actionIdFromUrl && approvedActions.length > 0) {
+            const targetAction = approvedActions.find(action => action.id === actionIdFromUrl);
+            if (targetAction) {
+              setSelectedAction(targetAction);
+              // Ajusta os filtros para mostrar a ação selecionada
+              if (targetAction.brand?.name) {
+                setBrandFilter(targetAction.brand.name);
+              }
+              const actionTypeDisplay = ACTION_TYPE_DISPLAY[targetAction.type];
+              if (actionTypeDisplay) {
+                setTypeFilter(actionTypeDisplay);
+              }
+            } else {
+              }
+          }
+        } else {
+          toast.error('Erro ao carregar histórico de ações');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar histórico');
+      } finally {
+        setIsLoadingActions(false);
+      }
+    };
+    
+    loadData();
+  }, [user, actionIdFromUrl]);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas para filtros');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar marcas');
+      } finally {
+        setIsLoadingBrands(false);
+      }
+    };
+    
+    loadBrands();
+  }, [user]);
 
   // Seleciona ação com base no parâmetro da URL quando as ações estiverem carregadas
   useEffect(() => {

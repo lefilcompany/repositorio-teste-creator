@@ -1,29 +1,45 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAuth } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
-    // Verificar autenticação via JWT
-    const authResult = await verifyAuth(req);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { user } = authResult;
     const { searchParams } = new URL(req.url);
-    const limit = searchParams.get('limit') || '5';
+    const teamId = searchParams.get('teamId');
+    const userId = searchParams.get('userId');
+    const limit = searchParams.get('limit') || '10';
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
-    if (!user.teamId) {
-      return NextResponse.json({ notifications: [] });
+    console.log('Notifications API called with params:', { teamId, userId, limit, unreadOnly });
+
+    if (!teamId || !userId) {
+      console.error('Missing required parameters:', { teamId, userId });
+      return NextResponse.json({ 
+        error: 'teamId e userId são obrigatórios',
+        notifications: []
+      }, { status: 400 });
+    }
+
+    // Verificar se o usuário existe e pertence à equipe
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        teamId: teamId
+      }
+    });
+
+    if (!user) {
+      console.error('User not found or not in team:', { userId, teamId });
+      return NextResponse.json({ 
+        error: 'Usuário não encontrado ou não pertence à equipe',
+        notifications: []
+      }, { status: 404 });
     }
 
     const whereClause: any = {
-      userId: user.userId,
-      teamId: user.teamId
+      userId,
+      teamId
     };
 
     if (unreadOnly) {
@@ -44,34 +60,32 @@ export async function GET(req: Request) {
       }
     });
 
+    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+
     return NextResponse.json({ notifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erro interno do servidor ao carregar notificações',
+      notifications: []
+    }, { status: 500 });
   }
 }
 
 export async function PATCH(req: Request) {
   try {
-    // Verificar autenticação via JWT
-    const authResult = await verifyAuth(req);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    
-    const { user } = authResult;
-    const { notificationId, markAsRead } = await req.json();
+    const { notificationId, markAsRead, userId, teamId } = await req.json();
 
-    if (!notificationId) {
-      return NextResponse.json({ error: 'notificationId is required' }, { status: 400 });
+    if (!notificationId || !userId || !teamId) {
+      return NextResponse.json({ error: 'notificationId, userId and teamId are required' }, { status: 400 });
     }
 
     // Verificar se a notificação pertence ao usuário
     const notification = await prisma.notification.findFirst({
       where: {
         id: notificationId,
-        userId: user.userId,
-        teamId: user.teamId
+        userId,
+        teamId
       }
     });
 

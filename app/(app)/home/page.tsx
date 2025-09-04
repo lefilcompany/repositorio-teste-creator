@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 import type { Brand } from '@/types/brand';
 import type { Action } from '@/types/action';
+import type { Team } from '@/types/team';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import { toast } from 'sonner';
 
@@ -31,18 +31,44 @@ export default function HomePage() {
   const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+  const [teamRealtime, setTeamRealtime] = useState<Team | null>(null);
+  const [loadingTeamRealtime, setLoadingTeamRealtime] = useState(true);
 
   // Estados de carregamento independentes
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
-  const { team: teamRealtime, loading: loadingTeamRealtime } = useTeamRealtime(user?.teamId);
 
   // Detecta quando a autenticação está carregada
   useEffect(() => {
     if (user !== undefined) {
       setIsAuthLoaded(true);
     }
+  }, [user]);
+
+  // Carrega dados da equipe via API
+  useEffect(() => {
+    const loadTeamData = async () => {
+      if (!user?.teamId) {
+        setLoadingTeamRealtime(false);
+        return;
+      }
+      
+      try {
+        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeamRealtime(currentTeam);
+        }
+      } catch (error) {
+        // Silently handle error for team data
+      } finally {
+        setLoadingTeamRealtime(false);
+      }
+    };
+
+    loadTeamData();
   }, [user]);
 
   useEffect(() => {

@@ -1,16 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export interface CreateNotificationParams {
   userId: string;
   teamId: string;
   message: string;
-  type: 'TEAM_JOIN_REQUEST' | 'TEAM_JOIN_APPROVED' | 'TEAM_JOIN_REJECTED';
+  type: 'TEAM_JOIN_REQUEST' | 'TEAM_JOIN_APPROVED' | 'TEAM_JOIN_REJECTED' | 'SYSTEM' | 'INFO' | 'WARNING' | 'ERROR';
 }
 
 /**
@@ -39,28 +33,6 @@ export async function createNotification({
         read: false
       }
     });
-
-    // Sincronizar com Supabase para Realtime
-    try {
-      await supabase
-        .from('notifications')
-        .insert({
-          id: notification.id,
-          user_id: userId,
-          message: message,
-          type: type,
-          read_at: null,
-          created_at: notification.createdAt.toISOString(),
-          team_name: team?.name || 'Equipe',
-          metadata: {
-            teamId: teamId,
-            teamName: team?.name
-          }
-        });
-    } catch (supabaseError) {
-      console.error('Supabase sync error:', supabaseError);
-      // Não falhar se o Supabase não estiver disponível
-    }
 
     return notification;
   } catch (error) {

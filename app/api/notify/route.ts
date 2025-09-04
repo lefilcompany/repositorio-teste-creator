@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createNotification } from '@/lib/notifications';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { userId, title, body, type = 'TEST' } = await req.json();
+    const { userId, title, body, type = 'SYSTEM' } = await req.json();
     
     if (!userId || !title) {
       return NextResponse.json({ 
@@ -11,10 +12,21 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Buscar teamId do usuário (simplificado para teste)
+    // Buscar o teamId real do usuário
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamId: true }
+    });
+
+    if (!user || !user.teamId) {
+      return NextResponse.json({ 
+        error: 'Usuário não encontrado ou não pertence a uma equipe' 
+      }, { status: 404 });
+    }
+
     const notification = await createNotification({
       userId,
-      teamId: 'test-team-id', // Em produção, buscar do usuário
+      teamId: user.teamId,
       message: title,
       type: type as any
     });
@@ -30,7 +42,7 @@ export async function POST(req: Request) {
       notification 
     });
   } catch (error) {
-    console.error('Error creating test notification:', error);
+    console.error('Error creating notification:', error);
     return NextResponse.json({ 
       error: 'Erro interno do servidor' 
     }, { status: 500 });

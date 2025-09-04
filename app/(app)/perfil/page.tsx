@@ -7,18 +7,44 @@ import AdditionalInfoCard from '@/components/perfil/additionalInfoCard';
 import AccountManagement from '@/components/perfil/accountManagement';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/user';
+import type { Team } from '@/types/team';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
-  const { team } = useTeamRealtime(user?.teamId);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
   const [teamInfo, setTeamInfo] = useState({
     teamName: 'Sem equipe',
     plan: '-',
     actionsRemaining: { total: 0, createContent: 0, reviewContent: 0, planContent: 0 },
   });
+
+  // Carrega dados da equipe via API
+  useEffect(() => {
+    const loadTeam = async () => {
+      if (!user?.teamId) {
+        setIsLoadingTeam(false);
+        return;
+      }
+      
+      try {
+        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
+        }
+      } catch (error) {
+        // Silently handle error for team data
+      } finally {
+        setIsLoadingTeam(false);
+      }
+    };
+
+    loadTeam();
+  }, [user]);
 
   useEffect(() => {
     if (!team) return;
