@@ -22,6 +22,7 @@ export async function GET(
         status: true,
         role: true,
         teamId: true,
+        tutorialCompleted: true,
         team: {
           select: {
             id: true,

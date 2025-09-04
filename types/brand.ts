@@ -18,7 +18,6 @@ export interface Brand {
   successMetrics: string;
   references: string;
   specialDates: string;
-  sectorRestrictions: string;
   promise: string;
   crisisInfo: string;
   milestones: string;

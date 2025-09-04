@@ -49,7 +49,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         successMetrics: brandData.successMetrics || '',
         references: brandData.references || '',
         specialDates: brandData.specialDates || '',
-        sectorRestrictions: brandData.sectorRestrictions || '',
         promise: brandData.promise || '',
         crisisInfo: brandData.crisisInfo || '',
         milestones: brandData.milestones || '',
