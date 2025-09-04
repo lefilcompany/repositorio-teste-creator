@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -9,16 +9,38 @@ import { Team } from '@/types/team';
 import { toast } from 'sonner';
 import { ArrowLeft, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
 import Link from 'next/link';
-import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 
 export default function PlanosPage() {
   const { user } = useAuth();
-  const { teams, loading: isLoading, error: teamsError } = useTeamsRealtime(user?.id);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const team = teams.find(t => t.id === user?.teamId) || null;
 
+  // Carrega dados da equipe via API
   useEffect(() => {
-    if (teamsError) toast.error('Erro ao carregar informações do plano');
-  }, [teamsError]);
+    const loadTeams = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          setTeams(teamsData);
+        } else {
+          toast.error('Erro ao carregar informações do plano');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar informações do plano');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTeams();
+  }, [user]);
 
   if (isLoading) {
     return (

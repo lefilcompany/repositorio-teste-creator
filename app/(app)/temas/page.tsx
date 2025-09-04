@@ -12,21 +12,89 @@ import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
-import { useThemesRealtime } from '@/hooks/useThemesRealtime';
-import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
 import { toast } from 'sonner';
 
 type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | 'userId'>;
 
 export default function TemasPage() {
   const { user } = useAuth();
-  const { themes, loading: isLoadingThemes } = useThemesRealtime(user?.teamId);
-  const { brands } = useBrandsRealtime(user?.teamId);
+  const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+
+  // Carrega temas, marcas e dados da equipe via API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Carrega temas
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
+        if (themesRes.ok) {
+          const themesData: StrategicTheme[] = await themesRes.json();
+          setThemes(themesData);
+        } else {
+          toast.error('Erro ao carregar temas');
+        }
+        
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingThemes(false);
+        setIsLoadingBrands(false);
+      }
+    };
+    
+    loadData();
+  }, [user]);
+
+  // Carrega temas, marcas e dados da equipe via API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Carrega temas
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
+        if (themesRes.ok) {
+          const themesData: StrategicTheme[] = await themesRes.json();
+          setThemes(themesData);
+        } else {
+          toast.error('Erro ao carregar temas');
+        }
+        
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingThemes(false);
+        setIsLoadingBrands(false);
+      }
+    };
+    
+    loadData();
+  }, [user]);
 
   useEffect(() => {
     const loadTeam = async () => {
@@ -87,6 +155,14 @@ export default function TemasPage() {
           throw new Error('Falha ao salvar tema');
         }
         const saved: StrategicTheme = await res.json();
+        
+        // Atualiza a lista de temas
+        if (themeToEdit) {
+          setThemes(prev => prev.map(theme => theme.id === saved.id ? saved : theme));
+        } else {
+          setThemes(prev => [...prev, saved]);
+        }
+        
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
         }
@@ -103,6 +179,8 @@ export default function TemasPage() {
     try {
       const res = await fetch(`/api/themes/${selectedTheme.id}`, { method: 'DELETE' });
       if (res.ok) {
+        // Remove o tema da lista local
+        setThemes(prev => prev.filter(theme => theme.id !== selectedTheme.id));
         setSelectedTheme(null);
         toast.success('Tema deletado com sucesso!');
       } else {

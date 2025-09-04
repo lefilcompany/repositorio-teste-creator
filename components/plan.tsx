@@ -12,10 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap, Clipboard, Check, X } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
+import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
-import { useBrandsRealtime } from '@/hooks/useBrandsRealtime';
-import { useThemesRealtime } from '@/hooks/useThemesRealtime';
-import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 import { toast } from 'sonner';
 
 interface FormData {
@@ -39,9 +37,12 @@ export default function Plan() {
 
   const { user } = useAuth();
   const router = useRouter();
-  const { brands, loading: isLoadingBrands, error: brandsError } = useBrandsRealtime(user?.teamId);
-  const { themes, loading: isLoadingThemes, error: themesError } = useThemesRealtime(user?.teamId);
-  const { teams, loading: isLoadingTeams, refetch: refetchTeams, error: teamsError } = useTeamsRealtime(user?.id);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(true);
   const team = teams.find((t) => t.id === user?.teamId) || null;
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
@@ -52,18 +53,64 @@ export default function Plan() {
 
   const [isCopied, setIsCopied] = useState(false);
 
+  // Carrega dados via API
   useEffect(() => {
-    if (brandsError) toast.error('Erro ao carregar marcas');
-  }, [brandsError]);
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
+      try {
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        if (brandsRes.ok) {
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
+        } else {
+          toast.error('Erro ao carregar marcas');
+        }
+        
+        // Carrega temas
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
+        if (themesRes.ok) {
+          const themesData: StrategicTheme[] = await themesRes.json();
+          setThemes(themesData);
+        } else {
+          toast.error('Erro ao carregar temas estratégicos');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar dados');
+      } finally {
+        setIsLoadingBrands(false);
+        setIsLoadingThemes(false);
+      }
+    };
+    
+    loadData();
+  }, [user]);
 
   useEffect(() => {
-    if (themesError) toast.error('Erro ao carregar temas estratégicos');
-  }, [themesError]);
+    const loadTeams = async () => {
+      if (!user?.id) {
+        setIsLoadingTeams(false);
+        return;
+      }
+      
+      try {
+        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          setTeams(teamsData);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
+        }
+      } catch (error) {
+        toast.error('Erro de conexão ao carregar dados da equipe');
+      } finally {
+        setIsLoadingTeams(false);
+      }
+    };
 
-  useEffect(() => {
-    if (teamsError) toast.error('Erro ao carregar dados da equipe');
-  }, [teamsError]);
-
+    loadTeams();
+  }, [user]);
 
   useEffect(() => {
     if (!formData.brand || !brands.length) {
@@ -174,7 +221,8 @@ export default function Plan() {
           });
 
           if (updateRes.ok) {
-            await refetchTeams();
+            const updatedTeam = await updateRes.json();
+            setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
           } else {
             toast.error('Falha ao atualizar créditos da equipe após gerar planejamento');
           }

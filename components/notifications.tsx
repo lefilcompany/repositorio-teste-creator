@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell, Check, Users, UserPlus, UserX, Clock } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bell, Check, Users, UserPlus, UserX, Clock, Info, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,21 +11,155 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+
+interface Notification {
+  id: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
 
 export default function Notifications() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  
-  const { 
-    items: notifications, 
-    unread: unreadCount, 
-    isLoading, 
-    markAsRead, 
-    markAllAsRead 
-  } = useNotifications(user?.id, user?.teamId);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Carregar notificações via API
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id || !user?.teamId) {
+      console.log('User not ready for notifications:', { 
+        userId: user?.id, 
+        teamId: user?.teamId, 
+        userExists: !!user 
+      });
+      // Limpar notificações se o usuário não tem equipe
+      setNotifications([]);
+      setUnreadCount(0);
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      console.log('Loading notifications for:', { userId: user.id, teamId: user.teamId });
+      
+      const response = await fetch(`/api/notifications?teamId=${user.teamId}&userId=${user.id}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        const notificationsList = data.notifications || [];
+        setNotifications(notificationsList);
+        setUnreadCount(notificationsList.filter((n: Notification) => !n.read).length);
+        console.log(`Loaded ${notificationsList.length} notifications`);
+      } else {
+        console.error('API error response:', data);
+        toast.error(data.error || 'Erro ao carregar notificações');
+        // Em caso de erro, definir arrays vazios para evitar estados inconsistentes
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error);
+      toast.error('Erro de conexão ao carregar notificações');
+      // Em caso de erro, definir arrays vazios para evitar estados inconsistentes
+      setNotifications([]);
+      setUnreadCount(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, user?.teamId]);
+
+  // Marcar notificação como lida
+  const markAsRead = useCallback(async (notificationId: string) => {
+    if (!user?.id || !user?.teamId) {
+      console.log('Cannot mark as read - user not ready:', { userId: user?.id, teamId: user?.teamId });
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          teamId: user.teamId
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        toast.success('Notificação marcada como lida');
+      } else {
+        console.error('Error marking as read:', data);
+        toast.error(data.error || 'Erro ao marcar notificação como lida');
+      }
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error);
+      toast.error('Erro de conexão ao marcar notificação como lida');
+    }
+  }, [user?.id, user?.teamId]);
+
+  // Marcar todas como lidas
+  const markAllAsRead = useCallback(async () => {
+    if (!user?.id || !user?.teamId) {
+      console.log('Cannot mark all as read - user not ready:', { userId: user?.id, teamId: user?.teamId });
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/notifications/read-all', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          teamId: user.teamId
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setUnreadCount(0);
+        toast.success('Todas as notificações foram marcadas como lidas');
+      } else {
+        console.error('Error marking all as read:', data);
+        toast.error(data.error || 'Erro ao marcar todas como lidas');
+      }
+    } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error);
+      toast.error('Erro de conexão ao marcar todas como lidas');
+    }
+  }, [user?.id, user?.teamId]);
+
+  // Carregar notificações quando o usuário estiver disponível
+  useEffect(() => {
+    if (user?.id && user?.teamId) {
+      loadNotifications();
+    }
+  }, [loadNotifications]);
+
+  // Recarregar notificações quando o dropdown for aberto
+  useEffect(() => {
+    if (isOpen && user?.id && user?.teamId) {
+      loadNotifications();
+    }
+  }, [isOpen, loadNotifications]);
 
   // Solicitar permissão para notificações nativas
   useEffect(() => {
@@ -44,6 +178,14 @@ export default function Notifications() {
         return <Users className="h-4 w-4 text-green-500" />;
       case 'TEAM_JOIN_REJECTED':
         return <UserX className="h-4 w-4 text-red-500" />;
+      case 'SYSTEM':
+        return <Bell className="h-4 w-4 text-blue-500" />;
+      case 'INFO':
+        return <Info className="h-4 w-4 text-blue-500" />;
+      case 'WARNING':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case 'ERROR':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
         return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
@@ -100,12 +242,11 @@ export default function Notifications() {
         ) : notifications.length > 0 ? (
           <div className="py-2">
             {notifications.map((notification) => (
-              <DropdownMenuItem
+              <div
                 key={notification.id}
-                className={`p-4 cursor-pointer transition-colors duration-150 border-b border-border/30 last:border-b-0 ${
+                className={`p-4 border-b border-border/30 last:border-b-0 ${
                   !notification.read ? 'bg-muted/30' : ''
                 }`}
-                onClick={() => !notification.read && markAsRead(notification.id)}
               >
                 <div className="flex items-start gap-3 w-full">
                   <div className="flex-shrink-0 mt-0.5">
@@ -137,16 +278,27 @@ export default function Notifications() {
                     </div>
                   </div>
                 </div>
-              </DropdownMenuItem>
+              </div>
             ))}
           </div>
         ) : (
           <div className="p-6 text-center">
             <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">Nenhuma notificação</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Você será notificado sobre atividades da equipe
-            </p>
+            {!user?.teamId ? (
+              <>
+                <p className="text-muted-foreground">Sem notificações</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Entre em uma equipe para receber notificações
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">Nenhuma notificação</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Você será notificado sobre atividades da equipe
+                </p>
+              </>
+            )}
           </div>
         )}
 

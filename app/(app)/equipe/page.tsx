@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
 import { api } from '@/lib/api';
-import { useTeamsRealtime } from '@/hooks/useTeamsRealtime';
 
 // Assuming a join request type might look like this
 interface JoinRequest {
@@ -23,7 +22,6 @@ interface JoinRequest {
 
 export default function EquipePage() {
   const { user, team, reloadTeam, isLoading: isAuthLoading } = useAuth();
-  const { teams } = useTeamsRealtime(user?.id);
   const router = useRouter();
 
   const [membersDetails, setMembersDetails] = useState<User[]>([]);
@@ -71,15 +69,6 @@ export default function EquipePage() {
       fetchTeamData();
     }
   }, [isAuthLoading, user, team, fetchTeamData]);
-
-  useEffect(() => {
-    if (team) {
-      const updated = teams.find((t) => t.id === team.id);
-      if (updated) {
-        fetchTeamData();
-      }
-    }
-  }, [teams, team, fetchTeamData]);
 
   const copyToClipboard = () => {
     if (team?.code) {
