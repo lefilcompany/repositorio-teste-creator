@@ -29,56 +29,57 @@ model Team {
 }
 
 model User {
-  id               String           @id @default(cuid())
-  name             String
-  email            String           @unique
-  password         String
-  phone            String?
-  state            String?
-  city             String?
-  role             UserRole         @default(WITHOUT_TEAM)
-  status           UserStatus       @default(NO_TEAM)
-  teamId           String?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  tutorialCompleted Boolean         @default(false)
-  actions          Action[]
-  brands           Brand[]
-  joinRequests     JoinRequest[]
-  notifications    Notification[]
-  personas         Persona[]
-  themes           StrategicTheme[]
-  adminTeams       Team[]           @relation("TeamAdmin")
-  team             Team?            @relation("TeamMembers", fields: [teamId], references: [id])
+  id                String           @id @default(cuid())
+  name              String
+  email             String           @unique
+  password          String
+  phone             String?
+  state             String?
+  city              String?
+  role              UserRole         @default(WITHOUT_TEAM)
+  status            UserStatus       @default(NO_TEAM)
+  teamId            String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  tutorialCompleted Boolean          @default(false)
+  actions           Action[]
+  brands            Brand[]
+  joinRequests      JoinRequest[]
+  notifications     Notification[]
+  personas          Persona[]
+  themes            StrategicTheme[]
+  adminTeams        Team[]           @relation("TeamAdmin")
+  team              Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
 model Brand {
-  id                 String           @id @default(cuid())
-  teamId             String
-  userId             String
-  name               String
-  responsible        String
-  segment            String
-  values             String
-  keywords           String
-  goals              String
-  inspirations       String
-  successMetrics     String
-  references         String
-  specialDates       String
-  promise            String
-  crisisInfo         String
-  milestones         String
-  collaborations     String
-  restrictions       String
-  moodboard          Json?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  actions            Action[]
-  team               Team             @relation(fields: [teamId], references: [id])
-  user               User             @relation(fields: [userId], references: [id])
-  personas           Persona[]
-  themes             StrategicTheme[]
+  id             String           @id @default(cuid())
+  teamId         String
+  userId         String
+  name           String
+  responsible    String
+  segment        String
+  values         String
+  keywords       String
+  goals          String
+  inspirations   String
+  successMetrics String
+  references     String
+  specialDates   String
+  promise        String
+  crisisInfo     String
+  milestones     String
+  collaborations String
+  restrictions   String
+  moodboard      Json?
+  colorPalette   Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  actions        Action[]
+  team           Team             @relation(fields: [teamId], references: [id])
+  user           User             @relation(fields: [userId], references: [id])
+  personas       Persona[]
+  themes         StrategicTheme[]
 }
 
 model StrategicTheme {

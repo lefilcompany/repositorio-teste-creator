@@ -34,8 +34,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'teamId and userId are required' }, { status: 400 });
     }
     
-    if (!brandData.name || !brandData.responsible) {
-      return NextResponse.json({ error: 'name and responsible are required' }, { status: 400 });
+    // Validações de campos obrigatórios
+    const requiredFields = [
+      { field: 'name', label: 'Nome da marca' },
+      { field: 'responsible', label: 'Responsável da marca' },
+      { field: 'segment', label: 'Segmento' },
+      { field: 'values', label: 'Valores' },
+      { field: 'goals', label: 'Metas de negócio' },
+      { field: 'successMetrics', label: 'Indicadores de sucesso' },
+      { field: 'references', label: 'Conteúdos de referência' },
+      { field: 'promise', label: 'Promessa única' },
+      { field: 'restrictions', label: 'Restrições' },
+      { field: 'moodboard', label: 'Moodboard' }
+    ];
+
+    const missingFields = requiredFields.filter(({ field }) => {
+      if (field === 'moodboard') {
+        return !brandData.moodboard;
+      }
+      return !brandData[field] || brandData[field].toString().trim() === '';
+    });
+
+    if (missingFields.length > 0) {
+      const fieldsList = missingFields.map(({ label }) => label).join(', ');
+      return NextResponse.json({ 
+        error: `Os seguintes campos são obrigatórios: ${fieldsList}` 
+      }, { status: 400 });
     }
     
     // Verificar se o usuário pertence à equipe e buscar dados da equipe
@@ -76,19 +100,20 @@ export async function POST(req: Request) {
         teamId,
         userId,
         // Garantir que os campos obrigatórios do schema estão preenchidos
-        segment: brandData.segment || '',
-        values: brandData.values || '',
+        segment: brandData.segment,
+        values: brandData.values,
         keywords: brandData.keywords || '',
-        goals: brandData.goals || '',
+        goals: brandData.goals,
         inspirations: brandData.inspirations || '',
-        successMetrics: brandData.successMetrics || '',
-        references: brandData.references || '',
+        successMetrics: brandData.successMetrics,
+        references: brandData.references,
         specialDates: brandData.specialDates || '',
-        promise: brandData.promise || '',
+        promise: brandData.promise,
         crisisInfo: brandData.crisisInfo || '',
         milestones: brandData.milestones || '',
         collaborations: brandData.collaborations || '',
-        restrictions: brandData.restrictions || '',
+        restrictions: brandData.restrictions,
+        colorPalette: brandData.colorPalette || null, // Adicionado campo de paleta de cores
       }
     });
 
