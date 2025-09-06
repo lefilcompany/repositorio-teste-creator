@@ -22,12 +22,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       { field: 'references', label: 'Conteúdos de referência' },
       { field: 'promise', label: 'Promessa única' },
       { field: 'restrictions', label: 'Restrições' },
-      { field: 'moodboard', label: 'Moodboard' }
+      { field: 'moodboard', label: 'Moodboard' },
+      { field: 'logo', label: 'Logo da marca' }
     ];
 
     const missingFields = requiredFields.filter(({ field }) => {
       if (field === 'moodboard') {
         return !brandData.moodboard;
+      }
+      if (field === 'logo') {
+        return !brandData.logo;
       }
       return !brandData[field] || brandData[field].toString().trim() === '';
     });
@@ -82,6 +86,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         milestones: brandData.milestones || '',
         collaborations: brandData.collaborations || '',
         restrictions: brandData.restrictions,
+        moodboard: brandData.moodboard || null,
+        logo: brandData.logo || null,
+        referenceImage: brandData.referenceImage || null,
         colorPalette: brandData.colorPalette || null, // Adicionado campo de paleta de cores
       }
     });
