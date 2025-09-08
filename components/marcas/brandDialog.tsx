@@ -93,8 +93,10 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
       if (!isOpen || !user?.teamId) return;
       try {
         const data: { email: string; name: string }[] = await api.get(`/api/team-members?teamId=${user.teamId}`);
+        console.log('✅ BrandDialog - Membros carregados:', data);
         setMembers(data);
       } catch (error) {
+        console.error('❌ BrandDialog - Erro ao carregar membros:', error);
         setMembers([]);
         toast.error('Erro ao carregar membros da equipe');
       }
@@ -200,40 +202,45 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
     setFormData(prev => ({ ...prev, colorPalette: colors }));
   };
 
-  const handleSaveClick = () => {
-    // Validar todos os campos obrigatórios antes de salvar
-    const requiredFields = [
-      { field: 'name', label: 'Nome da marca' },
-      { field: 'responsible', label: 'Responsável da marca' },
-      { field: 'segment', label: 'Segmento' },
-      { field: 'values', label: 'Valores' },
-      { field: 'goals', label: 'Metas de negócio' },
-      { field: 'successMetrics', label: 'Indicadores de sucesso' },
-      { field: 'references', label: 'Conteúdos de referência' },
-      { field: 'promise', label: 'Promessa única' },
-      { field: 'restrictions', label: 'Restrições' },
-      { field: 'moodboard', label: 'Moodboard' },
-      { field: 'logo', label: 'Logo da marca' }
-    ];
+  const handleSaveClick = async () => {
+    try {
+      // Validar todos os campos obrigatórios antes de salvar
+      const requiredFields = [
+        { field: 'name', label: 'Nome da marca' },
+        { field: 'responsible', label: 'Responsável da marca' },
+        { field: 'segment', label: 'Segmento' },
+        { field: 'values', label: 'Valores' },
+        { field: 'goals', label: 'Metas de negócio' },
+        { field: 'successMetrics', label: 'Indicadores de sucesso' },
+        { field: 'references', label: 'Conteúdos de referência' },
+        { field: 'promise', label: 'Promessa única' },
+        { field: 'restrictions', label: 'Restrições' },
+        { field: 'moodboard', label: 'Moodboard' },
+        { field: 'logo', label: 'Logo da marca' }
+      ];
 
-    const missingFields = requiredFields.filter(({ field }) => {
-      if (field === 'moodboard') {
-        return !formData.moodboard;
-      }
-      if (field === 'logo') {
-        return !formData.logo;
-      }
-      return !formData[field as keyof BrandFormData]?.toString().trim();
-    });
+      const missingFields = requiredFields.filter(({ field }) => {
+        if (field === 'moodboard') {
+          return !formData.moodboard;
+        }
+        if (field === 'logo') {
+          return !formData.logo;
+        }
+        return !formData[field as keyof BrandFormData]?.toString().trim();
+      });
 
-    if (missingFields.length > 0) {
-      const fieldsList = missingFields.map(({ label }) => label).join(', ');
-      toast.error(`Os seguintes campos são obrigatórios: ${fieldsList}`);
-      return;
+      if (missingFields.length > 0) {
+        const fieldsList = missingFields.map(({ label }) => label).join(', ');
+        toast.error(`Os seguintes campos são obrigatórios: ${fieldsList}`);
+        return;
+      }
+
+      await onSave(formData);
+      onOpenChange(false);
+    } catch (error) {
+      // Em caso de erro, o toast será mostrado pela página pai
+      console.error('Erro ao salvar marca:', error);
     }
-
-    onSave(formData);
-    onOpenChange(false);
   };
 
   const isFormValid = () => {
@@ -252,8 +259,17 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
     return allTextFieldsValid && moodboardValid && logoValid;
   };
 
+  // Função para lidar com o fechamento do diálogo
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Se estiver fechando, limpa o formulário
+      setFormData(initialFormData);
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{brandToEdit ? 'Editar Marca' : 'Criar Nova Marca'}</DialogTitle>
@@ -347,8 +363,8 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                   }`}>
                     {formData.referenceImage ? (
                       <div className="flex items-center justify-between w-full px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="flex items-center gap-2 max-w-[calc(100%-2rem)]">
+                          <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                           <span className="text-xs text-green-600 font-medium truncate">
                             {formData.referenceImage.name}
                           </span>
@@ -358,7 +374,7 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                           variant="ghost"
                           size="sm"
                           onClick={handleRemoveReferenceImage}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20 ml-2"
                           title="Remover arquivo"
                         >
                           <X className="h-3 w-3" />
@@ -445,8 +461,8 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                   }`}>
                     {formData.moodboard ? (
                       <div className="flex items-center justify-between w-full px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="flex items-center gap-2 max-w-[calc(100%-2rem)]">
+                          <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                           <span className="text-xs text-green-600 font-medium truncate">
                             {formData.moodboard.name}
                           </span>
@@ -456,7 +472,7 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                           variant="ghost"
                           size="sm"
                           onClick={handleRemoveFile}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20 ml-2"
                           title="Remover arquivo"
                         >
                           <X className="h-3 w-3" />
@@ -492,8 +508,8 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                   }`}>
                     {formData.logo ? (
                       <div className="flex items-center justify-between w-full px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="flex items-center gap-2 max-w-[calc(100%-2rem)]">
+                          <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                           <span className="text-xs text-green-600 font-medium truncate">
                             {formData.logo.name}
                           </span>
@@ -503,7 +519,7 @@ export default function BrandDialog({ isOpen, onOpenChange, onSave, brandToEdit 
                           variant="ghost"
                           size="sm"
                           onClick={handleRemoveLogo}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20 ml-2"
                           title="Remover arquivo"
                         >
                           <X className="h-3 w-3" />

@@ -32,7 +32,7 @@ export default function TemasPage() {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
-      
+
       try {
         // Carrega temas
         const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
@@ -42,7 +42,7 @@ export default function TemasPage() {
         } else {
           toast.error('Erro ao carregar temas');
         }
-        
+
         // Carrega marcas
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
@@ -58,7 +58,7 @@ export default function TemasPage() {
         setIsLoadingBrands(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -66,7 +66,7 @@ export default function TemasPage() {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
-      
+
       try {
         // Carrega temas
         const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
@@ -76,7 +76,7 @@ export default function TemasPage() {
         } else {
           toast.error('Erro ao carregar temas');
         }
-        
+
         // Carrega marcas
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
@@ -92,7 +92,7 @@ export default function TemasPage() {
         setIsLoadingBrands(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -127,13 +127,13 @@ export default function TemasPage() {
       const planLimits = team.plan.limits;
       const currentThemesCount = themes.length;
       const maxThemes = planLimits?.themes || 3;
-      
+
       if (currentThemesCount >= maxThemes) {
         toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
         return;
       }
     }
-    
+
     setThemeToEdit(theme);
     setIsDialogOpen(true);
   }, [themes.length, team]);
@@ -155,14 +155,14 @@ export default function TemasPage() {
           throw new Error('Falha ao salvar tema');
         }
         const saved: StrategicTheme = await res.json();
-        
+
         // Atualiza a lista de temas
         if (themeToEdit) {
           setThemes(prev => prev.map(theme => theme.id === saved.id ? saved : theme));
         } else {
           setThemes(prev => [...prev, saved]);
         }
-        
+
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
         }
@@ -215,8 +215,8 @@ export default function TemasPage() {
                 </p>
               </div>
             </div>
-            <Button 
-              onClick={() => handleOpenDialog()} 
+            <Button
+              onClick={() => handleOpenDialog()}
               disabled={isAtThemeLimit}
               className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -243,10 +243,10 @@ export default function TemasPage() {
             onDelete={handleDeleteTheme}
           />
         ) : (
-          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
-            <p className="text-muted-foreground text-center">
-              {isLoadingThemes ? 'Carregando temas...' : 'Selecione um tema para ver os detalhes'}
-            </p>
+          <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">
+            <Palette className="h-16 w-16 text-muted-foreground/50" strokeWidth={1.5} />
+            <h3 className="text-xl font-semibold text-foreground">Nenhum tema selecionado</h3>
+            <p className="text-muted-foreground">Selecione um tema estratégico na lista para ver os detalhes ou crie um novo.</p>
           </div>
         )}
       </main>

@@ -15,6 +15,7 @@ import {
 import { Edit, Trash2, Palette } from 'lucide-react';
 import type { StrategicTheme } from '@/types/theme';
 import type { Brand } from '@/types/brand';
+import { ColorDisplay } from '@/components/ui/color-display';
 
 interface ThemeDetailsProps {
   theme: StrategicTheme | null;
@@ -43,9 +44,9 @@ export default function ThemeDetails({ theme, onEdit, onDelete, brands }: ThemeD
   if (!theme) {
     return (
       <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">
-        <Palette className="h-16 w-16 text-muted-foreground/50 mb-4" />
-        <h3 className="text-xl font-semibold text-foreground">Nenhum tema selecionado</h3>
-        <p className="text-muted-foreground">Selecione um tema na lista para ver os detalhes ou crie um novo.</p>
+        <Palette className="h-16 w-16 text-muted-foreground/50" strokeWidth={1.5} />
+        <h3 className="text-xl font-semibold text-foreground">Nenhum tema estratégico selecionado</h3>
+        <p className="text-muted-foreground">Selecione um tema estratégico na lista para ver os detalhes ou crie um novo.</p>
       </div>
     );
   }
@@ -68,7 +69,6 @@ export default function ThemeDetails({ theme, onEdit, onDelete, brands }: ThemeD
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         <div className="space-y-4 text-left">
           <DetailField label="Descrição" value={theme.description} />
-          <DetailField label="Paleta de Cores" value={theme.colorPalette} />
           <DetailField label="Tom de Voz" value={theme.toneOfVoice} />
           <DetailField label="Universo-Alvo" value={theme.targetAudience} />
           <DetailField label="Hashtags" value={theme.hashtags} />
@@ -79,6 +79,9 @@ export default function ThemeDetails({ theme, onEdit, onDelete, brands }: ThemeD
           <DetailField label="Plataformas" value={theme.platforms} />
           <DetailField label="Ação Esperada" value={theme.expectedAction} />
           <DetailField label="Informações Adicionais" value={theme.additionalInfo} />
+          <div className="p-3 bg-muted/50 rounded-lg break-words">
+            <ColorDisplay colorString={theme.colorPalette} />
+          </div>
           <DetailField label="Data de Criação" value={formatDate(theme.createdAt)} />
           {wasUpdated && (
             <DetailField label="Última Atualização" value={formatDate(theme.updatedAt)} />

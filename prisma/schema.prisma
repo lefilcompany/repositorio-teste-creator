@@ -72,11 +72,11 @@ model Brand {
   collaborations String
   restrictions   String
   moodboard      Json?
-  logo           Json?
-  referenceImage Json?
-  colorPalette   Json?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  colorPalette   Json?
+  logo           Json?
+  referenceImage Json?
   actions        Action[]
   team           Team             @relation(fields: [teamId], references: [id])
   user           User             @relation(fields: [userId], references: [id])

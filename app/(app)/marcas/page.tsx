@@ -91,8 +91,15 @@ export default function MarcasPage() {
   }, [brands.length, team]);
 
   const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
-    if (!user?.teamId || !user.id) return;
+    if (!user?.teamId || !user.id) {
+      toast.error('Usuário não autenticado ou sem equipe');
+      return;
+    }
+
+    const toastId = 'brand-operation';
     try {
+      toast.loading(brandToEdit ? 'Atualizando marca...' : 'Criando marca...', { id: toastId });
+      
       const method = brandToEdit ? 'PUT' : 'POST';
       const url = brandToEdit ? `/api/brands/${brandToEdit.id}` : '/api/brands';
       const res = await fetch(url, {
@@ -103,46 +110,70 @@ export default function MarcasPage() {
       
       if (!res.ok) {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao salvar marca');
+        toast.error(error.error || 'Erro ao salvar marca', { id: toastId });
         throw new Error(error.error || 'Falha ao salvar marca');
       }
       
       const saved: Brand = await res.json();
       
       // Atualiza a lista de marcas
-      if (brandToEdit) {
-        setBrands(prev => prev.map(brand => brand.id === saved.id ? saved : brand));
-      } else {
-        setBrands(prev => [...prev, saved]);
-      }
+      setBrands(prev => {
+        if (brandToEdit) {
+          return prev.map(brand => brand.id === saved.id ? saved : brand);
+        }
+        return [...prev, saved];
+      });
       
+      // Atualiza a marca selecionada se necessário
       if (brandToEdit && selectedBrand?.id === saved.id) {
+        setSelectedBrand(saved);
+      } else if (!brandToEdit) {
+        // Se for uma nova marca, seleciona ela automaticamente
         setSelectedBrand(saved);
       }
       
-      toast.success(brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!');
+      toast.success(
+        brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!',
+        { id: toastId }
+      );
+      
+      return saved;
     } catch (error) {
-      toast.error('Erro ao salvar marca. Tente novamente.');
+      toast.error('Erro ao salvar marca. Tente novamente.', { id: toastId });
+      throw error;
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
   const handleDeleteBrand = useCallback(async () => {
-    if (!selectedBrand || !user?.teamId || !user?.id) return;
+    if (!selectedBrand || !user?.teamId || !user?.id) {
+      toast.error('Não foi possível deletar a marca. Verifique se você está logado.');
+      return;
+    }
+
+    const toastId = 'brand-operation';
     try {
+      toast.loading('Deletando marca...', { id: toastId });
+
       const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, {
         method: 'DELETE'
       });
+
       if (res.ok) {
-        // Remove a marca da lista local
+        // Remove a marca da lista local e limpa a seleção
         setBrands(prev => prev.filter(brand => brand.id !== selectedBrand.id));
         setSelectedBrand(null);
-        toast.success('Marca deletada com sucesso!');
+        
+        // Fecha o diálogo se estiver aberto
+        setIsDialogOpen(false);
+        setBrandToEdit(null);
+        
+        toast.success('Marca deletada com sucesso!', { id: toastId });
       } else {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar marca');
+        toast.error(error.error || 'Erro ao deletar marca', { id: toastId });
       }
     } catch (error) {
-      toast.error('Erro ao deletar marca. Tente novamente.');
+      toast.error('Erro ao deletar marca. Tente novamente.', { id: toastId });
     }
   }, [selectedBrand, user]);
 
