@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +53,7 @@ const initialFormData: ThemeFormData = {
 
 export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit, brands = [] }: ThemeDialogProps) {
   const [formData, setFormData] = useState<ThemeFormData>(initialFormData);
+  const [isLoading, setIsLoading] = useState(false);
   // toneList stores multiple tones; we'll serialize to toneOfVoice string on save
   const [toneList, setToneList] = useState<string[]>([]);
   const [hashtagList, setHashtagList] = useState<string[]>([]);
@@ -156,28 +157,77 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
     });
   };
 
-  const handleSaveClick = () => {
-    // Serialize toneList into toneOfVoice string for storage compatibility
-    const payload: ThemeFormData = {
-      ...formData,
-      toneOfVoice: toneList.join(', '),
-      // Garante que colorPalette seja uma string
-      colorPalette: typeof formData.colorPalette === 'string' ? formData.colorPalette : '[]'
-    } as ThemeFormData;
-    onSave(payload);
-    onOpenChange(false);
+  const handleSaveClick = async () => {
+    setIsLoading(true);
+    const loadingToast = toast.loading(
+      themeToEdit 
+        ? 'Atualizando tema...' 
+        : 'Criando novo tema...'
+    );
+
+    try {
+      // Serialize toneList into toneOfVoice string for storage compatibility
+      const payload: ThemeFormData = {
+        ...formData,
+        toneOfVoice: toneList.join(', '),
+        // Garante que colorPalette seja uma string
+        colorPalette: typeof formData.colorPalette === 'string' ? formData.colorPalette : '[]'
+      } as ThemeFormData;
+
+      await onSave(payload);
+      
+      toast.dismiss(loadingToast);
+      toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Erro ao salvar tema:', error);
+      toast.dismiss(loadingToast);
+      toast.error(themeToEdit 
+        ? 'Erro ao atualizar o tema. Por favor, tente novamente.' 
+        : 'Erro ao criar o tema. Por favor, tente novamente.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const isFormValid =
-    formData.title.trim() !== '' &&
-    formData.brandId.trim() !== '' &&
-    formData.objectives.trim() !== '' &&
-    toneList.length > 0 &&
-    formData.contentFormat.trim() !== '' &&
-    formData.expectedAction.trim() !== '';
+  const isFormValid = () => {
+    const requiredFields = [
+      { field: 'title', label: 'Título' },
+      { field: 'brandId', label: 'Marca' },
+      { field: 'objectives', label: 'Objetivos' },
+      { field: 'contentFormat', label: 'Formato dos Conteúdos' },
+      { field: 'expectedAction', label: 'Ação esperada' }
+    ];
+
+    const missingFields = requiredFields.filter(({ field }) => 
+      !formData[field as keyof typeof formData]?.toString().trim()
+    );
+
+    if (missingFields.length > 0 || toneList.length === 0) {
+      const fieldsList = missingFields.map(({ label }) => label).join(', ');
+      const message = `Os seguintes campos são obrigatórios: ${fieldsList}${
+        toneList.length === 0 ? (fieldsList ? ', Tom de Voz' : 'Tom de Voz') : ''
+      }`;
+      toast.error(message);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Limpa o formulário ao fechar
+      setFormData(initialFormData);
+      setToneList([]);
+      setHashtagList([]);
+    }
+    onOpenChange(open);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{themeToEdit ? 'Editar Tema Estratégico' : 'Criar Novo Tema Estratégico'}</DialogTitle>
@@ -382,11 +432,22 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
           </DialogClose>
           <Button
             type="submit"
-            onClick={handleSaveClick}
-            disabled={!isFormValid}
+            onClick={() => {
+              if (isFormValid()) {
+                handleSaveClick();
+              }
+            }}
+            disabled={isLoading}
             className="min-w-[120px] h-11 px-8 font-medium bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
           >
-            {themeToEdit ? 'Atualizar' : 'Criar Tema'}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></span>
+                {themeToEdit ? 'Atualizando...' : 'Criando...'}
+              </span>
+            ) : (
+              themeToEdit ? 'Atualizar' : 'Criar Tema'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
