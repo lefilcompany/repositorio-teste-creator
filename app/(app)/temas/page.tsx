@@ -140,8 +140,15 @@ export default function TemasPage() {
 
   const handleSaveTheme = useCallback(
     async (formData: ThemeFormData) => {
-      if (!user?.teamId || !user.id) return;
+      if (!user?.teamId || !user.id) {
+        toast.error('Usuário não autenticado ou sem equipe');
+        return;
+      }
+
+      const toastId = 'theme-operation';
       try {
+        toast.loading(themeToEdit ? 'Atualizando tema...' : 'Criando tema...', { id: toastId });
+      
         const method = themeToEdit ? 'PATCH' : 'POST';
         const url = themeToEdit ? `/api/themes/${themeToEdit.id}` : '/api/themes';
         const res = await fetch(url, {
@@ -149,48 +156,81 @@ export default function TemasPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
         });
+        
         if (!res.ok) {
           const error = await res.json();
-          toast.error(error.error || 'Erro ao salvar tema');
-          throw new Error('Falha ao salvar tema');
+          toast.error(error.error || 'Erro ao salvar tema', { id: toastId });
+          throw new Error(error.error || 'Falha ao salvar tema');
         }
+        
         const saved: StrategicTheme = await res.json();
-
+        
         // Atualiza a lista de temas
-        if (themeToEdit) {
-          setThemes(prev => prev.map(theme => theme.id === saved.id ? saved : theme));
-        } else {
-          setThemes(prev => [...prev, saved]);
-        }
-
+        setThemes(prev => {
+          if (themeToEdit) {
+            return prev.map(theme => theme.id === saved.id ? saved : theme);
+          }
+          return [...prev, saved];
+        });
+        
+        // Atualiza o tema selecionado se necessário
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
+        } else if (!themeToEdit) {
+          // Se for um novo tema, seleciona ele automaticamente
+          setSelectedTheme(saved);
         }
-        toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
+        
+        // Fecha o diálogo após salvar com sucesso
+        setIsDialogOpen(false);
+        setThemeToEdit(null);
+
+        toast.success(
+          themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!',
+          { id: toastId }
+        );
+        
+        return saved;
       } catch (error) {
-        toast.error('Erro ao salvar tema. Tente novamente.');
+        toast.error('Erro ao salvar tema. Tente novamente.', { id: toastId });
+        throw error;
       }
     },
     [themeToEdit, selectedTheme?.id, user]
   );
 
   const handleDeleteTheme = useCallback(async () => {
-    if (!selectedTheme) return;
+    if (!selectedTheme || !user?.teamId || !user?.id) {
+      toast.error('Não foi possível deletar o tema. Verifique se você está logado.');
+      return;
+    }
+
+    const toastId = 'theme-operation';
     try {
-      const res = await fetch(`/api/themes/${selectedTheme.id}`, { method: 'DELETE' });
+      toast.loading('Deletando tema...', { id: toastId });
+
+      const res = await fetch(`/api/themes/${selectedTheme.id}?teamId=${user.teamId}&userId=${user.id}`, {
+        method: 'DELETE'
+      });
+
       if (res.ok) {
-        // Remove o tema da lista local
+        // Remove o tema da lista local e limpa a seleção
         setThemes(prev => prev.filter(theme => theme.id !== selectedTheme.id));
         setSelectedTheme(null);
-        toast.success('Tema deletado com sucesso!');
+        
+        // Fecha o diálogo se estiver aberto
+        setIsDialogOpen(false);
+        setThemeToEdit(null);
+        
+        toast.success('Tema deletado com sucesso!', { id: toastId });
       } else {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar tema');
+        toast.error(error.error || 'Erro ao deletar tema', { id: toastId });
       }
     } catch (error) {
-      toast.error('Erro ao deletar tema. Tente novamente.');
+      toast.error('Erro ao deletar tema. Tente novamente.', { id: toastId });
     }
-  }, [selectedTheme]);
+  }, [selectedTheme, user]);
 
   // Verificar se o limite foi atingido
   const isAtThemeLimit = team && typeof team.plan === 'object'

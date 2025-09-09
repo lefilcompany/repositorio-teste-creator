@@ -104,59 +104,95 @@ export default function PersonasPage() {
     setIsDialogOpen(true);
   }, [personas.length, team]);
 
-  const handleSavePersona = useCallback(
-    async (formData: PersonaFormData) => {
-      if (!user?.teamId || !user.id) return;
-      try {
-        const method = personaToEdit ? 'PATCH' : 'POST';
-        const url = personaToEdit ? `/api/personas/${personaToEdit.id}` : '/api/personas';
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
-        });
-        if (!res.ok) {
-          const error = await res.json();
-          toast.error(error.error || 'Erro ao salvar persona');
-          throw new Error('Falha ao salvar persona');
-        }
-        const saved: Persona = await res.json();
+  const handleSavePersona = useCallback(async (formData: PersonaFormData) => {
+    if (!user?.teamId || !user.id) {
+      toast.error('Usuário não autenticado ou sem equipe');
+      return;
+    }
 
-        // Atualiza a lista de personas
-        if (personaToEdit) {
-          setPersonas(prev => prev.map(persona => persona.id === saved.id ? saved : persona));
-        } else {
-          setPersonas(prev => [...prev, saved]);
-        }
-
-        if (personaToEdit && selectedPersona?.id === saved.id) {
-          setSelectedPersona(saved);
-        }
-        toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
-      } catch (error) {
-        toast.error('Erro ao salvar persona. Tente novamente.');
+    const toastId = 'persona-operation';
+    try {
+      toast.loading(personaToEdit ? 'Atualizando persona...' : 'Criando persona...', { id: toastId });
+      
+      const method = personaToEdit ? 'PATCH' : 'POST';
+      const url = personaToEdit ? `/api/personas/${personaToEdit.id}` : '/api/personas';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        toast.error(error.error || 'Erro ao salvar persona', { id: toastId });
+        throw new Error(error.error || 'Falha ao salvar persona');
       }
-    },
+      
+      const saved: Persona = await res.json();
+      
+      // Atualiza a lista de personas
+      setPersonas(prev => {
+        if (personaToEdit) {
+          return prev.map(persona => persona.id === saved.id ? saved : persona);
+        }
+        return [...prev, saved];
+      });
+      
+      // Atualiza a persona selecionada se necessário
+      if (personaToEdit && selectedPersona?.id === saved.id) {
+        setSelectedPersona(saved);
+      } else if (!personaToEdit) {
+        // Se for uma nova persona, seleciona ela automaticamente
+        setSelectedPersona(saved);
+      }
+      
+      // Fecha o diálogo após salvar com sucesso
+      setIsDialogOpen(false);
+      setPersonaToEdit(null);
+
+      toast.success(
+        personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!',
+        { id: toastId }
+      );
+    } catch (error) {
+      toast.error('Erro ao salvar persona. Tente novamente.');
+    }
+  },
     [personaToEdit, selectedPersona?.id, user]
   );
 
   const handleDeletePersona = useCallback(async () => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || !user?.teamId || !user?.id) {
+      toast.error('Não foi possível deletar a persona. Verifique se você está logado.');
+      return;
+    }
+
+    const toastId = 'persona-operation';
     try {
-      const res = await fetch(`/api/personas/${selectedPersona.id}`, { method: 'DELETE' });
+      toast.loading('Deletando persona...', { id: toastId });
+
+      const res = await fetch(`/api/personas/${selectedPersona.id}?teamId=${user.teamId}&userId=${user.id}`, {
+        method: 'DELETE'
+      });
+
       if (res.ok) {
-        // Remove a persona da lista local
+        // Remove a persona da lista local e limpa a seleção
         setPersonas(prev => prev.filter(persona => persona.id !== selectedPersona.id));
         setSelectedPersona(null);
-        toast.success('Persona deletada com sucesso!');
+        
+        // Fecha o diálogo se estiver aberto
+        setIsDialogOpen(false);
+        setPersonaToEdit(null);
+        
+        toast.success('Persona deletada com sucesso!', { id: toastId });
       } else {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar persona');
+        toast.error(error.error || 'Erro ao deletar persona', { id: toastId });
       }
     } catch (error) {
-      toast.error('Erro ao deletar persona. Tente novamente.');
+      toast.error('Erro ao deletar persona. Tente novamente.', { id: toastId });
     }
-  }, [selectedPersona]);
+  }, [selectedPersona, user]);
 
   // Verificar se o limite foi atingido
   const isAtPersonaLimit = team && typeof team.plan === 'object'

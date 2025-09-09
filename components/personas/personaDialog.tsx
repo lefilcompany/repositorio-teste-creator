@@ -46,6 +46,8 @@ const initialFormData: PersonaFormData = {
 export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToEdit, brands = [] }: PersonaDialogProps) {
   const [formData, setFormData] = useState<PersonaFormData>(initialFormData);
 
+  const genderOptions = ['Masculino', 'Feminino', 'Não-binário / Outro', 'Prefiro não especificar'];
+
   useEffect(() => {
     if (isOpen && personaToEdit) {
       setFormData({
@@ -67,7 +69,7 @@ export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToE
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    
+
     // Máscara para idade - aceita apenas números
     if (id === 'age') {
       const numericValue = value.replace(/\D/g, ''); // Remove tudo que não é dígito
@@ -119,12 +121,12 @@ export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToE
             <div className="space-y-2">
               <Label htmlFor="age">Idade (em anos)</Label>
               <div className="relative">
-                <Input 
-                  id="age" 
+                <Input
+                  id="age"
                   type="text"
                   value={formData.age}
-                  onChange={handleInputChange} 
-                  placeholder="Ex: 25 anos" 
+                  onChange={handleInputChange}
+                  placeholder="Ex: 25 anos"
                   className="pr-14"
                   maxLength={3}
                 />
@@ -148,7 +150,16 @@ export default function PersonaDialog({ isOpen, onOpenChange, onSave, personaToE
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="gender">Gênero</Label>
-              <Input id="gender" value={formData.gender} onChange={handleInputChange} placeholder="Ex: Masculino, Feminino" />
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))} value={formData.gender}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {genderOptions.map(option => (
+                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Localização</Label>

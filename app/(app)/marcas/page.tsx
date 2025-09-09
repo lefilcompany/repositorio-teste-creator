@@ -7,6 +7,7 @@ import { Plus, Tag } from 'lucide-react';
 import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
+import CascadeDeleteDialog from '@/components/ui/cascade-delete-dialog';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +25,8 @@ export default function MarcasPage() {
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteInfo, setDeleteInfo] = useState<{ themes: string[]; personas: string[] } | null>(null);
 
   // Carrega marcas e dados da equipe via API
   useEffect(() => {
@@ -144,36 +147,39 @@ export default function MarcasPage() {
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
-  const handleDeleteBrand = useCallback(async () => {
+  const handleDeleteBrand = useCallback(async (cascade: boolean = false) => {
     if (!selectedBrand || !user?.teamId || !user?.id) {
       toast.error('Não foi possível deletar a marca. Verifique se você está logado.');
       return;
     }
-
     const toastId = 'brand-operation';
     try {
       toast.loading('Deletando marca...', { id: toastId });
-
-      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, {
+      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}${cascade ? '&cascade=true' : ''}`, {
         method: 'DELETE'
       });
-
+      const data = await res.json();
       if (res.ok) {
-        // Remove a marca da lista local e limpa a seleção
         setBrands(prev => prev.filter(brand => brand.id !== selectedBrand.id));
         setSelectedBrand(null);
-        
-        // Fecha o diálogo se estiver aberto
         setIsDialogOpen(false);
         setBrandToEdit(null);
-        
+        setShowDeleteDialog(false);
+        setDeleteInfo(null);
         toast.success('Marca deletada com sucesso!', { id: toastId });
+      } else if (res.status === 409 && data.error === 'DEPENDENCIES_FOUND') {
+        setDeleteInfo(data.dependencies);
+        setShowDeleteDialog(true);
+        toast.dismiss(toastId);
       } else {
-        const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar marca', { id: toastId });
+        toast.error(data.error || 'Erro ao deletar marca', { id: toastId });
+        setShowDeleteDialog(false);
+        setDeleteInfo(null);
       }
     } catch (error) {
       toast.error('Erro ao deletar marca. Tente novamente.', { id: toastId });
+      setShowDeleteDialog(false);
+      setDeleteInfo(null);
     }
   }, [selectedBrand, user]);
 
@@ -222,7 +228,7 @@ export default function MarcasPage() {
         <BrandDetails
           brand={selectedBrand}
           onEdit={handleOpenDialog}
-          onDelete={handleDeleteBrand}
+          onDelete={() => handleDeleteBrand()} // Garante que o botão chama SEM parâmetro
         />
       </main>
 
@@ -231,6 +237,20 @@ export default function MarcasPage() {
         onOpenChange={setIsDialogOpen}
         onSave={handleSaveBrand}
         brandToEdit={brandToEdit}
+      />
+      <CascadeDeleteDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => handleDeleteBrand(true)} // Só chama em cascata se o usuário confirmar
+        title="Deletar Marca"
+        description={`Você está tentando deletar a marca \"${selectedBrand?.name}\", mas ela possui outras entidades vinculadas.`}
+        cascade={deleteInfo && {
+          message: 'As seguintes entidades serão deletadas junto com a marca:',
+          itemsThatWillBeDeleted: [
+            ...(deleteInfo.themes.map(theme => `Tema: ${theme}`)),
+            ...(deleteInfo.personas.map(persona => `Persona: ${persona}`))
+          ]
+        }}
       />
     </div>
   );

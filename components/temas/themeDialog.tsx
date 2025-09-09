@@ -159,11 +159,6 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
 
   const handleSaveClick = async () => {
     setIsLoading(true);
-    const loadingToast = toast.loading(
-      themeToEdit 
-        ? 'Atualizando tema...' 
-        : 'Criando novo tema...'
-    );
 
     try {
       // Serialize toneList into toneOfVoice string for storage compatibility
@@ -176,12 +171,9 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
 
       await onSave(payload);
       
-      toast.dismiss(loadingToast);
-      toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
       onOpenChange(false);
     } catch (error) {
       console.error('Erro ao salvar tema:', error);
-      toast.dismiss(loadingToast);
       toast.error(themeToEdit 
         ? 'Erro ao atualizar o tema. Por favor, tente novamente.' 
         : 'Erro ao criar o tema. Por favor, tente novamente.'
