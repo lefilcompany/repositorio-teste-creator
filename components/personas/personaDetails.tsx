@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, User } from 'lucide-react';
+import { Edit, Trash2, Users } from 'lucide-react';
 import type { Persona } from '@/types/persona';
 import type { Brand } from '@/types/brand';
 
@@ -43,8 +43,8 @@ const DetailField = ({ label, value }: { label: string, value?: string }) => {
 export default function PersonaDetails({ persona, onEdit, onDelete, brands }: PersonaDetailsProps) {
   if (!persona) {
     return (
-      <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">
-        <User className="h-16 w-16 text-muted-foreground/50 mb-4" />
+      <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">
+        <Users className="h-16 w-16 text-muted-foreground/50" strokeWidth={1.5} />
         <h3 className="text-xl font-semibold text-foreground">Nenhuma persona selecionada</h3>
         <p className="text-muted-foreground">Selecione uma persona na lista para ver os detalhes ou crie uma nova.</p>
       </div>
