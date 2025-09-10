@@ -104,7 +104,7 @@ export default function ActionList({ actions, selectedAction, onSelectAction, is
           </ul>
         ) : (
           <div className="text-center text-muted-foreground p-8">
-            <p>Nenhuma ação encontrada para os filtros selecionados.</p>
+            <p>Nenhuma ação encontrada para o(s) filtro(s) selecionado(s).</p>
           </div>
         )}
       </div>

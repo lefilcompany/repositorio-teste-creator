@@ -15,8 +15,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 // **NOVO:** Importando ícones adicionais
-import { Edit, Trash2, Tag, ExternalLink, FileDown } from 'lucide-react';
-import type { Brand, MoodboardFile } from '@/types/brand';
+import { Edit, Trash2, Tag, ExternalLink, FileDown, Palette } from 'lucide-react';
+import type { Brand, MoodboardFile, ColorItem } from '@/types/brand';
 
 interface BrandDetailsProps {
   brand: Brand | null;
@@ -83,6 +83,73 @@ const FileDetailField = ({ label, file }: { label: string, file?: MoodboardFile 
   )
 }
 
+// **NOVO:** Componente para exibir a paleta de cores
+const ColorPaletteField = ({ colors }: { colors?: ColorItem[] | null }) => {
+  if (!colors || colors.length === 0) return null;
+
+  return (
+    <div className="p-3 bg-muted/50 rounded-lg">
+      <div className="flex items-center gap-2 mb-3">
+        <Palette className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Paleta de Cores</p>
+        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+          {colors.length} {colors.length === 1 ? 'cor' : 'cores'}
+        </span>
+      </div>
+      
+      {colors.length <= 4 ? (
+        // Layout horizontal para poucas cores
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {colors.map((color) => (
+            <div key={color.id} className="flex flex-col items-center gap-2">
+              <div
+                className="w-16 h-16 rounded-xl border-2 border-gray-300 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                style={{ backgroundColor: color.hex }}
+                title={`${color.name || 'Cor'} - ${color.hex}`}
+              />
+              <div className="text-center">
+                <div className="text-xs font-medium text-foreground truncate max-w-[80px]">
+                  {color.name || 'Sem nome'}
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {color.hex.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        // Layout em grid para muitas cores
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {colors.map((color) => (
+            <div
+              key={color.id}
+              className="flex items-center gap-3 p-3 bg-background/60 rounded-lg border border-border/40 hover:bg-background/80 transition-colors cursor-pointer"
+              title={`${color.name || 'Cor'} - ${color.hex}`}
+            >
+              <div
+                className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm flex-shrink-0"
+                style={{ backgroundColor: color.hex }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground truncate mb-1">
+                  {color.name || 'Sem nome'}
+                </div>
+                <div className="text-xs text-muted-foreground font-mono mb-1">
+                  {color.hex.toUpperCase()}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  RGB({color.rgb.r}, {color.rgb.g}, {color.rgb.b})
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsProps) {
   if (!brand) {
@@ -121,10 +188,12 @@ export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsPr
           <DetailField label="Promessa Única" value={brand.promise} />
           <DetailField label="Marcos e Cases" value={brand.milestones} />
           <DetailField label="Restrições" value={brand.restrictions} />
-          <DetailField label="Restrições de Setor" value={brand.sectorRestrictions} />
           <DetailField label="Crises (Existentes ou Potenciais)" value={brand.crisisInfo} />
           <DetailField label="Colaborações e Ações com Influenciadores" value={brand.collaborations} />
+          <FileDetailField label="Logo da Marca" file={brand.logo} />
+          <FileDetailField label="Imagem de Referência" file={brand.referenceImage} />
           <FileDetailField label="Moodboard/Identidade Visual" file={brand.moodboard} />
+          <ColorPaletteField colors={brand.colorPalette} />
           <DetailField label="Data de Criação" value={formatDate(brand.createdAt)} />
           {wasUpdated && (
             <DetailField label="Última Atualização" value={formatDate(brand.updatedAt)} />

@@ -29,56 +29,59 @@ model Team {
 }
 
 model User {
-  id               String           @id @default(cuid())
-  name             String
-  email            String           @unique
-  password         String
-  phone            String?
-  state            String?
-  city             String?
-  role             UserRole         @default(WITHOUT_TEAM)
-  status           UserStatus       @default(NO_TEAM)
-  teamId           String?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  actions          Action[]
-  brands           Brand[]
-  joinRequests     JoinRequest[]
-  notifications    Notification[]
-  personas         Persona[]
-  themes           StrategicTheme[]
-  adminTeams       Team[]           @relation("TeamAdmin")
-  team             Team?            @relation("TeamMembers", fields: [teamId], references: [id])
+  id                String           @id @default(cuid())
+  name              String
+  email             String           @unique
+  password          String
+  phone             String?
+  state             String?
+  city              String?
+  role              UserRole         @default(WITHOUT_TEAM)
+  status            UserStatus       @default(NO_TEAM)
+  teamId            String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  tutorialCompleted Boolean          @default(false)
+  actions           Action[]
+  brands            Brand[]
+  joinRequests      JoinRequest[]
+  notifications     Notification[]
+  personas          Persona[]
+  themes            StrategicTheme[]
+  adminTeams        Team[]           @relation("TeamAdmin")
+  team              Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
 model Brand {
-  id                 String           @id @default(cuid())
-  teamId             String
-  userId             String
-  name               String
-  responsible        String
-  segment            String
-  values             String
-  keywords           String
-  goals              String
-  inspirations       String
-  successMetrics     String
-  references         String
-  specialDates       String
-  sectorRestrictions String
-  promise            String
-  crisisInfo         String
-  milestones         String
-  collaborations     String
-  restrictions       String
-  moodboard          Json?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  actions            Action[]
-  team               Team             @relation(fields: [teamId], references: [id])
-  user               User             @relation(fields: [userId], references: [id])
-  personas           Persona[]
-  themes             StrategicTheme[]
+  id             String           @id @default(cuid())
+  teamId         String
+  userId         String
+  name           String
+  responsible    String
+  segment        String
+  values         String
+  keywords       String
+  goals          String
+  inspirations   String
+  successMetrics String
+  references     String
+  specialDates   String
+  promise        String
+  crisisInfo     String
+  milestones     String
+  collaborations String
+  restrictions   String
+  moodboard      Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  colorPalette   Json?
+  logo           Json?
+  referenceImage Json?
+  actions        Action[]
+  team           Team             @relation(fields: [teamId], references: [id])
+  user           User             @relation(fields: [userId], references: [id])
+  personas       Persona[]
+  themes         StrategicTheme[]
 }
 
 model StrategicTheme {
@@ -107,24 +110,27 @@ model StrategicTheme {
 }
 
 model Persona {
-  id                String   @id @default(cuid())
-  teamId            String
-  userId            String
-  brandId           String
-  name              String
-  gender            String
-  age               String
-  location          String
-  role              String
-  hobbies           String
-  consumptionHabits String
-  goals             String
-  challenges        String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  brand             Brand    @relation(fields: [brandId], references: [id])
-  team              Team     @relation(fields: [teamId], references: [id])
-  user              User     @relation(fields: [userId], references: [id])
+  id                        String   @id @default(cuid())
+  teamId                    String
+  userId                    String
+  brandId                   String
+  name                      String
+  gender                    String
+  age                       String
+  location                  String
+  professionalContext       String   @map("role")
+  beliefsAndInterests       String   @map("hobbies")
+  contentConsumptionRoutine String   @map("consumptionHabits")
+  mainGoal                  String   @map("goals")
+  challenges                String
+  preferredToneOfVoice      String   @default("")
+  purchaseJourneyStage      String   @default("")
+  interestTriggers          String   @default("")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  brand                     Brand    @relation(fields: [brandId], references: [id])
+  team                      Team     @relation(fields: [teamId], references: [id])
+  user                      User     @relation(fields: [userId], references: [id])
 }
 
 model Action {
@@ -155,6 +161,8 @@ model Notification {
   createdAt DateTime @default(now())
   team      Team     @relation(fields: [teamId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_Notification_userId")
 }
 
 model JoinRequest {

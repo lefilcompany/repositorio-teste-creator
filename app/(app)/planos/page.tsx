@@ -1,49 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Team } from '@/types/team';
 import { toast } from 'sonner';
-import { ArrowLeft, Rocket, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
+import { ArrowLeft, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PlanosPage() {
   const { user } = useAuth();
-  const [team, setTeam] = useState<Team | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const team = teams.find(t => t.id === user?.teamId) || null;
 
+  // Carrega dados da equipe via API
   useEffect(() => {
-    const fetchTeamData = async () => {
-      if (!user) return;
-
-      // Debug log
-
+    const loadTeams = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+      
       try {
-        const response = await fetch(`/api/teams?userId=${user.id}`);
-        if (response.ok) {
-          const teamsData = await response.json();
-          // A API retorna um array de teams, precisamos encontrar o team do usuário
-          if (Array.isArray(teamsData) && teamsData.length > 0) {
-            const currentTeam = teamsData.find(t => t.id === user.teamId) || teamsData[0];
-            setTeam(currentTeam);
-          } else {
-            throw new Error('Nenhum time encontrado');
-          }
+        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamsRes.ok) {
+          const teamsData: Team[] = await teamsRes.json();
+          setTeams(teamsData);
         } else {
-          const errorText = await response.text();
-          throw new Error('Falha ao carregar dados do time');
+          toast.error('Erro ao carregar informações do plano');
         }
       } catch (error) {
-        toast.error('Erro ao carregar informações do plano');
+        toast.error('Erro de conexão ao carregar informações do plano');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTeamData();
+    loadTeams();
   }, [user]);
 
   if (isLoading) {

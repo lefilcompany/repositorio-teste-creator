@@ -22,9 +22,10 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Search, Bell, Settings, User, LogOut, Info, FileText, Shield, Loader2, Users, Palette, Tag } from 'lucide-react';
+import { Search, Settings, User, LogOut, Info, FileText, Shield, Loader2, Users, Palette, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import Notifications from '@/components/notifications';
 
 interface SearchResult {
   id: string;
@@ -351,15 +352,7 @@ export default function TopBar() {
         )}
       </div>
       <div className="flex items-center gap-3 md:gap-4 ml-6">
-        <Button
-          id="topbar-notifications"
-          variant="ghost"
-          size="icon"
-          className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent bg-background hover:border-primary/40 hover:shadow-md"
-        >
-          <Bell className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
-          <span className="sr-only">Notificações</span>
-        </Button>
+        <Notifications />
 
         <Dialog>
           <DropdownMenu>

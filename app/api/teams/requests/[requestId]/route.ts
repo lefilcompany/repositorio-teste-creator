@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@prisma/client';
+import { notifyTeamJoinApproved, notifyTeamJoinRejected } from '@/lib/notifications';
 
 export async function PATCH(
   req: Request,
@@ -27,6 +28,12 @@ export async function PATCH(
     }
 
     if (action === 'approve') {
+      // Buscar informações da equipe para a notificação
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        select: { name: true }
+      });
+
       // Update the join request status
       await prisma.joinRequest.update({
         where: { id: requestId },
@@ -43,11 +50,22 @@ export async function PATCH(
         }
       });
 
+      // Criar notificação para o usuário aprovado
+      if (team) {
+        await notifyTeamJoinApproved(userId, teamId, team.name);
+      }
+
       return NextResponse.json({ 
         message: 'User approved and added to team',
         action: 'approved'
       });
     } else {
+      // Buscar informações da equipe para a notificação
+      const team = await prisma.team.findUnique({
+        where: { id: teamId },
+        select: { name: true }
+      });
+
       // Reject the request
       await prisma.joinRequest.update({
         where: { id: requestId },
@@ -62,6 +80,11 @@ export async function PATCH(
           status: 'NO_TEAM' // Usuário rejeitado volta ao status NO_TEAM
         }
       });
+
+      // Criar notificação para o usuário rejeitado
+      if (team) {
+        await notifyTeamJoinRejected(userId, teamId, team.name);
+      }
 
       return NextResponse.json({ 
         message: 'User request rejected',

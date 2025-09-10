@@ -25,6 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'teamId and userId are required' }, { status: 400 });
     }
 
+    // Validações dos campos obrigatórios
+    if (!personaData.brandId || !personaData.name || !personaData.mainGoal || !personaData.challenges) {
+      return NextResponse.json({ 
+        error: 'brandId, name, mainGoal and challenges are required' 
+      }, { status: 400 });
+    }
+
     // Verificar se o usuário pertence à equipe e buscar dados da equipe
     const user = await prisma.user.findFirst({
       where: { 
@@ -56,16 +63,26 @@ export async function POST(req: Request) {
       }
     }
 
+    // Preparar dados da persona com valores padrão para campos opcionais
+    const personaDataWithDefaults = {
+      ...personaData,
+      professionalContext: personaData.professionalContext || '',
+      beliefsAndInterests: personaData.beliefsAndInterests || '',
+      contentConsumptionRoutine: personaData.contentConsumptionRoutine || '',
+      preferredToneOfVoice: personaData.preferredToneOfVoice || '',
+      purchaseJourneyStage: personaData.purchaseJourneyStage || '',
+      interestTriggers: personaData.interestTriggers || '',
+      teamId,
+      userId
+    };
+
     // Criar a persona
     const persona = await prisma.persona.create({ 
-      data: {
-        ...personaData,
-        teamId,
-        userId
-      } 
+      data: personaDataWithDefaults
     });
     return NextResponse.json(persona);
   } catch (error) {
+    console.error('Error creating persona:', error);
     return NextResponse.json({ error: 'Failed to create persona' }, { status: 500 });
   }
 }

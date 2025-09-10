@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { History } from 'lucide-react';
 import type { Action } from '@/types/action';
 import type { Brand } from '@/types/brand';
@@ -18,7 +18,7 @@ export default function HistoricoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const actionIdFromUrl = searchParams.get('actionId');
-  
+
   const [actions, setActions] = useState<Action[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
@@ -33,14 +33,14 @@ export default function HistoricoPage() {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
-      
+
       try {
         // Load actions
         const actionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true`);
         if (actionsRes.ok) {
           const actionsData: Action[] = await actionsRes.json();
           // Filtro extra para garantir que apenas ações realmente aprovadas sejam mostradas
-          const approvedActions = actionsData.filter(action => 
+          const approvedActions = actionsData.filter(action =>
             action.approved === true && action.status === 'Aprovado'
           );
           setActions(approvedActions);
@@ -58,7 +58,7 @@ export default function HistoricoPage() {
                 setTypeFilter(actionTypeDisplay);
               }
             } else {
-              }
+            }
           }
         } else {
           toast.error('Erro ao carregar histórico de ações');
@@ -69,14 +69,14 @@ export default function HistoricoPage() {
         setIsLoadingActions(false);
       }
     };
-    
+
     loadData();
   }, [user, actionIdFromUrl]);
 
   useEffect(() => {
     const loadBrands = async () => {
       if (!user?.teamId) return;
-      
+
       try {
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
@@ -91,9 +91,26 @@ export default function HistoricoPage() {
         setIsLoadingBrands(false);
       }
     };
-    
+
     loadBrands();
   }, [user]);
+
+  // Seleciona ação com base no parâmetro da URL quando as ações estiverem carregadas
+  useEffect(() => {
+    if (actionIdFromUrl && actions.length > 0) {
+      const targetAction = actions.find(action => action.id === actionIdFromUrl);
+      if (targetAction) {
+        setSelectedAction(targetAction);
+        if (targetAction.brand?.name) {
+          setBrandFilter(targetAction.brand.name);
+        }
+        const actionTypeDisplay = ACTION_TYPE_DISPLAY[targetAction.type];
+        if (actionTypeDisplay) {
+          setTypeFilter(actionTypeDisplay);
+        }
+      }
+    }
+  }, [actions, actionIdFromUrl]);
 
   // Lógica de filtragem
   const filteredActions = useMemo(() => {
@@ -177,10 +194,10 @@ export default function HistoricoPage() {
         {selectedAction && !isLoadingActions ? (
           <ActionDetails action={selectedAction} />
         ) : (
-          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
-            <p className="text-muted-foreground text-center">
-              {isLoadingActions ? 'Carregando histórico...' : 'Selecione uma ação para ver os detalhes'}
-            </p>
+          <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">
+            <History className="h-16 w-16 text-muted-foreground/50 mb-4" />
+            <h3 className="text-xl font-semibold text-foreground">Nenhuma ação selecionada</h3>
+            <p className="text-muted-foreground">Selecione uma ação na lista para ver os detalhes.</p>
           </div>
         )}
       </main>

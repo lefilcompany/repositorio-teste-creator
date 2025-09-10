@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader, Image as ImageIcon, Sparkles, ArrowLeft, CheckCircle, MessageSquareQuote, ThumbsUp, Zap } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
@@ -34,42 +35,48 @@ export default function Revisar() {
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
   const { user } = useAuth();
-  const [team, setTeam] = useState<Team | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [themes, setThemes] = useState<StrategicTheme[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const team = teams.find((t) => t.id === user?.teamId) || null;
   const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
 
+  // Carrega dados via API
   useEffect(() => {
     const loadData = async () => {
-      if (!user?.teamId || !user.id) return;
-
+      if (!user?.teamId) return;
+      
       try {
-        const [brandsRes, themesRes, teamsRes] = await Promise.all([
-          fetch(`/api/brands?teamId=${user.teamId}`),
-          fetch(`/api/themes?teamId=${user.teamId}`),
-          fetch(`/api/teams?userId=${user.id}`)
-        ]);
-
+        // Carrega marcas
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
         }
 
+        // Carrega temas
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
         }
 
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          const currentTeam = teamsData.find(t => t.id === user.teamId);
-          if (currentTeam) setTeam(currentTeam);
+        // Carrega dados da equipe
+        if (user.id) {
+          const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+          if (teamsRes.ok) {
+            const teamsData: Team[] = await teamsRes.json();
+            setTeams(teamsData);
+          }
         }
       } catch (error) {
-        // Error loading data - handle silently or with proper error handling
+        toast.error('Erro ao carregar dados');
+      } finally {
+        setIsLoadingData(false);
       }
     };
-
+    
     loadData();
   }, [user]);
 
@@ -177,10 +184,10 @@ export default function Revisar() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: team.id, credits: updatedCredits }),
           });
-
+          
           if (updateRes.ok) {
             const updatedTeam = await updateRes.json();
-            setTeam(updatedTeam);
+            setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
           }
         } catch (error) {
           // Error updating team credits - handle silently or with proper error handling
@@ -236,7 +243,7 @@ export default function Revisar() {
                     </p>
                   </div>
                 </div>
-                {team && (
+                {team && !isLoadingData ? (
                   <div className="flex items-center gap-3">
                     <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                       <CardContent className="p-4">
@@ -254,6 +261,20 @@ export default function Revisar() {
                               </span>
                             </div>
                             <span className="text-sm text-muted-foreground font-medium">revisões restantes</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : isLoadingData && (
+                  <div className="flex items-center gap-3">
+                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="w-10 h-10 rounded-full" />
+                          <div className="text-center space-y-1">
+                            <Skeleton className="w-12 h-8" />
+                            <Skeleton className="w-24 h-4" />
                           </div>
                         </div>
                       </CardContent>
@@ -279,30 +300,38 @@ export default function Revisar() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
-                    <Select onValueChange={handleBrandChange} value={brand}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder="Selecione a marca" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/20">
-                        {brands.map((brand) => (
-                          <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isLoadingData ? (
+                      <Skeleton className="h-11 w-full rounded-xl" />
+                    ) : (
+                      <Select onValueChange={handleBrandChange} value={brand}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder="Selecione a marca" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          {brands.map((brand) => (
+                            <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   
                   <div className="space-y-3">
                     <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
-                    <Select onValueChange={setTheme} value={theme} disabled={!brand || filteredThemes.length === 0}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder={!brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/20">
-                        {filteredThemes.map((theme) => (
-                          <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isLoadingData ? (
+                      <Skeleton className="h-11 w-full rounded-xl" />
+                    ) : (
+                      <Select onValueChange={setTheme} value={theme} disabled={!brand || filteredThemes.length === 0}>
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
+                          <SelectValue placeholder={!brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Selecione o tema"} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/20">
+                          {filteredThemes.map((theme) => (
+                            <SelectItem key={theme.id} value={theme.title} className="rounded-lg">{theme.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </CardContent>

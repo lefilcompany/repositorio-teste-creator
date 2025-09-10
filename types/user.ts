@@ -9,4 +9,5 @@ export interface User {
   teamId?: string | null;
   role?: 'ADMIN' | 'MEMBER' | 'WITHOUT_TEAM';
   status?: 'ACTIVE' | 'PENDING' | 'INACTIVE' | 'NO_TEAM';
+  tutorialCompleted?: boolean;
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import {
   Home,
   Sparkles,
@@ -13,7 +14,8 @@ import {
   Users,
   Calendar,
   Rocket,
-  History
+  History,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -93,6 +95,7 @@ function ContentAction({ id, href, icon: Icon, label }: { id: string; href: stri
   );
 }
 
+// BOTÃO DE REVISAR COM ESTILO CORRIGIDO
 function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -114,6 +117,7 @@ function ReviewAction({ id, href, icon: Icon, label }: { id: string; href: strin
   );
 }
 
+// BOTÃO DE PLANEJAR COM ESTILO CORRIGIDO
 function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string; icon: React.ElementType; label: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -123,10 +127,10 @@ function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string;
       id={id}
       href={href}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-border",
+        "flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 bg-secondary",
         isActive
-          ? 'bg-background border border-border text-secondary shadow-lg scale-105'
-          : 'text-background hover:bg-background hover:text-border hover:border hover:border-border'
+          ? 'bg-background border border-secondary text-secondary shadow-lg scale-105'
+          : 'text-secondary-foreground hover:bg-background hover:text-secondary hover:border hover:border-secondary'
       )}
     >
       <Icon className="h-5 w-5" />
@@ -137,6 +141,22 @@ function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string;
 
 function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: string; href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
   const { id, href, icon: Icon, label } = item;
+
+  const handleNonAdminClick = () => {
+    toast.warning("Acesso Restrito", {
+      description: "Apenas o administrador da equipe pode acessar esta página. Entre em contato com o administrador para obter as permissões necessárias.",
+      duration: 5000,
+      icon: <Shield className="h-5 w-5 text-amber-500" />,
+      style: {
+        background: "hsl(var(--card))",
+        border: "1px solid hsl(var(--accent))",
+        borderLeft: "4px solid #f59e0b",
+        color: "hsl(var(--foreground))",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+      },
+      className: "group toast-warning",
+    });
+  };
 
   const content = (
     <>
@@ -161,7 +181,16 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: s
     );
   }
 
-  return <div id={id} className={classes} aria-label={label}>{content}</div>;
+  return (
+    <div 
+      id={id} 
+      className={cn(classes, "cursor-pointer")} 
+      aria-label={label}
+      onClick={handleNonAdminClick}
+    >
+      {content}
+    </div>
+  );
 }
 
 export default function Sidebar() {
@@ -191,11 +220,13 @@ export default function Sidebar() {
             <NavItem key={link.href} {...link} />
           ))}
         </div>
+        
         <div className='flex flex-col gap-4'>
           <ContentAction {...contentAction} />
           <ReviewAction {...reviewAction} />
           <PlanAction {...planAction} />
         </div>
+        
         <div className="">
           <TeamPlanSection item={navFooter[0]} teamName={teamName} planName={planName.toUpperCase()} isAdmin={!!isAdmin} />
         </div>

@@ -7,6 +7,7 @@ import { Plus, Tag } from 'lucide-react';
 import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
+import CascadeDeleteDialog from '@/components/ui/cascade-delete-dialog';
 import type { Brand } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,39 +19,46 @@ type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | '
 export default function MarcasPage() {
   const { user } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
-  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteInfo, setDeleteInfo] = useState<{ themes: string[]; personas: string[] } | null>(null);
 
+  // Carrega marcas e dados da equipe via API
   useEffect(() => {
-    const load = async () => {
-      if (!user?.teamId) {
-        setIsLoadingBrands(false);
-        setIsLoadingTeam(false);
-        return;
-      }
-
+    const loadData = async () => {
+      if (!user?.teamId) return;
+      
       try {
-        // Carregar marcas
+        // Carrega marcas
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
-          const data: Brand[] = await brandsRes.json();
-          setBrands(data);
+          const brandsData: Brand[] = await brandsRes.json();
+          setBrands(brandsData);
         } else {
-          const error = await brandsRes.json();
-          toast.error('Erro ao carregar marcas da equipe');
+          toast.error('Erro ao carregar marcas');
         }
       } catch (error) {
         toast.error('Erro de conexão ao carregar marcas');
       } finally {
         setIsLoadingBrands(false);
       }
+    };
+    
+    loadData();
+  }, [user]);
 
+  useEffect(() => {
+    const loadTeam = async () => {
+      if (!user?.id) {
+        setIsLoadingTeam(false);
+        return;
+      }
       try {
-        // Carregar dados do team
         const teamRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamRes.ok) {
           const teamsData: Team[] = await teamRes.json();
@@ -65,7 +73,7 @@ export default function MarcasPage() {
         setIsLoadingTeam(false);
       }
     };
-    load();
+    loadTeam();
   }, [user]);
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
@@ -86,8 +94,15 @@ export default function MarcasPage() {
   }, [brands.length, team]);
 
   const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
-    if (!user?.teamId || !user.id) return;
+    if (!user?.teamId || !user.id) {
+      toast.error('Usuário não autenticado ou sem equipe');
+      return;
+    }
+
+    const toastId = 'brand-operation';
     try {
+      toast.loading(brandToEdit ? 'Atualizando marca...' : 'Criando marca...', { id: toastId });
+      
       const method = brandToEdit ? 'PUT' : 'POST';
       const url = brandToEdit ? `/api/brands/${brandToEdit.id}` : '/api/brands';
       const res = await fetch(url, {
@@ -98,40 +113,73 @@ export default function MarcasPage() {
       
       if (!res.ok) {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao salvar marca');
+        toast.error(error.error || 'Erro ao salvar marca', { id: toastId });
         throw new Error(error.error || 'Falha ao salvar marca');
       }
       
       const saved: Brand = await res.json();
-      setBrands(prev =>
-        brandToEdit ? prev.map(b => (b.id === saved.id ? saved : b)) : [...prev, saved]
-      );
+      
+      // Atualiza a lista de marcas
+      setBrands(prev => {
+        if (brandToEdit) {
+          return prev.map(brand => brand.id === saved.id ? saved : brand);
+        }
+        return [...prev, saved];
+      });
+      
+      // Atualiza a marca selecionada se necessário
       if (brandToEdit && selectedBrand?.id === saved.id) {
+        setSelectedBrand(saved);
+      } else if (!brandToEdit) {
+        // Se for uma nova marca, seleciona ela automaticamente
         setSelectedBrand(saved);
       }
       
-      toast.success(brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!');
+      toast.success(
+        brandToEdit ? 'Marca atualizada com sucesso!' : 'Marca criada com sucesso!',
+        { id: toastId }
+      );
+      
+      return saved;
     } catch (error) {
-      toast.error('Erro ao salvar marca. Tente novamente.');
+      toast.error('Erro ao salvar marca. Tente novamente.', { id: toastId });
+      throw error;
     }
   }, [brandToEdit, selectedBrand?.id, user]);
 
-  const handleDeleteBrand = useCallback(async () => {
-    if (!selectedBrand || !user?.teamId || !user?.id) return;
+  const handleDeleteBrand = useCallback(async (cascade: boolean = false) => {
+    if (!selectedBrand || !user?.teamId || !user?.id) {
+      toast.error('Não foi possível deletar a marca. Verifique se você está logado.');
+      return;
+    }
+    const toastId = 'brand-operation';
     try {
-      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}`, { 
-        method: 'DELETE' 
+      toast.loading('Deletando marca...', { id: toastId });
+      const res = await fetch(`/api/brands/${selectedBrand.id}?teamId=${user.teamId}&userId=${user.id}${cascade ? '&cascade=true' : ''}`, {
+        method: 'DELETE'
       });
+      const data = await res.json();
       if (res.ok) {
-        setBrands(prev => prev.filter(b => b.id !== selectedBrand.id));
+        setBrands(prev => prev.filter(brand => brand.id !== selectedBrand.id));
         setSelectedBrand(null);
-        toast.success('Marca deletada com sucesso!');
+        setIsDialogOpen(false);
+        setBrandToEdit(null);
+        setShowDeleteDialog(false);
+        setDeleteInfo(null);
+        toast.success('Marca deletada com sucesso!', { id: toastId });
+      } else if (res.status === 409 && data.error === 'DEPENDENCIES_FOUND') {
+        setDeleteInfo(data.dependencies);
+        setShowDeleteDialog(true);
+        toast.dismiss(toastId);
       } else {
-        const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar marca');
+        toast.error(data.error || 'Erro ao deletar marca', { id: toastId });
+        setShowDeleteDialog(false);
+        setDeleteInfo(null);
       }
     } catch (error) {
-      toast.error('Erro ao deletar marca. Tente novamente.');
+      toast.error('Erro ao deletar marca. Tente novamente.', { id: toastId });
+      setShowDeleteDialog(false);
+      setDeleteInfo(null);
     }
   }, [selectedBrand, user]);
 
@@ -180,7 +228,7 @@ export default function MarcasPage() {
         <BrandDetails
           brand={selectedBrand}
           onEdit={handleOpenDialog}
-          onDelete={handleDeleteBrand}
+          onDelete={() => handleDeleteBrand()} // Garante que o botão chama SEM parâmetro
         />
       </main>
 
@@ -189,6 +237,20 @@ export default function MarcasPage() {
         onOpenChange={setIsDialogOpen}
         onSave={handleSaveBrand}
         brandToEdit={brandToEdit}
+      />
+      <CascadeDeleteDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => handleDeleteBrand(true)} // Só chama em cascata se o usuário confirmar
+        title="Deletar Marca"
+        description={`Você está tentando deletar a marca \"${selectedBrand?.name}\", mas ela possui outras entidades vinculadas.`}
+        cascade={deleteInfo && {
+          message: 'As seguintes entidades serão deletadas junto com a marca:',
+          itemsThatWillBeDeleted: [
+            ...(deleteInfo.themes.map(theme => `Tema: ${theme}`)),
+            ...(deleteInfo.personas.map(persona => `Persona: ${persona}`))
+          ]
+        }}
       />
     </div>
   );

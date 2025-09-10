@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { notifyTeamJoinRequest } from '@/lib/notifications';
 
 export async function POST(req: Request) {
   const { userId, code } = await req.json();
@@ -60,6 +61,17 @@ export async function POST(req: Request) {
       where: { id: userId },
       data: { teamId: targetTeam.id, status: 'PENDING' },
     });
+
+    // Buscar nome do usuário para a notificação
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true }
+    });
+
+    // Criar notificação para o admin da equipe
+    if (requestingUser) {
+      await notifyTeamJoinRequest(targetTeam.id, userId, requestingUser.name);
+    }
 
     return NextResponse.json({ 
       message: 'Solicitação de entrada enviada com sucesso',

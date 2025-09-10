@@ -7,46 +7,58 @@ import AdditionalInfoCard from '@/components/perfil/additionalInfoCard';
 import AccountManagement from '@/components/perfil/accountManagement';
 import { useAuth } from '@/hooks/useAuth';
 import { User } from '@/types/user';
-import { Team } from '@/types/team';
+import type { Team } from '@/types/team';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
+  const [team, setTeam] = useState<Team | null>(null);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(true);
   const [teamInfo, setTeamInfo] = useState({
     teamName: 'Sem equipe',
     plan: '-',
     actionsRemaining: { total: 0, createContent: 0, reviewContent: 0, planContent: 0 },
   });
 
+  // Carrega dados da equipe via API
   useEffect(() => {
-    const loadTeamInfo = async () => {
-      if (!user?.teamId || !user.id) return;
-
+    const loadTeam = async () => {
+      if (!user?.teamId) {
+        setIsLoadingTeam(false);
+        return;
+      }
+      
       try {
-        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          const t = teamsData.find((team) => team.id === user.teamId);
-          if (t) {
-            setTeamInfo({
-              teamName: t.name,
-              plan: typeof t.plan === 'string' ? t.plan : t.plan.name,
-              actionsRemaining: {
-                total: t.credits.contentSuggestions + t.credits.contentReviews + t.credits.contentPlans,
-                createContent: t.credits.contentSuggestions,
-                reviewContent: t.credits.contentReviews,
-                planContent: t.credits.contentPlans,
-              },
-            });
-          }
+        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
+        if (teamRes.ok) {
+          const teamsData: Team[] = await teamRes.json();
+          const currentTeam = teamsData.find(t => t.id === user.teamId);
+          if (currentTeam) setTeam(currentTeam);
         }
       } catch (error) {
-        }
+        // Silently handle error for team data
+      } finally {
+        setIsLoadingTeam(false);
+      }
     };
 
-    loadTeamInfo();
+    loadTeam();
   }, [user]);
+
+  useEffect(() => {
+    if (!team) return;
+    setTeamInfo({
+      teamName: team.name,
+      plan: typeof team.plan === 'string' ? team.plan : team.plan.name,
+      actionsRemaining: {
+        total: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
+        createContent: team.credits?.contentSuggestions || 0,
+        reviewContent: team.credits?.contentReviews || 0,
+        planContent: team.credits?.contentPlans || 0,
+      },
+    });
+  }, [team]);
 
   if (isLoading || !user) {
     return (
