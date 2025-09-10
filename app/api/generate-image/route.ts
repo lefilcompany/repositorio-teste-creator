@@ -10,7 +10,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MAX_PROMPT_LENGTH = 3950;
+const MAX_PROMPT_LENGTH = 5000;
 
 /**
  * Converte dados de imagem base64 para data URL
@@ -173,66 +173,6 @@ function buildDetailedImagePrompt(formData: any): string {
     : finalPrompt;
 }
 
-/**
- * Prompt alternativo mais conservador.
- */
-// function buildConservativePrompt(formData: any): string {
-//   const description = cleanInput(formData.prompt);
-//   const brand = cleanInput(formData.brand);
-//   const platform = cleanInput(formData.platform);
-
-//   let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
-//   if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
-//   if (brand) prompt += ` para a marca ${brand}`;
-//   if (platform) prompt += ` otimizado para a plataforma ${platform}`;
-//   prompt += ", estética moderna e visualmente agradável.";
-//   return prompt;
-// }
-
-// /**
-//  * Prompt de emergência ultra-conservador.
-//  */
-// function buildFallbackPrompt(): string {
-//   return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
-// }
-
-// /**
-//  * Interface para parâmetros específicos do GPT-Image-1
-//  */
-// interface GPTImage1Params {
-//   prompt: string;
-//   model: 'gpt-image-1';
-//   background?: 'auto' | 'transparent' | 'opaque';
-//   quality?: 'low' | 'medium' | 'high' | 'auto';
-//   size?: '1024x1024' | '1792x1024' | '1024x1792';
-//   output_format?: 'png' | 'jpeg';
-//   moderation?: 'auto' | 'low';
-//   n?: number;
-// }
-
-// /**
-//  * Função específica para gerar imagens com GPT-Image-1
-//  */
-// async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
-//   try {
-//     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
-//     const imageParams: GPTImage1Params = {
-//       model: 'gpt-image-1',
-//       prompt,
-//       background: 'transparent',
-//       n: 1,
-//       quality,
-//       size: '1024x1024',
-//       output_format: 'png',
-//       moderation: 'auto',
-//     };
-//     const response = await openai.images.generate(imageParams);
-//     return response;
-//   } catch (error) {
-//     //     throw error;
-//   }
-// }
-
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API,
 });
@@ -268,7 +208,7 @@ async function generateImage(
     contents.push({ text: fullPrompt });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", 
+      model: "gemini-2.5-flash-image-preview", 
       contents,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
@@ -777,7 +717,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: errorMessage,
-        model: "gemini-2.0-flash-preview-image-generation",
+        model: "gemini-2.5-flash-image-preview",
         timestamp: new Date().toISOString(),
         shouldRedirectToHistory: statusCode === 500, // Só redireciona para histórico em erros críticos
       },
