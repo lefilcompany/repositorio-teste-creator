@@ -1,3 +1,5 @@
+import type { ColorItem } from './brand';
+
 export type StrategicTheme = {
   id: string;
   teamId: string;

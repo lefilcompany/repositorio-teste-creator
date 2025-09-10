@@ -308,7 +308,7 @@ export default function Plan() {
                     </p>
                   </div>
                 </div>
-                {team && (
+                {team && !isLoadingData ? (
                   <div className="flex items-center gap-3">
                     <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                       <CardContent className="p-4">
@@ -326,6 +326,20 @@ export default function Plan() {
                               </span>
                             </div>
                             <span className="text-sm text-muted-foreground font-medium">planejamentos restantes</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : isLoadingData && (
+                  <div className="flex items-center gap-3">
+                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="w-10 h-10 rounded-full" />
+                          <div className="text-center space-y-1">
+                            <Skeleton className="w-12 h-8" />
+                            <Skeleton className="w-24 h-4" />
                           </div>
                         </div>
                       </CardContent>

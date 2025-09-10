@@ -38,7 +38,21 @@ export default function EquipePage() {
     }
 
     if (user.email !== team.admin) {
-      toast.error("Você não tem permissão para acessar esta página.");
+      toast.warning("🔒 Acesso Restrito", {
+        description: "Apenas o administrador da equipe pode acessar esta página. Entre em contato com o administrador para obter as permissões necessárias.",
+        duration: 5000,
+        action: {
+          label: "Voltar",
+          onClick: () => router.replace('/home'),
+        },
+        style: {
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--accent))",
+          borderLeft: "4px solid #f59e0b",
+          color: "hsl(var(--foreground))",
+          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        },
+      });
       router.replace('/home');
       return;
     }

@@ -11,7 +11,6 @@ export async function GET(req: Request) {
     const limit = searchParams.get('limit') || '10';
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
-    console.log('Notifications API called with params:', { teamId, userId, limit, unreadOnly });
 
     if (!teamId || !userId) {
       console.error('Missing required parameters:', { teamId, userId });

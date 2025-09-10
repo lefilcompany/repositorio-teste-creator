@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader, Sparkles, Zap, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/types/brand';
@@ -344,7 +345,7 @@ export default function Creator() {
                   <Switch checked={isVideoMode} onCheckedChange={setIsVideoMode} />
                   <span className="text-sm font-medium text-foreground">Vídeo</span>
                 </div>
-                {team && (
+                {team && !isLoadingData ? (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
@@ -361,6 +362,18 @@ export default function Creator() {
                             </span>
                           </div>
                           <span className="text-sm text-muted-foreground font-medium">criações restantes</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : isLoadingData && (
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="text-center space-y-1">
+                          <Skeleton className="w-12 h-8" />
+                          <Skeleton className="w-24 h-4" />
                         </div>
                       </div>
                     </CardContent>
@@ -386,40 +399,52 @@ export default function Creator() {
               <CardContent className="space-y-5 p-6">
                 <div className="space-y-3">
                   <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
-                  <Select onValueChange={(value) => handleSelectChange('brand', value)} value={formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
-                      <SelectValue placeholder="Selecione a marca" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/20">
-                      {brands.map(b => <SelectItem key={b.id} value={b.name} className="rounded-lg">{b.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingData ? (
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  ) : (
+                    <Select onValueChange={(value) => handleSelectChange('brand', value)} value={formData.brand}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Selecione a marca" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {brands.map(b => <SelectItem key={b.id} value={b.name} className="rounded-lg">{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
-                  <Select onValueChange={(value) => handleSelectChange('theme', value)} value={formData.theme} disabled={!formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
-                      <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione o tema"} />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/20">
-                      {filteredThemes.map(t => <SelectItem key={t.id} value={t.title} className="rounded-lg">{t.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingData ? (
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  ) : (
+                    <Select onValueChange={(value) => handleSelectChange('theme', value)} value={formData.theme} disabled={!formData.brand}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione o tema"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {filteredThemes.map(t => <SelectItem key={t.id} value={t.title} className="rounded-lg">{t.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <Label htmlFor="persona" className="text-sm font-semibold text-foreground">Persona (Opcional)</Label>
-                  <Select onValueChange={(value) => handleSelectChange('persona', value)} value={formData.persona} disabled={!formData.brand}>
-                    <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
-                      <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione uma persona"} />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/20">
-                      {personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p =>
-                        <SelectItem key={p.id} value={p.name} className="rounded-lg">{p.name}</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingData ? (
+                    <Skeleton className="h-11 w-full rounded-xl" />
+                  ) : (
+                    <Select onValueChange={(value) => handleSelectChange('persona', value)} value={formData.persona} disabled={!formData.brand}>
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 transition-all duration-300 disabled:opacity-50 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Selecione uma persona"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/20">
+                        {personas.filter(p => p.brandId === brands.find(b => b.name === formData.brand)?.id).map(p =>
+                          <SelectItem key={p.id} value={p.name} className="rounded-lg">{p.name}</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-3">

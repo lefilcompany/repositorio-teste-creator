@@ -7,8 +7,6 @@ export async function PATCH(req: Request) {
   try {
     const { userId, teamId } = await req.json();
 
-    console.log('Mark all as read request:', { userId, teamId });
-
     if (!userId || !teamId) {
       return NextResponse.json({ 
         error: 'userId e teamId são obrigatórios' 
@@ -39,14 +37,12 @@ export async function PATCH(req: Request) {
       data: { read: true }
     });
 
-    console.log(`Marked ${result.count} notifications as read for user ${userId}`);
 
     return NextResponse.json({ 
       success: true,
       count: result.count
     });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
     return NextResponse.json({ 
       error: 'Erro interno do servidor ao marcar todas as notificações como lidas' 
     }, { status: 500 });

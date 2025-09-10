@@ -32,7 +32,7 @@ export default function PersonasPage() {
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
-      
+
       try {
         // Carrega personas
         const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
@@ -42,7 +42,7 @@ export default function PersonasPage() {
         } else {
           toast.error('Erro ao carregar personas');
         }
-        
+
         // Carrega marcas
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
@@ -58,7 +58,7 @@ export default function PersonasPage() {
         setIsLoadingBrands(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -93,70 +93,106 @@ export default function PersonasPage() {
       const planLimits = team.plan.limits;
       const currentPersonasCount = personas.length;
       const maxPersonas = planLimits?.personas || 2;
-      
+
       if (currentPersonasCount >= maxPersonas) {
         toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxPersonas} persona${maxPersonas > 1 ? 's' : ''}.`);
         return;
       }
     }
-    
+
     setPersonaToEdit(persona);
     setIsDialogOpen(true);
   }, [personas.length, team]);
 
-  const handleSavePersona = useCallback(
-    async (formData: PersonaFormData) => {
-      if (!user?.teamId || !user.id) return;
-      try {
-        const method = personaToEdit ? 'PATCH' : 'POST';
-        const url = personaToEdit ? `/api/personas/${personaToEdit.id}` : '/api/personas';
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
-        });
-        if (!res.ok) {
-          const error = await res.json();
-          toast.error(error.error || 'Erro ao salvar persona');
-          throw new Error('Falha ao salvar persona');
-        }
-        const saved: Persona = await res.json();
-        
-        // Atualiza a lista de personas
-        if (personaToEdit) {
-          setPersonas(prev => prev.map(persona => persona.id === saved.id ? saved : persona));
-        } else {
-          setPersonas(prev => [...prev, saved]);
-        }
-        
-        if (personaToEdit && selectedPersona?.id === saved.id) {
-          setSelectedPersona(saved);
-        }
-        toast.success(personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!');
-      } catch (error) {
-        toast.error('Erro ao salvar persona. Tente novamente.');
+  const handleSavePersona = useCallback(async (formData: PersonaFormData) => {
+    if (!user?.teamId || !user.id) {
+      toast.error('Usuário não autenticado ou sem equipe');
+      return;
+    }
+
+    const toastId = 'persona-operation';
+    try {
+      toast.loading(personaToEdit ? 'Atualizando persona...' : 'Criando persona...', { id: toastId });
+      
+      const method = personaToEdit ? 'PATCH' : 'POST';
+      const url = personaToEdit ? `/api/personas/${personaToEdit.id}` : '/api/personas';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, teamId: user.teamId, userId: user.id }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        toast.error(error.error || 'Erro ao salvar persona', { id: toastId });
+        throw new Error(error.error || 'Falha ao salvar persona');
       }
-    },
+      
+      const saved: Persona = await res.json();
+      
+      // Atualiza a lista de personas
+      setPersonas(prev => {
+        if (personaToEdit) {
+          return prev.map(persona => persona.id === saved.id ? saved : persona);
+        }
+        return [...prev, saved];
+      });
+      
+      // Atualiza a persona selecionada se necessário
+      if (personaToEdit && selectedPersona?.id === saved.id) {
+        setSelectedPersona(saved);
+      } else if (!personaToEdit) {
+        // Se for uma nova persona, seleciona ela automaticamente
+        setSelectedPersona(saved);
+      }
+      
+      // Fecha o diálogo após salvar com sucesso
+      setIsDialogOpen(false);
+      setPersonaToEdit(null);
+
+      toast.success(
+        personaToEdit ? 'Persona atualizada com sucesso!' : 'Persona criada com sucesso!',
+        { id: toastId }
+      );
+    } catch (error) {
+      toast.error('Erro ao salvar persona. Tente novamente.');
+    }
+  },
     [personaToEdit, selectedPersona?.id, user]
   );
 
   const handleDeletePersona = useCallback(async () => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || !user?.teamId || !user?.id) {
+      toast.error('Não foi possível deletar a persona. Verifique se você está logado.');
+      return;
+    }
+
+    const toastId = 'persona-operation';
     try {
-      const res = await fetch(`/api/personas/${selectedPersona.id}`, { method: 'DELETE' });
+      toast.loading('Deletando persona...', { id: toastId });
+
+      const res = await fetch(`/api/personas/${selectedPersona.id}?teamId=${user.teamId}&userId=${user.id}`, {
+        method: 'DELETE'
+      });
+
       if (res.ok) {
-        // Remove a persona da lista local
+        // Remove a persona da lista local e limpa a seleção
         setPersonas(prev => prev.filter(persona => persona.id !== selectedPersona.id));
         setSelectedPersona(null);
-        toast.success('Persona deletada com sucesso!');
+        
+        // Fecha o diálogo se estiver aberto
+        setIsDialogOpen(false);
+        setPersonaToEdit(null);
+        
+        toast.success('Persona deletada com sucesso!', { id: toastId });
       } else {
         const error = await res.json();
-        toast.error(error.error || 'Erro ao deletar persona');
+        toast.error(error.error || 'Erro ao deletar persona', { id: toastId });
       }
     } catch (error) {
-      toast.error('Erro ao deletar persona. Tente novamente.');
+      toast.error('Erro ao deletar persona. Tente novamente.', { id: toastId });
     }
-  }, [selectedPersona]);
+  }, [selectedPersona, user]);
 
   // Verificar se o limite foi atingido
   const isAtPersonaLimit = team && typeof team.plan === 'object'
@@ -181,8 +217,8 @@ export default function PersonasPage() {
                 </p>
               </div>
             </div>
-            <Button 
-              onClick={() => handleOpenDialog()} 
+            <Button
+              onClick={() => handleOpenDialog()}
               disabled={isAtPersonaLimit}
               className="rounded-lg bg-gradient-to-r from-primary to-secondary px-6 py-5 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -209,10 +245,10 @@ export default function PersonasPage() {
             onDelete={handleDeletePersona}
           />
         ) : (
-          <div className="bg-card p-6 rounded-2xl border-2 border-primary/10 flex items-center justify-center">
-            <p className="text-muted-foreground text-center">
-              {isLoadingPersonas ? 'Carregando personas...' : 'Selecione uma persona para ver os detalhes'}
-            </p>
+          <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">
+            <Users className="h-16 w-16 text-muted-foreground/50" strokeWidth={1.5} />
+            <h3 className="text-xl font-semibold text-foreground">Nenhuma persona selecionada</h3>
+            <p className="text-muted-foreground">Selecione uma persona na lista para ver os detalhes ou crie uma nova.</p>
           </div>
         )}
       </main>

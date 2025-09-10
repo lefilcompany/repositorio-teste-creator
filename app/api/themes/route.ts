@@ -56,10 +56,16 @@ export async function POST(req: Request) {
       }
     }
 
-    // Criar o tema
+    // Garantir que colorPalette seja uma string JSON válida
+    const colorPalette = typeof themeData.colorPalette === 'string'
+      ? themeData.colorPalette
+      : JSON.stringify(themeData.colorPalette || []);
+
+    // Criar o tema com a paleta de cores validada
     const theme = await prisma.strategicTheme.create({ 
       data: {
         ...themeData,
+        colorPalette,
         teamId,
         userId
       } 
@@ -70,3 +76,32 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PUT(req: Request) {
+  try {
+    const data = await req.json();
+    const { id, ...themeData } = data;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Theme ID is required' }, { status: 400 });
+    }
+
+    // Garantir que colorPalette seja uma string JSON válida
+    const colorPalette = typeof themeData.colorPalette === 'string'
+      ? themeData.colorPalette
+      : JSON.stringify(themeData.colorPalette || []);
+
+    // Atualizar o tema com a paleta de cores validada
+    const theme = await prisma.strategicTheme.update({
+      where: { id },
+      data: {
+        ...themeData,
+        colorPalette
+      }
+    });
+
+    return NextResponse.json(theme);
+  } catch (error) {
+    console.error('Error updating theme:', error);
+    return NextResponse.json({ error: 'Failed to update theme' }, { status: 500 });
+  }
+}

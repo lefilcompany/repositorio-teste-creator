@@ -4,6 +4,17 @@ export interface MoodboardFile {
   content: string;   
 }
 
+export interface ColorItem {
+  id: string;
+  hex: string;
+  rgb: {
+    r: number;
+    g: number;
+    b: number;
+  };
+  name?: string;
+}
+
 export interface Brand {
   id: string;
   teamId: string;
@@ -24,6 +35,9 @@ export interface Brand {
   collaborations: string;
   restrictions: string;
   moodboard: MoodboardFile | null;
+  logo: MoodboardFile | null;
+  referenceImage: MoodboardFile | null;
+  colorPalette: ColorItem[] | null;
   createdAt: string;
   updatedAt: string;
 }
