@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import {
   Home,
   Sparkles,
@@ -13,7 +14,8 @@ import {
   Users,
   Calendar,
   Rocket,
-  History
+  History,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -140,6 +142,22 @@ function PlanAction({ id, href, icon: Icon, label }: { id: string; href: string;
 function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: string; href: string; icon: React.ElementType; label: string }; teamName: string; planName: string; isAdmin: boolean }) {
   const { id, href, icon: Icon, label } = item;
 
+  const handleNonAdminClick = () => {
+    toast.warning("Acesso Restrito", {
+      description: "Apenas o administrador da equipe pode acessar esta página. Entre em contato com o administrador para obter as permissões necessárias.",
+      duration: 5000,
+      icon: <Shield className="h-5 w-5 text-amber-500" />,
+      style: {
+        background: "hsl(var(--card))",
+        border: "1px solid hsl(var(--accent))",
+        borderLeft: "4px solid #f59e0b",
+        color: "hsl(var(--foreground))",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+      },
+      className: "group toast-warning",
+    });
+  };
+
   const content = (
     <>
       <Icon className="h-6 w-6 flex-shrink-0" />
@@ -163,7 +181,16 @@ function TeamPlanSection({ item, teamName, planName, isAdmin }: { item: { id?: s
     );
   }
 
-  return <div id={id} className={classes} aria-label={label}>{content}</div>;
+  return (
+    <div 
+      id={id} 
+      className={cn(classes, "cursor-pointer")} 
+      aria-label={label}
+      onClick={handleNonAdminClick}
+    >
+      {content}
+    </div>
+  );
 }
 
 export default function Sidebar() {

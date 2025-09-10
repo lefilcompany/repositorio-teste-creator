@@ -110,24 +110,27 @@ model StrategicTheme {
 }
 
 model Persona {
-  id                String   @id @default(cuid())
-  teamId            String
-  userId            String
-  brandId           String
-  name              String
-  gender            String
-  age               String
-  location          String
-  role              String
-  hobbies           String
-  consumptionHabits String
-  goals             String
-  challenges        String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  brand             Brand    @relation(fields: [brandId], references: [id])
-  team              Team     @relation(fields: [teamId], references: [id])
-  user              User     @relation(fields: [userId], references: [id])
+  id                        String   @id @default(cuid())
+  teamId                    String
+  userId                    String
+  brandId                   String
+  name                      String
+  gender                    String
+  age                       String
+  location                  String
+  professionalContext       String   @map("role")
+  beliefsAndInterests       String   @map("hobbies")
+  contentConsumptionRoutine String   @map("consumptionHabits")
+  mainGoal                  String   @map("goals")
+  challenges                String
+  preferredToneOfVoice      String   @default("")
+  purchaseJourneyStage      String   @default("")
+  interestTriggers          String   @default("")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  brand                     Brand    @relation(fields: [brandId], references: [id])
+  team                      Team     @relation(fields: [teamId], references: [id])
+  user                      User     @relation(fields: [userId], references: [id])
 }
 
 model Action {

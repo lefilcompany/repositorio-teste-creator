@@ -40,6 +40,49 @@ const DetailField = ({ label, value }: { label: string, value?: string }) => {
   );
 };
 
+const ToneOfVoiceField = ({ label, value }: { label: string, value?: string }) => {
+  if (!value) return null;
+  const tones = value.split(', ').filter(Boolean);
+  if (tones.length === 0) return null;
+  
+  return (
+    <div className="p-3 bg-muted/50 rounded-lg">
+      <p className="text-sm text-muted-foreground mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {tones.map((tone, index) => (
+          <span 
+            key={index}
+            className="bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-primary text-xs font-semibold px-2 py-1 rounded-lg"
+          >
+            {tone}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const JourneyStageField = ({ label, value }: { label: string, value?: string }) => {
+  if (!value) return null;
+  
+  const stageLabels: { [key: string]: string } = {
+    discovery: 'Descoberta',
+    consideration: 'Consideração',
+    decision: 'Decisão'
+  };
+  
+  const displayValue = stageLabels[value] || value;
+  
+  return (
+    <div className="p-3 bg-muted/50 rounded-lg">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <span className="inline-block bg-secondary/20 text-secondary-foreground text-sm font-medium px-3 py-1 rounded-full mt-1">
+        {displayValue}
+      </span>
+    </div>
+  );
+};
+
 export default function PersonaDetails({ persona, onEdit, onDelete, brands }: PersonaDetailsProps) {
   if (!persona) {
     return (
@@ -53,6 +96,17 @@ export default function PersonaDetails({ persona, onEdit, onDelete, brands }: Pe
 
   const wasUpdated = persona.createdAt !== persona.updatedAt;
   const brandName = brands.find(b => b.id === persona.brandId)?.name || 'Marca não encontrada';
+  
+  // Compatibilidade com campos antigos (caso a persona venha com a estrutura antiga)
+  const personaData = {
+    professionalContext: persona.professionalContext || (persona as any).role || '',
+    beliefsAndInterests: persona.beliefsAndInterests || (persona as any).hobbies || '',
+    contentConsumptionRoutine: persona.contentConsumptionRoutine || (persona as any).consumptionHabits || '',
+    mainGoal: persona.mainGoal || (persona as any).goals || '',
+    preferredToneOfVoice: persona.preferredToneOfVoice || '',
+    purchaseJourneyStage: persona.purchaseJourneyStage || '',
+    interestTriggers: persona.interestTriggers || '',
+  };
 
   return (
     <div className="lg:col-span-1 max-h-[calc(100vh-16rem)] bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border-2 border-secondary/20 flex flex-col overflow-hidden">
@@ -68,18 +122,40 @@ export default function PersonaDetails({ persona, onEdit, onDelete, brands }: Pe
 
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         <div className="space-y-4 text-left">
-          <DetailField label="Cargo e Formação" value={persona.role} />
-          <DetailField label="Idade" value={persona.age} />
-          <DetailField label="Gênero" value={persona.gender} />
-          <DetailField label="Localização" value={persona.location} />
-          <DetailField label="Hobbies e Interesses" value={persona.hobbies} />
-          <DetailField label="Hábitos de Consumo" value={persona.consumptionHabits} />
-          <DetailField label="Metas e Objetivos" value={persona.goals} />
-          <DetailField label="Desafios" value={persona.challenges} />
-          <DetailField label="Data de Criação" value={formatDate(persona.createdAt)} />
-          {wasUpdated && (
-            <DetailField label="Última Atualização" value={formatDate(persona.updatedAt)} />
-          )}
+          {/* Informações Demográficas */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Informações Demográficas</h3>
+            <DetailField label="Idade" value={persona.age} />
+            <DetailField label="Gênero" value={persona.gender} />
+            <DetailField label="Localização" value={persona.location} />
+            <DetailField label="Contexto Profissional" value={personaData.professionalContext} />
+          </div>
+
+          {/* Comportamento e Preferências */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Comportamento e Preferências</h3>
+            <DetailField label="Rotina de Consumo de Conteúdo" value={personaData.contentConsumptionRoutine} />
+            <DetailField label="Crenças e Interesses" value={personaData.beliefsAndInterests} />
+            <ToneOfVoiceField label="Tom de Voz Preferido" value={personaData.preferredToneOfVoice} />
+            <JourneyStageField label="Estágio da Jornada" value={personaData.purchaseJourneyStage} />
+          </div>
+
+          {/* Objetivos e Desafios */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Objetivos e Desafios</h3>
+            <DetailField label="Objetivo Principal" value={personaData.mainGoal} />
+            <DetailField label="Principais Dores e Desafios" value={persona.challenges} />
+            <DetailField label="Gatilhos de Interesse" value={personaData.interestTriggers} />
+          </div>
+
+          {/* Metadados */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Informações do Sistema</h3>
+            <DetailField label="Data de Criação" value={formatDate(persona.createdAt)} />
+            {wasUpdated && (
+              <DetailField label="Última Atualização" value={formatDate(persona.updatedAt)} />
+            )}
+          </div>
         </div>
       </div>
 
