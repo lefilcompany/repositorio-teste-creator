@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader, Sparkles, Zap, X } from 'lucide-react';
+import { Loader, Sparkles, Zap, X, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
@@ -28,7 +28,7 @@ interface FormData {
   platform: string;
   description: string;
   audience: string;
-  tone: string[]; // Alterado para array de strings
+  tone: string[];
   additionalInfo: string;
 }
 
@@ -37,40 +37,6 @@ const toneOptions = [
   'inspirador', 'motivacional', 'profissional', 'casual', 'elegante',
   'moderno', 'tradicional', 'divertido', 'sério'
 ];
-
-// Função para gerar ID único baseado em timestamp e aleatoriedade
-const generateUniqueId = (): string => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2);
-  return `gen-${timestamp}-${random}`;
-};
-
-// Função de histórico melhorada para usar API
-const saveActionToHistory = async (actionData: any, teamId: string | undefined, userId: string | undefined, brandName: string, brands: Brand[]) => {
-  if (!teamId || !userId) {
-    return;
-  }
-
-  try {
-    const brandData = brands.find(b => b.name === brandName);
-    if (brandData) {
-      await fetch('/api/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'CRIAR_CONTEUDO',
-          teamId,
-          userId,
-          brandId: brandData.id,
-          details: actionData.details,
-          result: actionData.result,
-        }),
-      });
-    }
-  } catch (error) {
-    toast.error("Erro ao salvar no histórico. O conteúdo será criado, mas pode não aparecer no histórico.");
-  }
-};
 
 export default function Creator() {
   const { user } = useAuth();
@@ -93,13 +59,11 @@ export default function Creator() {
   const [ratio, setRatio] = useState<string>('1280:720');
   const [duration, setDuration] = useState<string>('10');
 
-  // Carrega dados da equipe, marcas, temas e personas via API
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
-      
+
       try {
-        // Carrega dados da equipe
         const teamRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamRes.ok) {
           const teamsData: Team[] = await teamRes.json();
@@ -107,21 +71,18 @@ export default function Creator() {
           if (currentTeam) setTeam(currentTeam);
         }
 
-        // Carrega marcas
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
         if (brandsRes.ok) {
           const brandsData: Brand[] = await brandsRes.json();
           setBrands(brandsData);
         }
 
-        // Carrega temas
         const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
         if (themesRes.ok) {
           const themesData: StrategicTheme[] = await themesRes.json();
           setThemes(themesData);
         }
 
-        // Carrega personas
         const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
         if (personasRes.ok) {
           const personasData: Persona[] = await personasRes.json();
@@ -133,7 +94,7 @@ export default function Creator() {
         setIsLoadingData(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
@@ -170,6 +131,25 @@ export default function Creator() {
 
   const handleToneRemove = (toneToRemove: string) => {
     setFormData(prev => ({ ...prev, tone: prev.tone.filter(t => t !== toneToRemove) }));
+  };
+
+  const handleVideoModeChange = (checked: boolean) => {
+    setIsVideoMode(checked);
+    if (checked) {
+      toast.info("Geração de Vídeo (Beta) Ativada", {
+        description: "Este recurso está em desenvolvimento e a geração pode levar mais tempo que o normal. Agradecemos seu feedback!",
+        duration: 6000,
+        icon: <Info className="h-5 w-5 text-accent" />,
+        style: {
+          background: "hsl(var(--card))",
+          border: "1px solid hsl(var(--accent))",
+          borderLeft: "4px solid hsl(var(--accent))",
+          color: "hsl(var(--foreground))",
+          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        },
+        className: "group toast-info-beta",
+      });
+    }
   };
 
   const isFormValid = () => {
@@ -249,8 +229,6 @@ export default function Creator() {
 
     try {
       const base64File = referenceFile ? await fileToBase64(referenceFile) : undefined;
-
-      // Busca o brandId baseado no nome da marca selecionada
       const selectedBrand = brands.find(b => b.name === formData.brand);
       if (!selectedBrand) {
         toast.error('Marca selecionada não encontrada.');
@@ -282,7 +260,6 @@ export default function Creator() {
       }
 
       const endpoint = isVideoMode ? '/api/generate-video' : '/api/generate-image';
-
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -291,24 +268,16 @@ export default function Creator() {
 
       if (!response.ok) {
         const errorData = await response.json();
-
-        // Se é um erro crítico que deve redirecionar para histórico
         if (errorData.shouldRedirectToHistory) {
           toast.error('Erro crítico no sistema. Redirecionando para o histórico.');
           router.push('/historico');
           return;
         }
-
-        // Outros erros são mostrados ao usuário para tentar novamente
         throw new Error(errorData.error || 'Falha ao gerar o conteúdo.');
       }
 
-      const data = await response.json();
-
-      // A ação já foi criada dentro da API de geração
-      // Atualiza os créditos da equipe
+      await response.json();
       await updateTeamCredits();
-
       toast.success('Conteúdo gerado com sucesso!');
       router.push('/content/result');
 
@@ -322,7 +291,6 @@ export default function Creator() {
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header Card */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
           <CardHeader className="pb-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -340,10 +308,34 @@ export default function Creator() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">Imagem</span>
-                  <Switch checked={isVideoMode} onCheckedChange={setIsVideoMode} />
-                  <span className="text-sm font-medium text-foreground">Vídeo</span>
+                <div className="flex items-center space-x-1 rounded-full bg-muted p-1 border">
+                  <Button
+                    variant="ghost"
+                    size="default"
+                    onClick={() => setIsVideoMode(false)}
+                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${!isVideoMode
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background hover:text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                      }`}
+                  >
+                    Imagem
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="default"
+                    onClick={() => handleVideoModeChange(true)}
+                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${isVideoMode
+                      ? 'bg-background text-foreground shadow-sm hover:bg-background hover:text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                      }`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5">
+                      Vídeo
+                      <span className="border border-accent/50 bg-accent/20 text-accent text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                        BETA
+                      </span>
+                    </div>
+                  </Button>
                 </div>
                 {team && !isLoadingData ? (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
@@ -384,9 +376,7 @@ export default function Creator() {
           </CardHeader>
         </Card>
 
-        {/* Main Content with proper padding */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6">
-          {/* Left Panel - Configuration */}
           <div className="lg:col-span-1 xl:col-span-2 space-y-6">
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -466,7 +456,7 @@ export default function Creator() {
                   <Label htmlFor="audience" className="text-sm font-semibold text-foreground">Público-Alvo *</Label>
                   <Input
                     id="audience"
-                    placeholder="Ex: Jovens de 18-25 anos"
+                    placeholder="Descreva o perfil do seu público ideal (idade, interesses, dores, etc.)"
                     value={formData.audience}
                     onChange={handleInputChange}
                     className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20"
@@ -555,7 +545,6 @@ export default function Creator() {
             </Card>
           </div>
 
-          {/* Right Panel - Content Details */}
           <div className="lg:col-span-1 xl:col-span-3 space-y-6">
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
@@ -570,7 +559,7 @@ export default function Creator() {
                   <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo do Post *</Label>
                   <Textarea
                     id="objective"
-                    placeholder="Ex: Gerar engajamento, anunciar um novo produto, educar o público..."
+                    placeholder="Qual a principal meta deste post? (ex: gerar engajamento, anunciar um produto, educar sobre um tema específico)"
                     value={formData.objective}
                     onChange={handleInputChange}
                     className="min-h-[120px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
@@ -585,8 +574,8 @@ export default function Creator() {
                     id="description"
                     placeholder={
                       isVideoMode
-                        ? 'Descreva detalhadamente o que você deseja ver no vídeo. Considere movimento, ambiente, iluminação, estilo...'
-                        : 'Descreva detalhadamente o que você quer ver na imagem. Seja específico sobre cores, elementos, estilo, composição...'
+                        ? "Como um roteirista: descreva a ação, o movimento da câmera e a atmosfera (ex: drone voando sobre uma praia ao pôr do sol, pessoas caminhando lentamente, clima tranquilo)."
+                        : "Seja um diretor de arte: descreva a cena, iluminação, cores e emoção (ex: uma mulher sorrindo em um café com luz do sol, estilo cinematográfico, cores quentes)."
                     }
                     value={formData.description}
                     onChange={handleInputChange}
@@ -632,7 +621,7 @@ export default function Creator() {
                   <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Extras</Label>
                   <Textarea
                     id="additionalInfo"
-                    placeholder="Cores específicas, elementos obrigatórios, estilo preferido, referências..."
+                    placeholder="Adicione detalhes cruciais para a IA (ex: usar a cor #FF5733, incluir nosso logo, não mostrar rostos, link de referência: bit.ly/exemplo)"
                     value={formData.additionalInfo}
                     onChange={handleInputChange}
                     className="min-h-[100px] rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20"
@@ -643,7 +632,6 @@ export default function Creator() {
           </div>
         </div>
 
-        {/* Action Button Section */}
         <div className="mt-8">
           <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
             <CardContent className="p-6">
@@ -666,7 +654,6 @@ export default function Creator() {
                   )}
                 </Button>
 
-                {/* Form validation indicator */}
                 {!isFormValid() && (
                   <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
                     <p className="text-muted-foreground text-sm">
