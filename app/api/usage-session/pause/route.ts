@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    // Verificar se existe uma sessão ativa para o usuário
+    // Buscar sessão ativa do usuário
     const activeSession = await prisma.usageSession.findFirst({
       where: {
         userId: payload.userId,
@@ -25,32 +25,38 @@ export async function POST(req: Request) {
       }
     });
 
-    // Se já existe uma sessão ativa, retornar ela
-    if (activeSession) {
+    if (!activeSession) {
       return NextResponse.json({ 
-        sessionId: activeSession.id,
-        message: 'Sessão ativa encontrada'
+        message: 'Nenhuma sessão ativa encontrada'
       });
     }
 
-    // Criar nova sessão
-    const session = await prisma.usageSession.create({
+    const pauseTime = new Date();
+    const currentSegmentDuration = Math.floor((pauseTime.getTime() - activeSession.loginTime.getTime()) / 1000);
+    const totalAccumulatedTime = (activeSession.totalTime || 0) + currentSegmentDuration;
+
+    // Atualizar sessão marcando como pausada
+    const updatedSession = await prisma.usageSession.update({
+      where: {
+        id: activeSession.id
+      },
       data: {
-        userId: payload.userId,
-        loginTime: new Date(),
-        active: true,
-        date: new Date(),
-        sessionType: 'normal'
+        active: false,
+        duration: currentSegmentDuration,
+        totalTime: totalAccumulatedTime,
+        sessionType: 'paused'
       }
     });
 
     return NextResponse.json({
-      sessionId: session.id,
-      message: 'Sessão de uso iniciada'
+      sessionId: updatedSession.id,
+      duration: currentSegmentDuration,
+      totalTime: totalAccumulatedTime,
+      message: 'Sessão pausada'
     });
 
   } catch (error) {
-    console.error('Erro ao iniciar sessão de uso:', error);
+    console.error('Erro ao pausar sessão de uso:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

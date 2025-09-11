@@ -22,15 +22,18 @@ export async function POST() {
       const logoutTime = new Date();
       
       for (const session of orphanedSessions) {
-        // Calcular duração máxima de 2 horas para sessões órfãs
-        const maxDuration = 2 * 60 * 60; // 2 horas em segundos
+        // Calcular duração do segmento atual
+        const currentSegmentDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
+        const totalTime = (session.totalTime || 0) + currentSegmentDuration;
         
         await prisma.usageSession.update({
           where: { id: session.id },
           data: {
             logoutTime,
-            duration: maxDuration,
-            active: false
+            duration: currentSegmentDuration,
+            totalTime: totalTime,
+            active: false,
+            sessionType: 'orphaned'
           }
         });
         

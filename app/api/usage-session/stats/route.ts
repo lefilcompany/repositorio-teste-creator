@@ -72,7 +72,7 @@ export async function GET(req: Request) {
 
     // Calcular estatísticas
     const totalSessions = sessions.length;
-    const totalTimeInSeconds = sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    const totalTimeInSeconds = sessions.reduce((sum, session) => sum + (session.totalTime || session.duration || 0), 0);
     const averageSessionTime = totalSessions > 0 ? Math.round(totalTimeInSeconds / totalSessions) : 0;
 
     // Agrupar por usuário
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
         };
       }
       acc[userId].totalSessions++;
-      acc[userId].totalTime += session.duration || 0;
+      acc[userId].totalTime += session.totalTime || session.duration || 0;
       acc[userId].averageTime = Math.round(acc[userId].totalTime / acc[userId].totalSessions);
       return acc;
     }, {});
@@ -104,7 +104,7 @@ export async function GET(req: Request) {
         };
       }
       acc[date].sessions++;
-      acc[date].totalTime += session.duration || 0;
+      acc[date].totalTime += session.totalTime || session.duration || 0;
       acc[date].uniqueUsers.add(session.userId);
       return acc;
     }, {});
@@ -125,7 +125,8 @@ export async function GET(req: Request) {
       dailyStats: dailyStatsArray,
       sessions: sessions.map(session => ({
         ...session,
-        durationFormatted: formatTime(session.duration || 0)
+        durationFormatted: formatTime(session.duration || 0),
+        totalTimeFormatted: formatTime(session.totalTime || session.duration || 0)
       }))
     });
 

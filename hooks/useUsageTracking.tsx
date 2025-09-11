@@ -8,9 +8,10 @@ export function useUsageTracking() {
   const { user, isAuthenticated } = useAuth();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const isTrackingRef = useRef<boolean>(false);
 
   const startUsageTracking = async () => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user || isTrackingRef.current) return;
 
     try {
       const token = localStorage.getItem('authToken');
@@ -27,6 +28,7 @@ export function useUsageTracking() {
       if (response.ok) {
         const data = await response.json();
         sessionIdRef.current = data.sessionId;
+        isTrackingRef.current = true;
         console.log('✅ Sessão de uso iniciada:', data.sessionId);
         
         // Iniciar heartbeat a cada 30 segundos
@@ -37,7 +39,69 @@ export function useUsageTracking() {
     }
   };
 
+  const pauseUsageTracking = async () => {
+    if (!isTrackingRef.current) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      // Parar heartbeat
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
+      const response = await fetch('/api/usage-session/pause', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('⏸️ Sessão pausada:', data.duration, 'segundos');
+        isTrackingRef.current = false;
+      }
+    } catch (error) {
+      console.error('Erro ao pausar tracking de uso:', error);
+    }
+  };
+
+  const resumeUsageTracking = async () => {
+    if (isTrackingRef.current || !isAuthenticated || !user) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch('/api/usage-session/resume', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        sessionIdRef.current = data.sessionId;
+        isTrackingRef.current = true;
+        console.log('▶️ Sessão retomada:', data.sessionId);
+        
+        // Reiniciar heartbeat
+        startHeartbeat();
+      }
+    } catch (error) {
+      console.error('Erro ao retomar tracking de uso:', error);
+    }
+  };
+
   const endUsageTracking = async () => {
+    if (!isTrackingRef.current) return;
+
     try {
       const token = localStorage.getItem('authToken');
       if (!token) return;
@@ -60,6 +124,7 @@ export function useUsageTracking() {
         const data = await response.json();
         console.log('✅ Sessão de uso finalizada:', data.duration, 'segundos');
         sessionIdRef.current = null;
+        isTrackingRef.current = false;
       }
     } catch (error) {
       console.error('Erro ao finalizar tracking de uso:', error);
@@ -76,7 +141,7 @@ export function useUsageTracking() {
     intervalRef.current = setInterval(async () => {
       try {
         const token = localStorage.getItem('authToken');
-        if (!token || !isAuthenticated) {
+        if (!token || !isAuthenticated || !isTrackingRef.current) {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
@@ -118,16 +183,13 @@ export function useUsageTracking() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Aba ficou inativa - pausar heartbeat mas não finalizar sessão
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+        // Aba ficou inativa - pausar sessão
+        console.log('📴 Aba inativa - pausando tracking');
+        pauseUsageTracking();
       } else {
-        // Aba ficou ativa - retomar heartbeat se autenticado
-        if (isAuthenticated && user && !intervalRef.current) {
-          startHeartbeat();
-        }
+        // Aba ficou ativa - retomar sessão
+        console.log('📱 Aba ativa - retomando tracking');
+        resumeUsageTracking();
       }
     };
 
@@ -140,26 +202,66 @@ export function useUsageTracking() {
   // Detectar fechamento da janela/aba
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Tentar finalizar sessão sincronamente
-      if (sessionIdRef.current) {
+      // Pausar sessão ao fechar
+      if (isTrackingRef.current) {
         const token = localStorage.getItem('authToken');
         if (token) {
           // Usar sendBeacon para envio garantido ao fechar
-          const data = JSON.stringify({});
-          navigator.sendBeacon('/api/usage-session/end', data);
+          navigator.sendBeacon('/api/usage-session/pause', JSON.stringify({}));
+        }
+      }
+    };
+
+    const handleUnload = () => {
+      // Backup para pausar sessão
+      if (isTrackingRef.current) {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          navigator.sendBeacon('/api/usage-session/pause', JSON.stringify({}));
         }
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+    
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
     };
   }, []);
 
+  // Detectar quando a página carrega/descarrega
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // Página foi carregada (incluindo volta do cache)
+      if (isAuthenticated && user && !isTrackingRef.current) {
+        console.log('🔄 Página carregada - iniciando/retomando tracking');
+        resumeUsageTracking();
+      }
+    };
+
+    const handlePageHide = () => {
+      // Página vai ser descarregada
+      console.log('👋 Página sendo descarregada - pausando tracking');
+      pauseUsageTracking();
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('pagehide', handlePageHide);
+    
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [isAuthenticated, user]);
+
   return {
     sessionId: sessionIdRef.current,
+    isTracking: isTrackingRef.current,
     startUsageTracking,
+    pauseUsageTracking,
+    resumeUsageTracking,
     endUsageTracking,
   };
 }

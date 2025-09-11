@@ -32,23 +32,56 @@ export async function POST(req: Request) {
     }
 
     const logoutTime = new Date();
-    const duration = Math.floor((logoutTime.getTime() - activeSession.loginTime.getTime()) / 1000);
+    const currentSegmentDuration = Math.floor((logoutTime.getTime() - activeSession.loginTime.getTime()) / 1000);
+    const totalSessionTime = (activeSession.totalTime || 0) + currentSegmentDuration;
 
-    // Atualizar sessão com logout time e duração
+    // Atualizar sessão atual com logout
     const updatedSession = await prisma.usageSession.update({
       where: {
         id: activeSession.id
       },
       data: {
         logoutTime,
-        duration,
-        active: false
+        duration: currentSegmentDuration,
+        totalTime: totalSessionTime,
+        active: false,
+        sessionType: 'ended'
       }
     });
 
+    // Se esta sessão tem um parentId (foi retomada), atualizar todas as sessões relacionadas
+    if (activeSession.parentId) {
+      // Buscar todas as sessões do mesmo dia/usuário que fazem parte desta sessão completa
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const relatedSessions = await prisma.usageSession.findMany({
+        where: {
+          userId: payload.userId,
+          date: {
+            gte: today
+          },
+          OR: [
+            { id: activeSession.parentId },
+            { parentId: activeSession.parentId },
+            { parentId: activeSession.id }
+          ]
+        }
+      });
+
+      // Atualizar todas as sessões relacionadas com o tempo total final
+      for (const session of relatedSessions) {
+        await prisma.usageSession.update({
+          where: { id: session.id },
+          data: { totalTime: totalSessionTime }
+        });
+      }
+    }
+
     return NextResponse.json({
       sessionId: updatedSession.id,
-      duration,
+      duration: currentSegmentDuration,
+      totalTime: totalSessionTime,
       message: 'Sessão de uso finalizada'
     });
 
