@@ -2,6 +2,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/hooks/useAuth';
+import { UsageTracker } from '@/components/UsageTracker';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={inter.className}>
       <body>
         <AuthProvider>
+          <UsageTracker />
           {children}
         </AuthProvider>
       </body>

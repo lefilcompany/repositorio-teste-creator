@@ -259,10 +259,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = (redirect: boolean = true) => {
     try {
       // Chamar API de logout se necessário
-      fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(error => console.error('Erro no logout:', error));
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        }).catch(error => console.error('Erro no logout:', error));
+      }
     } catch (error) {
       console.error('Erro no logout:', error);
     } finally {

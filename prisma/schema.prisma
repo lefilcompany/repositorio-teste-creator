@@ -48,6 +48,7 @@ model User {
   notifications     Notification[]
   personas          Persona[]
   themes            StrategicTheme[]
+  usageSessions     UsageSession[]
   adminTeams        Team[]           @relation("TeamAdmin")
   team              Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
@@ -198,4 +199,18 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model UsageSession {
+  id        String   @id @default(cuid())
+  userId    String
+  loginTime DateTime @default(now())
+  logoutTime DateTime?
+  duration  Int?     // Duração em segundos
+  date      DateTime @default(now()) // Data para tracking diário
+  active    Boolean  @default(true)   // Se a sessão está ativa
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_UsageSession_userId")
+  @@index([date], map: "idx_UsageSession_date")
 }
