@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Brand } from '@/types/brand';
 
 interface BrandListProps {
-  brands: Brand[];
+  brands: Brand[] | undefined;
   selectedBrand: Brand | null;
   onSelectBrand: (brand: Brand) => void;
   isLoading?: boolean;
@@ -35,6 +35,7 @@ const BrandSkeleton = () => (
 
 export default function BrandList({ brands, selectedBrand, onSelectBrand, isLoading = false }: BrandListProps) {
   const sortedBrands = useMemo(() => {
+    if (!brands || !Array.isArray(brands)) return [];
     return [...brands].sort((a, b) => a.name.localeCompare(b.name));
   }, [brands]);
 

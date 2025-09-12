@@ -49,6 +49,7 @@ model User {
   personas          Persona[]
   themes            StrategicTheme[]
   adminTeams        Team[]           @relation("TeamAdmin")
+  usageSessions     UsageSession[]
   team              Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
@@ -82,6 +83,8 @@ model Brand {
   user           User             @relation(fields: [userId], references: [id])
   personas       Persona[]
   themes         StrategicTheme[]
+
+  @@index([teamId])
 }
 
 model StrategicTheme {
@@ -107,6 +110,8 @@ model StrategicTheme {
   brand          Brand    @relation(fields: [brandId], references: [id])
   team           Team     @relation(fields: [teamId], references: [id])
   user           User     @relation(fields: [userId], references: [id])
+
+  @@index([brandId])
 }
 
 model Persona {
@@ -123,14 +128,16 @@ model Persona {
   contentConsumptionRoutine String   @map("consumptionHabits")
   mainGoal                  String   @map("goals")
   challenges                String
-  preferredToneOfVoice      String   @default("")
-  purchaseJourneyStage      String   @default("")
-  interestTriggers          String   @default("")
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+  interestTriggers          String   @default("")
+  preferredToneOfVoice      String   @default("")
+  purchaseJourneyStage      String   @default("")
   brand                     Brand    @relation(fields: [brandId], references: [id])
   team                      Team     @relation(fields: [teamId], references: [id])
   user                      User     @relation(fields: [userId], references: [id])
+
+  @@index([brandId])
 }
 
 model Action {
@@ -173,6 +180,22 @@ model JoinRequest {
   createdAt DateTime      @default(now())
   team      Team          @relation(fields: [teamId], references: [id])
   user      User          @relation(fields: [userId], references: [id])
+}
+
+model UsageSession {
+  id          String    @id @default(cuid())
+  userId      String
+  loginTime   DateTime  @default(now())
+  logoutTime  DateTime?
+  duration    Int?
+  date        DateTime  @default(now())
+  active      Boolean   @default(true)
+  sessionType String    @default("normal")
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_UsageSession_userId")
+  @@index([date], map: "idx_UsageSession_date")
+  @@index([active], map: "idx_UsageSession_active")
 }
 
 enum UserRole {
