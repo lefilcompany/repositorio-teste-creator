@@ -33,7 +33,6 @@ export async function POST(req: Request) {
 
     const logoutTime = new Date();
     const currentSegmentDuration = Math.floor((logoutTime.getTime() - activeSession.loginTime.getTime()) / 1000);
-    const totalSessionTime = (activeSession.totalTime || 0) + currentSegmentDuration;
 
     // Atualizar sessão atual com logout
     const updatedSession = await prisma.usageSession.update({
@@ -43,45 +42,31 @@ export async function POST(req: Request) {
       data: {
         logoutTime,
         duration: currentSegmentDuration,
-        totalTime: totalSessionTime,
         active: false,
         sessionType: 'ended'
       }
     });
 
-    // Se esta sessão tem um parentId (foi retomada), atualizar todas as sessões relacionadas
-    if (activeSession.parentId) {
-      // Buscar todas as sessões do mesmo dia/usuário que fazem parte desta sessão completa
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const relatedSessions = await prisma.usageSession.findMany({
-        where: {
-          userId: payload.userId,
-          date: {
-            gte: today
-          },
-          OR: [
-            { id: activeSession.parentId },
-            { parentId: activeSession.parentId },
-            { parentId: activeSession.id }
-          ]
+    // Calcular tempo total de todas as sessões do dia
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dailySessions = await prisma.usageSession.findMany({
+      where: {
+        userId: payload.userId,
+        date: {
+          gte: today
         }
-      });
-
-      // Atualizar todas as sessões relacionadas com o tempo total final
-      for (const session of relatedSessions) {
-        await prisma.usageSession.update({
-          where: { id: session.id },
-          data: { totalTime: totalSessionTime }
-        });
       }
-    }
+    });
+
+    // Calcular tempo total do dia
+    const totalDayTime = dailySessions.reduce((sum, session) => sum + (session.duration || 0), 0);
 
     return NextResponse.json({
       sessionId: updatedSession.id,
       duration: currentSegmentDuration,
-      totalTime: totalSessionTime,
+      totalDayTime: totalDayTime,
       message: 'Sessão de uso finalizada'
     });
 

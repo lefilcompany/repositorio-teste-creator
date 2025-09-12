@@ -42,18 +42,14 @@ export async function POST(req: Request) {
           loginTime: new Date(),
           active: true,
           date: new Date(),
-          sessionType: 'resumed',
-          parentId: pausedSession.id,
-          totalTime: pausedSession.totalTime || 0
+          sessionType: 'resumed'
         }
       });
 
       return NextResponse.json({
         sessionId: resumedSession.id,
         message: 'Sessão retomada',
-        resumed: true,
-        parentId: pausedSession.id,
-        accumulatedTime: pausedSession.totalTime || 0
+        resumed: true
       });
     } else {
       // Não há sessão pausada, criar nova

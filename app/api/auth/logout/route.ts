@@ -29,14 +29,12 @@ export async function POST(req: Request) {
             // Atualizar todas as sessões ativas
             for (const session of activeSessions) {
               const currentSegmentDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
-              const totalTime = (session.totalTime || 0) + currentSegmentDuration;
               
               await prisma.usageSession.update({
                 where: { id: session.id },
                 data: {
                   logoutTime,
                   duration: currentSegmentDuration,
-                  totalTime: totalTime,
                   active: false,
                   sessionType: 'logout'
                 }

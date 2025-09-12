@@ -33,7 +33,6 @@ export async function POST(req: Request) {
 
     const pauseTime = new Date();
     const currentSegmentDuration = Math.floor((pauseTime.getTime() - activeSession.loginTime.getTime()) / 1000);
-    const totalAccumulatedTime = (activeSession.totalTime || 0) + currentSegmentDuration;
 
     // Atualizar sessão marcando como pausada
     const updatedSession = await prisma.usageSession.update({
@@ -43,7 +42,6 @@ export async function POST(req: Request) {
       data: {
         active: false,
         duration: currentSegmentDuration,
-        totalTime: totalAccumulatedTime,
         sessionType: 'paused'
       }
     });
@@ -51,7 +49,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       sessionId: updatedSession.id,
       duration: currentSegmentDuration,
-      totalTime: totalAccumulatedTime,
       message: 'Sessão pausada'
     });
 
