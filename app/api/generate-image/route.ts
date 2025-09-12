@@ -207,7 +207,7 @@ function buildDetailedImagePrompt(formData: any): string {
     - **Espaçamento entre as palavras**: Ajuste o **tracking** (espaçamento entre letras) conforme o peso da fonte. Para fontes mais finas, use um **tracking maior** (0,05 em termos de unidades tipográficas), e para fontes mais grossas, um **tracking menor** para evitar que o texto se torne difícil de ler.
   
   **Fontes**: 
-    - **Estilo da fonte**: Para títulos, use fontes **negritadas (bold)** ou **sem serifa** (sans-serif), pois elas são mais impactantes e visíveis. Para textos secundários ou explicativos, prefira fontes **serifadas** ou **light sans-serif**, que são mais elegantes e legíveis em blocos de texto.
+    - **Estilo da fonte**: Para títulos, use fontes **negritadas (bold)**, pois elas são mais impactantes e visíveis. Para textos secundários ou explicativos, que são mais elegantes e legíveis em blocos de texto.
     - **Tamanho da fonte**: 
       - **Títulos**: Entre **36px a 60px**, dependendo do tamanho da imagem.
       - **Subtítulos**: Entre **24px a 36px**.
