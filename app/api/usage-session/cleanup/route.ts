@@ -24,14 +24,12 @@ export async function POST() {
       for (const session of orphanedSessions) {
         // Calcular duração do segmento atual
         const currentSegmentDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
-        const totalTime = (session.totalTime || 0) + currentSegmentDuration;
         
         await prisma.usageSession.update({
           where: { id: session.id },
           data: {
             logoutTime,
             duration: currentSegmentDuration,
-            totalTime: totalTime,
             active: false,
             sessionType: 'orphaned'
           }
