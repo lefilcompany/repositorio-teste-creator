@@ -8,31 +8,72 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { searchParams } = new URL(req.url);
+    const isSummary = searchParams.get('summary') === 'true';
+
+    if (isSummary) {
+      const team = await prisma.team.findUnique({
+        where: { id: params.id },
+        select: {
+          id: true,
+          name: true,
+          displayCode: true,
+          plan: true,
+          credits: true,
+          _count: {
+            select: {
+              brands: true,
+              actions: true,
+            },
+          },
+        },
+      });
+
+      if (!team) {
+        return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+      }
+
+      const transformedTeam = {
+        id: team.id,
+        name: team.name,
+        code: team.displayCode,
+        admin: '',
+        members: [],
+        pending: [],
+        plan: team.plan,
+        credits: team.credits,
+        totalBrands: team._count.brands,
+        totalContents: team._count.actions,
+      };
+
+      return NextResponse.json(transformedTeam);
+    }
+
     const team = await prisma.team.findUnique({
       where: { id: params.id },
       include: {
         admin: {
-          select: { email: true }
+          select: { email: true },
         },
         members: {
-          select: { email: true }
+          select: { email: true },
         },
         joinRequests: {
           where: { status: 'PENDING' },
           select: {
             id: true,
             user: {
-              select: { email: true }
-            }
-          }
+              select: { email: true },
+            },
+          },
         },
         _count: {
           select: {
             brands: true,
-            actions: true 
-          }
-        }
-      }
+            actions: true,
+          },
+        },
+      },
     });
 
     if (!team) {

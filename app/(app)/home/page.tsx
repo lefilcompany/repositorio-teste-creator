@@ -21,7 +21,7 @@ import {
 
 import { useAuth } from '@/hooks/useAuth';
 import type { Action } from '@/types/action';
-import type { Team } from '@/types/team';
+import type { TeamSummary } from '@/types/team';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import { toast } from 'sonner';
 
@@ -29,7 +29,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
-  const [teamRealtime, setTeamRealtime] = useState<Team | null>(null);
+  const [teamRealtime, setTeamRealtime] = useState<TeamSummary | null>(null);
 
   // 1. Estado de carregamento unificado para uma melhor UX
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +56,7 @@ export default function HomePage() {
       try {
         // 3. Dispara todas as requisições de uma vez para máxima performance
         const [teamRes, statsRes, activitiesRes] = await Promise.all([
-          fetch(`/api/teams/${user.teamId}`),
+          fetch(`/api/teams/${user.teamId}?summary=true`),
           fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&count=true`),
           fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=3&summary=true`)
         ]);
