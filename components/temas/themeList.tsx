@@ -4,14 +4,14 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { StrategicTheme } from '@/types/theme';
-import type { Brand } from '@/types/brand';
+import type { StrategicThemeSummary } from '@/types/theme';
+import type { BrandSummary } from '@/types/brand';
 
 interface ThemeListProps {
-  themes: StrategicTheme[];
-  brands: Brand[]; // Recebe a lista de marcas
-  selectedTheme: StrategicTheme | null;
-  onSelectTheme: (theme: StrategicTheme) => void;
+  themes: StrategicThemeSummary[];
+  brands: BrandSummary[]; // Recebe a lista de marcas
+  selectedTheme: StrategicThemeSummary | null;
+  onSelectTheme: (theme: StrategicThemeSummary) => void;
   isLoading?: boolean;
 }
 

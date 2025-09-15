@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { Action } from '@/types/action';
+import type { ActionSummary } from '@/types/action';
 import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 
 interface ActionListProps {
-  actions: Action[];
-  selectedAction: Action | null;
-  onSelectAction: (action: Action) => void;
+  actions: ActionSummary[];
+  selectedAction: ActionSummary | null;
+  onSelectAction: (action: ActionSummary) => void;
   isLoading?: boolean;
 }
 

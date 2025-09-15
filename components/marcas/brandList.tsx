@@ -4,12 +4,12 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Brand } from '@/types/brand';
+import type { BrandSummary } from '@/types/brand';
 
 interface BrandListProps {
-  brands: Brand[] | undefined;
-  selectedBrand: Brand | null;
-  onSelectBrand: (brand: Brand) => void;
+  brands: BrandSummary[] | undefined;
+  selectedBrand: BrandSummary | null;
+  onSelectBrand: (brand: BrandSummary) => void;
   isLoading?: boolean;
 }
 

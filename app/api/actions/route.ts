@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   const limit = searchParams.get('limit');
   const approved = searchParams.get('approved');
   const type = searchParams.get('type');
+  const summary = searchParams.get('summary') === 'true';
   
   if (!teamId) {
     return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
@@ -38,27 +39,43 @@ export async function GET(req: Request) {
     // Definir limite padrão para evitar queries muito grandes
     const takeLimit = limit ? Math.min(parseInt(limit, 10), 100) : 20;
     
-    const queryOptions: any = {
-      where: whereClause,
-      include: {
-        brand: {
-          select: {
-            id: true,
-            name: true,
-            segment: true,
+    let queryOptions: any;
+
+    if (summary) {
+      queryOptions = {
+        where: whereClause,
+        select: {
+          id: true,
+          type: true,
+          createdAt: true,
+          brand: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: takeLimit,
+      };
+    } else {
+      queryOptions = {
+        where: whereClause,
+        include: {
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              segment: true,
+            }
+          },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
           }
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: takeLimit
-    };
+        orderBy: { createdAt: 'desc' },
+        take: takeLimit,
+      };
+    }
     
     const actions = await prisma.action.findMany(queryOptions);
     return NextResponse.json(actions);
