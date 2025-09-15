@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  const { searchParams } = new URL(req.url);
+  const teamId = searchParams.get('teamId');
+
+  if (!teamId) {
+    return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
+  }
+
+  try {
+    const brand = await prisma.brand.findFirst({
+      where: { id: params.id, teamId },
+    });
+    if (!brand) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+    return NextResponse.json(brand);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch brand' }, { status: 500 });
+  }
+}
+
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const data = await req.json();

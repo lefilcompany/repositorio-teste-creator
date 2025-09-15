@@ -8,8 +8,8 @@ import { Palette, Plus } from 'lucide-react';
 import ThemeList from '@/components/temas/themeList';
 import ThemeDetails from '@/components/temas/themeDetails';
 import ThemeDialog from '@/components/temas/themeDialog';
-import type { StrategicTheme } from '@/types/theme';
-import type { Brand } from '@/types/brand';
+import type { StrategicTheme, StrategicThemeSummary } from '@/types/theme';
+import type { BrandSummary } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -18,11 +18,13 @@ type ThemeFormData = Omit<StrategicTheme, 'id' | 'createdAt' | 'updatedAt' | 'te
 
 export default function TemasPage() {
   const { user } = useAuth();
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const [themes, setThemes] = useState<StrategicThemeSummary[]>([]);
+  const [brands, setBrands] = useState<BrandSummary[]>([]);
   const [isLoadingThemes, setIsLoadingThemes] = useState(true);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [selectedThemeSummary, setSelectedThemeSummary] = useState<StrategicThemeSummary | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<StrategicTheme | null>(null);
+  const [isLoadingThemeDetails, setIsLoadingThemeDetails] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [themeToEdit, setThemeToEdit] = useState<StrategicTheme | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
@@ -35,52 +37,18 @@ export default function TemasPage() {
 
       try {
         // Carrega temas
-        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
+        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}&summary=true`);
         if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
+          const themesData: StrategicThemeSummary[] = await themesRes.json();
           setThemes(themesData);
         } else {
           toast.error('Erro ao carregar temas');
         }
 
         // Carrega marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}&summary=true`);
         if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
-          setBrands(brandsData);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar dados');
-      } finally {
-        setIsLoadingThemes(false);
-        setIsLoadingBrands(false);
-      }
-    };
-
-    loadData();
-  }, [user]);
-
-  // Carrega temas, marcas e dados da equipe via API
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user?.teamId) return;
-
-      try {
-        // Carrega temas
-        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
-        if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
-          setThemes(themesData);
-        } else {
-          toast.error('Erro ao carregar temas');
-        }
-
-        // Carrega marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
-        if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
+          const brandsData: BrandSummary[] = await brandsRes.json();
           setBrands(brandsData);
         } else {
           toast.error('Erro ao carregar marcas');
@@ -164,21 +132,28 @@ export default function TemasPage() {
         }
         
         const saved: StrategicTheme = await res.json();
-        
+        const summary: StrategicThemeSummary = {
+          id: saved.id,
+          brandId: saved.brandId,
+          title: saved.title,
+          createdAt: saved.createdAt,
+        };
+
         // Atualiza a lista de temas
         setThemes(prev => {
           if (themeToEdit) {
-            return prev.map(theme => theme.id === saved.id ? saved : theme);
+            return prev.map(theme => theme.id === summary.id ? summary : theme);
           }
-          return [...prev, saved];
+          return [...prev, summary];
         });
-        
+
         // Atualiza o tema selecionado se necessário
         if (themeToEdit && selectedTheme?.id === saved.id) {
           setSelectedTheme(saved);
+          setSelectedThemeSummary(summary);
         } else if (!themeToEdit) {
-          // Se for um novo tema, seleciona ele automaticamente
           setSelectedTheme(saved);
+          setSelectedThemeSummary(summary);
         }
         
         // Fecha o diálogo após salvar com sucesso
@@ -217,6 +192,7 @@ export default function TemasPage() {
         // Remove o tema da lista local e limpa a seleção
         setThemes(prev => prev.filter(theme => theme.id !== selectedTheme.id));
         setSelectedTheme(null);
+        setSelectedThemeSummary(null);
         
         // Fecha o diálogo se estiver aberto
         setIsDialogOpen(false);
@@ -231,6 +207,24 @@ export default function TemasPage() {
       toast.error('Erro ao deletar tema. Tente novamente.', { id: toastId });
     }
   }, [selectedTheme, user]);
+
+  const handleSelectTheme = useCallback(async (theme: StrategicThemeSummary) => {
+    setSelectedThemeSummary(theme);
+    setIsLoadingThemeDetails(true);
+    try {
+      const res = await fetch(`/api/themes/${theme.id}?teamId=${user?.teamId}`);
+      if (res.ok) {
+        const data: StrategicTheme = await res.json();
+        setSelectedTheme(data);
+      } else {
+        toast.error('Erro ao carregar detalhes do tema');
+      }
+    } catch {
+      toast.error('Erro de conexão ao carregar detalhes do tema');
+    } finally {
+      setIsLoadingThemeDetails(false);
+    }
+  }, [user?.teamId]);
 
   // Verificar se o limite foi atingido
   const isAtThemeLimit = team && typeof team.plan === 'object'
@@ -270,17 +264,18 @@ export default function TemasPage() {
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 flex-1">
         <ThemeList
           themes={themes}
-          brands={brands} // Passa as marcas para a lista
-          selectedTheme={selectedTheme}
-          onSelectTheme={setSelectedTheme}
+          brands={brands}
+          selectedTheme={selectedThemeSummary}
+          onSelectTheme={handleSelectTheme}
           isLoading={isLoadingThemes}
         />
-        {selectedTheme && !isLoadingThemes ? (
+        {selectedThemeSummary ? (
           <ThemeDetails
             theme={selectedTheme}
-            brands={brands} // Passa as marcas para os detalhes
+            brands={brands}
             onEdit={handleOpenDialog}
             onDelete={handleDeleteTheme}
+            isLoading={isLoadingThemeDetails}
           />
         ) : (
           <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">

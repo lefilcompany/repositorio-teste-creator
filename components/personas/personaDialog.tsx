@@ -17,7 +17,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { Persona } from '@/types/persona';
-import type { Brand } from '@/types/brand';
+import type { Brand, BrandSummary } from '@/types/brand';
 import { X, Info } from 'lucide-react';
 
 type PersonaFormData = {
@@ -41,7 +41,7 @@ interface PersonaDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: PersonaFormData) => void;
   personaToEdit: Persona | null;
-  brands?: Brand[];
+  brands?: BrandSummary[];
 }
 
 const initialFormData: PersonaFormData = {

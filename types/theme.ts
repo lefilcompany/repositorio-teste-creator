@@ -21,3 +21,6 @@ export type StrategicTheme = {
   createdAt: string;
   updatedAt: string;
 };
+
+// Dados mínimos utilizados nas listagens de temas
+export type StrategicThemeSummary = Pick<StrategicTheme, 'id' | 'brandId' | 'title' | 'createdAt'>;

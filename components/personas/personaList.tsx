@@ -4,14 +4,14 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Persona } from '@/types/persona';
-import type { Brand } from '@/types/brand';
+import type { PersonaSummary } from '@/types/persona';
+import type { BrandSummary } from '@/types/brand';
 
 interface PersonaListProps {
-  personas: Persona[];
-  brands: Brand[];
-  selectedPersona: Persona | null;
-  onSelectPersona: (persona: Persona) => void;
+  personas: PersonaSummary[];
+  brands: BrandSummary[];
+  selectedPersona: PersonaSummary | null;
+  onSelectPersona: (persona: PersonaSummary) => void;
   isLoading?: boolean;
 }
 

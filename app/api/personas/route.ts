@@ -4,10 +4,20 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get('teamId');
+  const summary = searchParams.get('summary') === 'true';
   if (!teamId) {
     return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
   }
   try {
+    if (summary) {
+      const personas = await prisma.persona.findMany({
+        where: { teamId },
+        select: { id: true, brandId: true, name: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return NextResponse.json(personas);
+    }
     const personas = await prisma.persona.findMany({ where: { teamId } });
     return NextResponse.json(personas);
   } catch (error) {
