@@ -1,4 +1,3 @@
-// app/(app)/home/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,127 +17,94 @@ import {
   Home,
   Plus
 } from 'lucide-react';
-
 import { useAuth } from '@/hooks/useAuth';
 import type { Action } from '@/types/action';
-import type { Team } from '@/types/team';
+import type { TeamSummary } from '@/types/team';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
 import { toast } from 'sonner';
 
 export default function HomePage() {
   const { user } = useAuth();
+
   const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
-  const [teamRealtime, setTeamRealtime] = useState<Team | null>(null);
-
-  // 1. Estado de carregamento unificado para uma melhor UX
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+  const [teamRealtime, setTeamRealtime] = useState<TeamSummary | null>(null);
+  const [loadingStates, setLoadingStates] = useState({
+    team: true,
+    stats: true,
+    activities: true,
+  });
 
   useEffect(() => {
-    if (user !== undefined) {
-      setIsAuthLoaded(true);
+    if (!user?.teamId || !user?.id) {
+      if (user) {
+        setLoadingStates({ team: false, stats: false, activities: false });
+      }
+      return;
     }
+
+    setLoadingStates({ team: true, stats: true, activities: true });
+
+    fetch(`/api/teams/${user.teamId}?summary=true`)
+      .then(res => res.json())
+      .then(data => {
+        setTeamRealtime(data);
+        setStats(prev => ({ ...prev, marcasGerenciadas: data.totalBrands || 0 }));
+      })
+      .catch(err => console.error("Falha ao carregar dados da equipe:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, team: false })));
+
+    fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&count=true`)
+      .then(res => res.json())
+      .then(data => {
+        setStats(prev => ({ ...prev, acoesTotais: data.count || 0 }));
+      })
+      .catch(err => console.error("Falha ao carregar estatísticas:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, stats: false })));
+
+    fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=3&summary=true`)
+      .then(res => res.json())
+      .then(data => {
+        setAtividadesRecentes(data);
+      })
+      .catch(err => console.error("Falha ao carregar atividades:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, activities: false })));
+
   }, [user]);
 
-  // 2. useEffect único e otimizado para buscar todos os dados em paralelo
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadDashboardData = async () => {
-      if (!user?.teamId || !user?.id) {
-        if (isMounted) setIsLoading(false);
-        return;
-      }
-
-      if (isMounted) setIsLoading(true);
-
-      try {
-        // 3. Dispara todas as requisições de uma vez para máxima performance
-        const [teamRes, statsRes, activitiesRes] = await Promise.all([
-          fetch(`/api/teams/${user.teamId}`),
-          fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&count=true`),
-          fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=3&summary=true`)
-        ]);
-
-        // Processa dados da equipe e contagem de marcas
-        if (teamRes.ok) {
-          const teamData = await teamRes.json();
-          if (isMounted) {
-            setTeamRealtime(teamData);
-            setStats(prev => ({ ...prev, marcasGerenciadas: teamData.totalBrands || 0 }));
-          }
-        }
-
-        // Processa contagem de ações do usuário
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          if (isMounted) {
-            setStats(prev => ({ ...prev, acoesTotais: statsData.count || 0 }));
-          }
-        }
-
-        // Processa resumo de atividades recentes
-        if (activitiesRes.ok) {
-          const activitiesData = await activitiesRes.json();
-          if (isMounted) {
-            setAtividadesRecentes(activitiesData);
-          }
-        }
-
-      } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-        toast.error("Erro ao carregar os dados do painel.");
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    if (isAuthLoaded) {
-      loadDashboardData();
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, isAuthLoaded]);
-
-  // Lógica de cálculo de créditos
   const creditos = teamRealtime ? {
     restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
     total: (typeof teamRealtime.plan === 'object' && teamRealtime.plan !== null ?
       ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5))
-      : 45) // Valor padrão para plano FREE
+      : 45)
   } : { restantes: 0, total: 0 };
 
   const creditosUsadosPercentual = (creditos.total > 0)
     ? ((creditos.total - creditos.restantes) / creditos.total) * 100
     : 0;
 
-  // Formatação das atividades recentes
   const formattedAtividadesRecentes = atividadesRecentes.map(action => {
     let titulo = '';
     let subtitulo = '';
 
+    const brandName = action.brand?.name || 'a marca';
+
     switch (action.type) {
       case 'CRIAR_CONTEUDO':
         titulo = 'Conteúdo Criado';
-        const createResult = action.result as any;
-        subtitulo = createResult?.title || `Para ${action.brand?.name || 'a marca'}`;
+        subtitulo = `Para a marca ${brandName}`;
         break;
       case 'REVISAR_CONTEUDO':
         titulo = 'Revisão de Imagem';
-        subtitulo = `Análise para ${action.brand?.name || 'a marca'}`;
+        subtitulo = `Análise para ${brandName}`;
         break;
       case 'PLANEJAR_CONTEUDO':
         titulo = 'Calendário Planejado';
-        subtitulo = `Planejamento para ${action.brand?.name || 'a marca'}`;
+        subtitulo = `Planejamento para ${brandName}`;
         break;
       default:
         titulo = ACTION_TYPE_DISPLAY[action.type] || 'Ação realizada';
-        subtitulo = action.brand?.name || 'Marca não especificada';
+        subtitulo = brandName;
     }
 
     return {
@@ -149,7 +115,6 @@ export default function HomePage() {
     };
   });
 
-  // Componentes de Skeleton
   const StatsCardSkeleton = () => (
     <Card className="bg-card shadow-lg border-2 border-transparent">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -201,7 +166,6 @@ export default function HomePage() {
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Cabeçalho */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
           <CardHeader className="pb-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -210,7 +174,7 @@ export default function HomePage() {
                   <Home className="h-8 w-8" />
                 </div>
                 <div>
-                  {isLoading ? (
+                  {!user ? (
                     <>
                       <Skeleton className="h-8 w-48 mb-2" />
                       <Skeleton className="h-4 w-64" />
@@ -237,65 +201,61 @@ export default function HomePage() {
           </CardHeader>
         </Card>
 
-        {/* Grid de Cards de Estatísticas */}
         <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* 4. Lógica de renderização simplificada usando o estado `isLoading` único */}
-          {isLoading ? (
-            <>
-              <CreditsCardSkeleton />
-              <StatsCardSkeleton />
-              <StatsCardSkeleton />
-            </>
+          {loadingStates.team ? (
+            <CreditsCardSkeleton />
           ) : (
-            <>
-              {/* Card de Créditos */}
-              <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-base font-medium text-primary">Créditos Restantes</CardTitle>
-                  <Rocket className="h-5 w-5 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{creditos.restantes}</div>
-                  <p className="text-xs text-muted-foreground">
-                    de {creditos.total} créditos disponíveis
-                  </p>
-                  <Progress value={100 - creditosUsadosPercentual} className="mt-4 h-3" />
-                  <Link href="/planos">
-                    <Button variant="link" className="px-0 mt-2 text-primary">
-                      Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium text-primary">Créditos Restantes</CardTitle>
+                <Rocket className="h-5 w-5 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{creditos.restantes}</div>
+                <p className="text-xs text-muted-foreground">
+                  de {creditos.total} créditos disponíveis
+                </p>
+                <Progress value={100 - creditosUsadosPercentual} className="mt-4 h-3" />
+                <Link href="/planos">
+                  <Button variant="link" className="px-0 mt-2 text-primary">
+                    Ver planos e uso <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
-              {/* Card de Minhas Ações */}
-              <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-base font-medium">Minhas Ações</CardTitle>
-                  <Sparkles className="h-5 w-5 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{stats.acoesTotais}</div>
-                  <p className="text-xs text-muted-foreground">total de ações realizadas</p>
-                </CardContent>
-              </Card>
+          {loadingStates.stats ? (
+            <StatsCardSkeleton />
+          ) : (
+            <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium">Minhas Ações</CardTitle>
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{stats.acoesTotais}</div>
+                <p className="text-xs text-muted-foreground">total de ações realizadas</p>
+              </CardContent>
+            </Card>
+          )}
 
-              {/* Card de Marcas Gerenciadas */}
-              <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-base font-medium">Marcas Gerenciadas</CardTitle>
-                  <Tag className="h-5 w-5 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-4xl font-bold">{stats.marcasGerenciadas}</div>
-                  <p className="text-xs text-muted-foreground">total de marcas ativas</p>
-                </CardContent>
-              </Card>
-            </>
+          {loadingStates.team ? (
+            <StatsCardSkeleton />
+          ) : (
+            <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-base font-medium">Marcas Gerenciadas</CardTitle>
+                <Tag className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{stats.marcasGerenciadas}</div>
+                <p className="text-xs text-muted-foreground">total de marcas ativas</p>
+              </CardContent>
+            </Card>
           )}
         </main>
 
-        {/* Seção de Ações Rápidas e Atividades Recentes */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-4">
             <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
@@ -356,7 +316,7 @@ export default function HomePage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {isLoading ? (
+                {loadingStates.activities ? (
                   <ActivitiesSkeleton />
                 ) : (
                   <div className="divide-y">

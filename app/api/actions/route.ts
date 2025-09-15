@@ -46,7 +46,6 @@ export async function GET(req: Request) {
           id: true,
           type: true,
           createdAt: true,
-          result: true, // Incluído para pegar o título no frontend
           brand: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
