@@ -8,8 +8,8 @@ import { Plus, Users } from 'lucide-react';
 import PersonaList from '@/components/personas/personaList';
 import PersonaDetails from '@/components/personas/personaDetails';
 import PersonaDialog from '@/components/personas/personaDialog';
-import type { Persona } from '@/types/persona';
-import type { Brand } from '@/types/brand';
+import type { Persona, PersonaSummary } from '@/types/persona';
+import type { BrandSummary } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -18,11 +18,13 @@ type PersonaFormData = Omit<Persona, 'id' | 'createdAt' | 'updatedAt' | 'teamId'
 
 export default function PersonasPage() {
   const { user } = useAuth();
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const [personas, setPersonas] = useState<PersonaSummary[]>([]);
+  const [brands, setBrands] = useState<BrandSummary[]>([]);
   const [isLoadingPersonas, setIsLoadingPersonas] = useState(true);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [selectedPersonaSummary, setSelectedPersonaSummary] = useState<PersonaSummary | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
+  const [isLoadingPersonaDetails, setIsLoadingPersonaDetails] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [personaToEdit, setPersonaToEdit] = useState<Persona | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
@@ -35,18 +37,18 @@ export default function PersonasPage() {
 
       try {
         // Carrega personas
-        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}`);
+        const personasRes = await fetch(`/api/personas?teamId=${user.teamId}&summary=true`);
         if (personasRes.ok) {
-          const personasData: Persona[] = await personasRes.json();
+          const personasData: PersonaSummary[] = await personasRes.json();
           setPersonas(personasData);
         } else {
           toast.error('Erro ao carregar personas');
         }
 
         // Carrega marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}&summary=true`);
         if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
+          const brandsData: BrandSummary[] = await brandsRes.json();
           setBrands(brandsData);
         } else {
           toast.error('Erro ao carregar marcas');
@@ -129,21 +131,29 @@ export default function PersonasPage() {
       }
       
       const saved: Persona = await res.json();
-      
+
+      const summary: PersonaSummary = {
+        id: saved.id,
+        brandId: saved.brandId,
+        name: saved.name,
+        createdAt: saved.createdAt,
+      };
+
       // Atualiza a lista de personas
       setPersonas(prev => {
         if (personaToEdit) {
-          return prev.map(persona => persona.id === saved.id ? saved : persona);
+          return prev.map(persona => persona.id === summary.id ? summary : persona);
         }
-        return [...prev, saved];
+        return [...prev, summary];
       });
-      
+
       // Atualiza a persona selecionada se necessário
       if (personaToEdit && selectedPersona?.id === saved.id) {
         setSelectedPersona(saved);
+        setSelectedPersonaSummary(summary);
       } else if (!personaToEdit) {
-        // Se for uma nova persona, seleciona ela automaticamente
         setSelectedPersona(saved);
+        setSelectedPersonaSummary(summary);
       }
       
       // Fecha o diálogo após salvar com sucesso
@@ -179,6 +189,7 @@ export default function PersonasPage() {
         // Remove a persona da lista local e limpa a seleção
         setPersonas(prev => prev.filter(persona => persona.id !== selectedPersona.id));
         setSelectedPersona(null);
+        setSelectedPersonaSummary(null);
         
         // Fecha o diálogo se estiver aberto
         setIsDialogOpen(false);
@@ -193,6 +204,24 @@ export default function PersonasPage() {
       toast.error('Erro ao deletar persona. Tente novamente.', { id: toastId });
     }
   }, [selectedPersona, user]);
+
+  const handleSelectPersona = useCallback(async (persona: PersonaSummary) => {
+    setSelectedPersonaSummary(persona);
+    setIsLoadingPersonaDetails(true);
+    try {
+      const res = await fetch(`/api/personas/${persona.id}?teamId=${user?.teamId}`);
+      if (res.ok) {
+        const data: Persona = await res.json();
+        setSelectedPersona(data);
+      } else {
+        toast.error('Erro ao carregar detalhes da persona');
+      }
+    } catch {
+      toast.error('Erro de conexão ao carregar detalhes da persona');
+    } finally {
+      setIsLoadingPersonaDetails(false);
+    }
+  }, [user?.teamId]);
 
   // Verificar se o limite foi atingido
   const isAtPersonaLimit = team && typeof team.plan === 'object'
@@ -233,16 +262,17 @@ export default function PersonasPage() {
         <PersonaList
           personas={personas}
           brands={brands}
-          selectedPersona={selectedPersona}
-          onSelectPersona={setSelectedPersona}
+          selectedPersona={selectedPersonaSummary}
+          onSelectPersona={handleSelectPersona}
           isLoading={isLoadingPersonas}
         />
-        {selectedPersona && !isLoadingPersonas ? (
+        {selectedPersonaSummary ? (
           <PersonaDetails
             persona={selectedPersona}
             brands={brands}
             onEdit={handleOpenDialog}
             onDelete={handleDeletePersona}
+            isLoading={isLoadingPersonaDetails}
           />
         ) : (
           <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">

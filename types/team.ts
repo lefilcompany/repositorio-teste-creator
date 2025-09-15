@@ -24,3 +24,13 @@ export interface Team {
     contentPlans: number;
   };
 }
+
+export interface TeamSummary {
+  id: string;
+  name: string;
+  code: string;
+  plan: Team['plan'];
+  credits?: Team['credits'];
+  totalBrands: number;
+  totalContents: number;
+}

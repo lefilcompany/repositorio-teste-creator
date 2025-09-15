@@ -7,9 +7,11 @@ import { useRouter } from 'next/navigation';
 import type { Action } from '@/types/action';
 import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ActionDetailsProps {
   action: Action | null;
+  isLoading?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -29,8 +31,24 @@ const DetailItem = ({ label, value }: { label: string; value: React.ReactNode })
   </div>
 );
 
-export default function ActionDetails({ action }: ActionDetailsProps) {
+export default function ActionDetails({ action, isLoading = false }: ActionDetailsProps) {
   const router = useRouter();
+
+  if (isLoading) {
+    return (
+      <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-secondary/20 flex flex-col animate-pulse">
+        <div className="flex items-center mb-6 flex-shrink-0">
+          <Skeleton className="w-16 h-16 rounded-xl mr-4" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!action) {
     return (

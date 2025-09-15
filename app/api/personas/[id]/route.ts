@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  const { searchParams } = new URL(req.url);
+  const teamId = searchParams.get('teamId');
+
+  if (!teamId) {
+    return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
+  }
+
+  try {
+    const persona = await prisma.persona.findFirst({
+      where: { id: params.id, teamId },
+    });
+    if (!persona) {
+      return NextResponse.json({ error: 'Persona not found' }, { status: 404 });
+    }
+    return NextResponse.json(persona);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch persona' }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const data = await req.json();

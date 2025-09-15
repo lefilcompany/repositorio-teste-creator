@@ -42,6 +42,9 @@ export type Persona = {
   interestTriggers: string;
 };
 
+// Dados mínimos utilizados nas listagens de personas
+export type PersonaSummary = Pick<Persona, 'id' | 'brandId' | 'name' | 'createdAt'>;
+
 /*
   Campos removidos do tipo original e substituídos:
   - role: string;
