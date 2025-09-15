@@ -37,9 +37,9 @@ export async function GET(
         id: team.id,
         name: team.name,
         code: team.displayCode,
-        admin: '',
-        members: [],
-        pending: [],
+        admin: '', 
+        members: [], 
+        pending: [], 
         plan: team.plan,
         credits: team.credits,
         totalBrands: team._count.brands,
@@ -48,53 +48,54 @@ export async function GET(
 
       return NextResponse.json(transformedTeam);
     }
-
-    const team = await prisma.team.findUnique({
-      where: { id: params.id },
-      include: {
-        admin: {
-          select: { email: true },
-        },
-        members: {
-          select: { email: true },
-        },
-        joinRequests: {
-          where: { status: 'PENDING' },
-          select: {
-            id: true,
-            user: {
-              select: { email: true },
-            },
+    
+    const [teamData, members, pendingRequests] = await Promise.all([
+      prisma.team.findUnique({
+        where: { id: params.id },
+        select: {
+          id: true,
+          name: true,
+          displayCode: true,
+          plan: true,
+          credits: true,
+          admin: { select: { email: true } },
+          _count: {
+            select: { brands: true, actions: true },
           },
         },
-        _count: {
-          select: {
-            brands: true,
-            actions: true,
-          },
+      }),
+      prisma.user.findMany({
+        where: { teamId: params.id },
+        select: { email: true },
+      }),
+      prisma.joinRequest.findMany({
+        where: { teamId: params.id, status: 'PENDING' },
+        select: {
+          user: { select: { email: true } },
         },
-      },
-    });
+      }),
+    ]);
 
-    if (!team) {
+    if (!teamData) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
     const transformedTeam = {
-      id: team.id,
-      name: team.name,
-      code: team.displayCode,
-      admin: team.admin.email,
-      members: team.members.map(member => member.email),
-      pending: team.joinRequests.map(request => request.user.email),
-      plan: team.plan,
-      credits: team.credits,
-      totalBrands: team._count.brands,
-      totalContents: team._count.actions,
+      id: teamData.id,
+      name: teamData.name,
+      code: teamData.displayCode,
+      admin: teamData.admin.email,
+      members: members.map(member => member.email),
+      pending: pendingRequests.map(request => request.user.email),
+      plan: teamData.plan,
+      credits: teamData.credits,
+      totalBrands: teamData._count.brands,
+      totalContents: teamData._count.actions,
     };
 
     return NextResponse.json(transformedTeam);
   } catch (error) {
+    console.error("Erro ao buscar equipe:", error);
     return NextResponse.json({ error: 'Erro ao buscar equipe' }, { status: 500 });
   }
 }
