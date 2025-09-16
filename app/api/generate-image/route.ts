@@ -101,40 +101,48 @@ function buildDetailedImagePrompt(formData: any): string {
     const toneMap: { [key: string]: string } = {
       inspirador:
         "Cena iluminada pela luz dourada da golden hour, com raios suaves atravessando o cenário. Atmosfera edificante e esperançosa, com sombras delicadas que sugerem crescimento. Ajuste os detalhes de iluminação e cores conforme a identidade visual do cliente, aplicando o estilo único de sua marca (exemplo: cores principais ou elementos visuais usados). Utilize formas suaves e espacialidade bem definida.",
+        "Cena iluminada pela luz dourada da golden hour, com raios suaves atravessando o cenário. Atmosfera edificante e esperançosa, com sombras delicadas que sugerem crescimento. Ajuste os detalhes de iluminação e cores conforme a identidade visual do cliente, aplicando o estilo único de sua marca (exemplo: cores principais ou elementos visuais usados). Utilize formas suaves e espacialidade bem definida.",
+
       motivacional:
+        "Cores vibrantes e saturadas, com iluminação dinâmica e uso de motion blur leve para dar sensação de movimento. A composição energética deve incentivar ação e conquistas, sendo fiel ao estilo visual da marca. Alinhe o uso de contrastes de cores com os padrões de identidade visual (exemplo: tons específicos ou estilo gráfico). Certifique-se de que o dinamismo da imagem combine com a energia da marca.",
         "Cores vibrantes e saturadas, com iluminação dinâmica e uso de motion blur leve para dar sensação de movimento. A composição energética deve incentivar ação e conquistas, sendo fiel ao estilo visual da marca. Alinhe o uso de contrastes de cores com os padrões de identidade visual (exemplo: tons específicos ou estilo gráfico). Certifique-se de que o dinamismo da imagem combine com a energia da marca.",
       profissional:
         "Estética corporativa limpa, iluminação neutra, com foco nítido e fundo minimalista. Use espacamento e equilíbrio para transmitir autoridade e clareza. Ajuste a paleta de cores primárias da marca, e a tipografia (caso haja) para manter o visual alinhado com a identidade profissional. Mantenha uma composição estruturada e evite elementos visuais excessivos, destacando os valores da marca.",
+        "Estética corporativa limpa, iluminação neutra, com foco nítido e fundo minimalista. Use espacamento e equilíbrio para transmitir autoridade e clareza. Ajuste a paleta de cores primárias da marca, e a tipografia (caso haja) para manter o visual alinhado com a identidade profissional. Mantenha uma composição estruturada e evite elementos visuais excessivos, destacando os valores da marca.",
       casual:
+        "Luz natural suave, com elementos cotidianos e uma paleta de cores acolhedora. A composição descontraída e espontânea deve transmitir autenticidade. Aplique a paleta de cores informais e o estilo visual que melhor represente o tom amigável da marca. Use detalhes simples e texturizados, como elementos de estilo 'handmade', se for relevante para a identidade visual do cliente.",
         "Luz natural suave, com elementos cotidianos e uma paleta de cores acolhedora. A composição descontraída e espontânea deve transmitir autenticidade. Aplique a paleta de cores informais e o estilo visual que melhor represente o tom amigável da marca. Use detalhes simples e texturizados, como elementos de estilo 'handmade', se for relevante para a identidade visual do cliente.",
       elegante:
         "Paleta refinada, com iluminação suave e texturas nobres como mármore ou veludo. A composição minimalista deve refletir sofisticação e luxo. Ajuste as cores de fundo e o detalhamento das texturas conforme o estilo da marca, incorporando elementos visuais que falem diretamente ao segmento de alto padrão que o cliente deseja atingir (como detalhes dourados ou metálicos, se for aplicável).",
+        "Paleta refinada, com iluminação suave e texturas nobres como mármore ou veludo. A composição minimalista deve refletir sofisticação e luxo. Ajuste as cores de fundo e o detalhamento das texturas conforme o estilo da marca, incorporando elementos visuais que falem diretamente ao segmento de alto padrão que o cliente deseja atingir (como detalhes dourados ou metálicos, se for aplicável).",
       moderno:
+        "Design arrojado com formas geométricas e alta contrastância de cores. Iluminação intensa e elementos gráficos com uma estética futurista. Aplique a paleta de cores principais da marca (caso haja) e use tipografia contemporânea para transmitir inovação. Esteja atento para que o estilo visual esteja alinhado com as preferências mais atuais do cliente, refletindo o dinamismo de sua marca.",
         "Design arrojado com formas geométricas e alta contrastância de cores. Iluminação intensa e elementos gráficos com uma estética futurista. Aplique a paleta de cores principais da marca (caso haja) e use tipografia contemporânea para transmitir inovação. Esteja atento para que o estilo visual esteja alinhado com as preferências mais atuais do cliente, refletindo o dinamismo de sua marca.",
       tradicional:
         "Paleta de cores clássicas, com iluminação equilibrada e composição simétrica. A imagem deve evocar confiança e estabilidade, com elementos visuais que falem à tradição. Use detalhes sutis, como texturas suaves ou linhas clássicas, adaptando a paleta de cores da marca para garantir que a imagem se encaixe com a herança visual e identidade do cliente.",
+        "Paleta de cores clássicas, com iluminação equilibrada e composição simétrica. A imagem deve evocar confiança e estabilidade, com elementos visuais que falem à tradição. Use detalhes sutis, como texturas suaves ou linhas clássicas, adaptando a paleta de cores da marca para garantir que a imagem se encaixe com a herança visual e identidade do cliente.  ",
       divertido:
+        "Cores vibrantes, com elementos gráficos lúdicos e iluminação alegre. A composição enérgica deve destacar a diversão e criatividade. Personalize a paleta de cores de acordo com o tom visual da marca, e use elementos interativos ou detalhes que incentivem o engajamento visual, como emojis, padrões repetitivos ou elementos gráficos descontraídos, se for relevante.",
         "Cores vibrantes, com elementos gráficos lúdicos e iluminação alegre. A composição enérgica deve destacar a diversão e criatividade. Personalize a paleta de cores de acordo com o tom visual da marca, e use elementos interativos ou detalhes que incentivem o engajamento visual, como emojis, padrões repetitivos ou elementos gráficos descontraídos, se for relevante.",
       sério:
         "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
-
-      Futurista:
-        "Paleta neon, com iluminação holográfica e superfícies metálicas. A composição deve destacar a inovação e tecnologia. Personalize os elementos gráficos de alta tecnologia (hologramas, interfaces digitais) de acordo com os princípios visuais do cliente, utilizando as cores da marca para garantir um resultado coerente com o estilo de marca inovadora ou digital.",
-      Nostálgico:
+      futurista:
+        "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
+      nostálgico:
         "Cores desbotadas e textura de filme analógico, criando uma atmosfera melancólica e acolhedora. Ajuste os efeitos vintage e tipografia clássica para refletir a estética única da marca, aplicando cores de fundo e elementos visuais que ressoem com o legado da marca e seus valores emocionais.",
-      Romântico:
+      romântico:
         "Paleta suave em tons pastel, com iluminação delicada e difusa. A composição intimista deve refletir carinho e proximidade emocional. Aplique a paleta de cores da marca, ajustando a iluminação para que o visual combine com os valores românticos ou afetivos do cliente, usando elementos como detalhes florais ou texturas suaves.",
-      Minimalista:
+      minimalista:
         "Paleta monocromática ou neutra, com iluminação uniforme e composição limpa. A imagem deve transmitir simplicidade e clareza, destacando o essencial. Use espaços negativos, tipografia limpa e formas geométricas para garantir um visual simples, alinhado com o design visual minimalista do cliente.",
-      Artístico:
+      artístico:
         "Composição inspirada em pintura (óleo, aquarela ou surrealismo), com pinceladas visíveis e cores expressivas. A imagem deve evocar criatividade e liberdade. Adapte o estilo artístico conforme a marca, aplicando padrões visuais únicos ou elementos gráficos personalizados, como técnicas de pintura manual ou detalhes visuais que destacam a arte digital.",
-      Épico:
+      épico:
         "Iluminação grandiosa, com ângulos heroicos e composição monumental. A imagem deve transmitir poder e grandeza. Personalize a iluminação e ângulos de câmera de acordo com a identidade visual da marca, usando formas dramáticas ou elementos em 3D para garantir que a imagem tenha a escala e o impacto que a marca exige.",
-      Tecnológico:
-        "Estética clean com tons de azul e branco, superfícies metálicas e elementos digitais. A imagem deve destacar inovação e tecnologia. Ajuste os detalhes gráficos tecnológicos (interfaces digitais, hologramas) conforme a identidade visual da marca, incluindo cores digitais e animações que se alinhem com o design da marca.",
-      Orgânico:
+      tecnológico:
+        "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
+      orgânico:
         "Luz natural suave e elementos de madeira, pedra e plantas. A imagem deve transmitir uma conexão com a natureza e sustentabilidade. Adapte os elementos naturais e a paleta de cores verdes da marca para garantir que a imagem seja harmoniosa com a identidade visual da marca, criando um ambiente orgânico e sustentável.",
-      Luxuoso:
+      luxuoso:
         "Detalhes em dourado, iluminação suave e superfícies brilhantes. A imagem deve refletir exclusividade e requinte. Ajuste os elementos de brilho e textura para se alinhar com a identidade visual do cliente, utilizando tipografia sofisticada e detalhes refinados para garantir um visual luxuoso e elegante.",
     };
     const mappedTones = tones
@@ -272,6 +280,7 @@ async function generateImage(
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image-preview",
+      model: "gemini-2.0-flash-preview-image-generation",
       contents,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
