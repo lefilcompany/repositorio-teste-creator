@@ -5,19 +5,33 @@ import { incrementTeamBrandCounter } from '@/lib/team-counters';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get('teamId');
+  const summary = searchParams.get('summary') === 'true';
   
   if (!teamId) {
     return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
   }
   
   try {
-    // Buscar todos os campos necessários para edição
-    const brands = await prisma.brand.findMany({ 
+    if (summary) {
+      const brands = await prisma.brand.findMany({
+        where: { teamId },
+        select: {
+          id: true,
+          name: true,
+          responsible: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return NextResponse.json(brands);
+    }
+
+    const brands = await prisma.brand.findMany({
       where: { teamId },
       orderBy: { createdAt: 'desc' },
-      take: 50 // Limitar resultados
+      take: 50,
     });
-    
     return NextResponse.json(brands);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch brands' }, { status: 500 });

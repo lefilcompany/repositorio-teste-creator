@@ -17,7 +17,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { StrategicTheme } from '@/types/theme';
-import type { Brand } from '@/types/brand';
+import type { Brand, BrandSummary } from '@/types/brand';
 import type { ColorItem } from '@/types/brand';
 import { toast } from 'sonner';
 import { StrategicThemeColorPicker } from '../ui/strategic-theme-color-picker';
@@ -31,7 +31,7 @@ interface ThemeDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: ThemeFormData) => void;
   themeToEdit: StrategicTheme | null;
-  brands?: Brand[]; // Recebe a lista de marcas para o select
+  brands?: BrandSummary[]; // Recebe a lista de marcas para o select
 }
 
 const initialFormData: ThemeFormData = {
@@ -159,11 +159,6 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
 
   const handleSaveClick = async () => {
     setIsLoading(true);
-    const loadingToast = toast.loading(
-      themeToEdit 
-        ? 'Atualizando tema...' 
-        : 'Criando novo tema...'
-    );
 
     try {
       // Serialize toneList into toneOfVoice string for storage compatibility
@@ -176,12 +171,9 @@ export default function ThemeDialog({ isOpen, onOpenChange, onSave, themeToEdit,
 
       await onSave(payload);
       
-      toast.dismiss(loadingToast);
-      toast.success(themeToEdit ? 'Tema atualizado com sucesso!' : 'Tema criado com sucesso!');
       onOpenChange(false);
     } catch (error) {
       console.error('Erro ao salvar tema:', error);
-      toast.dismiss(loadingToast);
       toast.error(themeToEdit 
         ? 'Erro ao atualizar o tema. Por favor, tente novamente.' 
         : 'Erro ao criar o tema. Por favor, tente novamente.'

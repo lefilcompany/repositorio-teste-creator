@@ -25,7 +25,13 @@ interface FormData {
   additionalInfo: string;
 }
 
+// Tipos para os dados leves do formulário
+type LightBrand = Pick<Brand, 'id' | 'name'>;
+type LightTheme = Pick<StrategicTheme, 'id' | 'title' | 'brandId'>;
+
 export default function Plan() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     brand: '',
     theme: [],
@@ -35,93 +41,47 @@ export default function Plan() {
     additionalInfo: '',
   });
 
-  const { user } = useAuth();
-  const router = useRouter();
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [themes, setThemes] = useState<StrategicTheme[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
-  const [isLoadingThemes, setIsLoadingThemes] = useState(true);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(true);
-  const team = teams.find((t) => t.id === user?.teamId) || null;
-  const [filteredThemes, setFilteredThemes] = useState<StrategicTheme[]>([]);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [brands, setBrands] = useState<LightBrand[]>([]);
+  const [themes, setThemes] = useState<LightTheme[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [filteredThemes, setFilteredThemes] = useState<LightTheme[]>([]);
   const [plannedContent, setPlannedContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
-  const isLoadingData = isLoadingBrands || isLoadingThemes || isLoadingTeams;
-
   const [isCopied, setIsCopied] = useState(false);
 
-  // Carrega dados via API
   useEffect(() => {
     const loadData = async () => {
-      if (!user?.teamId) return;
-      
+      if (!user?.teamId || !user.id) {
+        if (user) setIsLoadingData(false);
+        return;
+      }
+
+      setIsLoadingData(true);
       try {
-        // Carrega marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
-        if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
-          setBrands(brandsData);
-        } else {
-          toast.error('Erro ao carregar marcas');
-        }
-        
-        // Carrega temas
-        const themesRes = await fetch(`/api/themes?teamId=${user.teamId}`);
-        if (themesRes.ok) {
-          const themesData: StrategicTheme[] = await themesRes.json();
-          setThemes(themesData);
-        } else {
-          toast.error('Erro ao carregar temas estratégicos');
-        }
+        const res = await fetch(`/api/plan-form-data?teamId=${user.teamId}&userId=${user.id}`);
+        if (!res.ok) throw new Error('Failed to load form data');
+
+        const data = await res.json();
+        setTeam(data.team);
+        setBrands(data.brands);
+        setThemes(data.themes);
       } catch (error) {
-        toast.error('Erro de conexão ao carregar dados');
+        toast.error('Erro ao carregar dados do formulário');
       } finally {
-        setIsLoadingBrands(false);
-        setIsLoadingThemes(false);
+        setIsLoadingData(false);
       }
     };
-    
+
     loadData();
   }, [user]);
 
   useEffect(() => {
-    const loadTeams = async () => {
-      if (!user?.id) {
-        setIsLoadingTeams(false);
-        return;
-      }
-      
-      try {
-        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          setTeams(teamsData);
-        } else {
-          toast.error('Erro ao carregar dados da equipe');
-        }
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar dados da equipe');
-      } finally {
-        setIsLoadingTeams(false);
-      }
-    };
-
-    loadTeams();
-  }, [user]);
-
-  useEffect(() => {
-    if (!formData.brand || !brands.length) {
-      setFilteredThemes([]);
-      return;
-    }
-
-    const selectedBrand = brands.find(brand => brand.name === formData.brand);
-    if (selectedBrand) {
-      const filtered = themes.filter(theme => theme.brandId === selectedBrand.id);
-      setFilteredThemes(filtered);
+    if (formData.brand) {
+      const selectedBrand = brands.find(b => b.name === formData.brand);
+      setFilteredThemes(selectedBrand ? themes.filter(t => t.brandId === selectedBrand.id) : []);
     } else {
       setFilteredThemes([]);
     }
@@ -138,8 +98,7 @@ export default function Plan() {
 
   const handleThemeSelect = (value: string) => {
     setFormData((prev) => {
-      if (!value) return prev;
-      if (prev.theme.includes(value)) return prev;
+      if (!value || prev.theme.includes(value)) return prev;
       return { ...prev, theme: [...prev.theme, value] };
     });
   };
@@ -158,16 +117,12 @@ export default function Plan() {
   };
 
   const handleGeneratePlan = async () => {
-    if (!team) {
-      toast.error('Dados da equipe não encontrados');
-      return;
+    if (!team) return toast.error('Dados da equipe não encontrados');
+    if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes para gerar planejamento');
+    if (!formData.brand || formData.theme.length === 0 || !formData.objective || !formData.platform) {
+      return toast.error('Por favor, preencha todos os campos obrigatórios (*)');
     }
-    if (team.credits.contentPlans <= 0) {
-      setError('Seus créditos para planejamento de conteúdo acabaram.');
-      setIsResultView(false);
-      toast.error('Créditos insuficientes para gerar planejamento');
-      return;
-    }
+
     setLoading(true);
     setError(null);
     setPlannedContent(null);
@@ -175,27 +130,9 @@ export default function Plan() {
 
     try {
       const selectedBrand = brands.find(b => b.name === formData.brand);
-      if (!selectedBrand) {
-        toast.error('Marca selecionada não encontrada');
-        setIsResultView(false);
-        setLoading(false);
-        return;
-      }
+      if (!selectedBrand) throw new Error('Marca selecionada não encontrada');
 
-      if (!formData.theme || formData.theme.length === 0) {
-        setIsResultView(false);
-        setLoading(false);
-        toast.error('Selecione pelo menos um tema estratégico');
-        return;
-      }
-
-      const requestBody = {
-        ...formData,
-        teamId: user.teamId,
-        brandId: selectedBrand.id,
-        userId: user.id,
-      };
-
+      const requestBody = { ...formData, teamId: user.teamId, brandId: selectedBrand.id, userId: user.id };
       const response = await fetch('/api/plan-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,33 +141,22 @@ export default function Plan() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha ao gerar o planejamento. Tente novamente.');
+        throw new Error(errorData.error || 'Falha ao gerar o planejamento.');
       }
 
       const data = await response.json();
       setPlannedContent(data.plan);
       toast.success('Planejamento gerado com sucesso!');
 
-      try {
-        if (team) {
-          const updatedCredits = { ...team.credits, contentPlans: Math.max(0, (team.credits.contentPlans || 0) - 1) };
-          const updateRes = await fetch('/api/teams', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-          });
-
-          if (updateRes.ok) {
-            const updatedTeam = await updateRes.json();
-            setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
-          } else {
-            toast.error('Falha ao atualizar créditos da equipe após gerar planejamento');
-          }
-        }
-      } catch (err) {
-        toast.error('Erro ao atualizar créditos da equipe');
+      if (team) {
+        const updatedCredits = { ...team.credits, contentPlans: Math.max(0, (team.credits.contentPlans || 0) - 1) };
+        const updateRes = await fetch('/api/teams', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: team.id, credits: updatedCredits }),
+        });
+        if (updateRes.ok) setTeam(await updateRes.json());
       }
-
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message || 'Erro ao gerar planejamento');
@@ -239,59 +165,25 @@ export default function Plan() {
     }
   };
 
-  // ✅ FUNÇÃO AJUSTADA
   const handleGoBackToForm = () => {
-    // Apenas alterna a visualização de volta para o formulário
     setIsResultView(false);
-    // Limpa o conteúdo e erros anteriores para uma nova geração
     setPlannedContent(null);
     setError(null);
   };
 
   const handleCopy = () => {
     if (!plannedContent) return;
-
-    try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = plannedContent;
-      tempDiv.querySelectorAll('style, script').forEach((el) => el.remove());
-      tempDiv.querySelectorAll('.hashtag').forEach((el) => {
-        el.textContent = (el.textContent || '').trim() + ' ';
-      });
-      tempDiv.querySelectorAll('br').forEach((br) => br.replaceWith(document.createTextNode('\n')));
-      const raw = tempDiv.innerText || tempDiv.textContent || '';
-      const lines = raw.split(/\r?\n/).map((l) => l.replace(/\s+/g, ' ').trim());
-      const cleanedLines: string[] = [];
-      let prevEmpty = false;
-      for (const line of lines) {
-        if (line === '') {
-          if (!prevEmpty) {
-            cleanedLines.push('');
-            prevEmpty = true;
-          }
-        } else {
-          cleanedLines.push(line);
-          prevEmpty = false;
-        }
-      }
-      const textToCopy = cleanedLines.join('\n').trim();
-        navigator.clipboard.writeText(textToCopy).then(() => {
-          setIsCopied(true);
-          toast.success('Conteúdo copiado para a área de transferência!');
-          setTimeout(() => setIsCopied(false), 2000);
-        }).catch(() => {
-          toast.error('Falha ao copiar o texto.');
-        });
-      } catch (err) {
-        toast.error('Erro ao preparar o conteúdo para cópia.');
-      }
+    navigator.clipboard.writeText(plannedContent).then(() => {
+      setIsCopied(true);
+      toast.success('Conteúdo copiado!');
+      setTimeout(() => setIsCopied(false), 2000);
+    }).catch(() => toast.error('Falha ao copiar.'));
   };
 
   if (!isResultView) {
     return (
       <div className="min-h-full w-full">
         <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header Card */}
           <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
             <CardHeader className="pb-4">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -300,45 +192,37 @@ export default function Plan() {
                     <Calendar className="h-8 w-8" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold">
-                      Planejar Conteúdo
-                    </h1>
-                    <p className="text-muted-foreground text-base">
-                      Preencha os campos para gerar seu planejamento de posts
-                    </p>
+                    <h1 className="text-3xl font-bold">Planejar Conteúdo</h1>
+                    <p className="text-muted-foreground text-base">Preencha os campos para gerar seu planejamento de posts</p>
                   </div>
                 </div>
-                {team && (
-                  <div className="flex items-center gap-3">
-                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
-                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                              <Zap className="h-4 w-4" />
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="flex items-center gap-1">
-                              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                                {team.credits?.contentPlans || 0}
-                              </span>
-                            </div>
-                            <span className="text-sm text-muted-foreground font-medium">planejamentos restantes</span>
+                {isLoadingData ? (
+                  <Skeleton className="w-48 h-16 rounded-xl" />
+                ) : team && (
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
+                          <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
+                            <Zap className="h-4 w-4" />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        <div className="text-center">
+                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                            {team.credits?.contentPlans || 0}
+                          </span>
+                          <p className="text-sm text-muted-foreground font-medium">planejamentos restantes</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             </CardHeader>
           </Card>
 
-          {/* Main Content */}
           <div className="flex flex-col gap-6">
-            {/* Configuration Section */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
                 <h2 className="text-xl font-semibold flex items-center gap-3">
@@ -349,54 +233,37 @@ export default function Plan() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Select Brand */}
                   <div className="space-y-3">
                     <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
-                    {isLoadingData ? (
-                      <Skeleton className="h-11 w-full rounded-xl" />
-                    ) : (
+                    {isLoadingData ? <Skeleton className="h-11 w-full rounded-xl" /> : (
                       <Select onValueChange={handleBrandChange} value={formData.brand}>
-                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                        <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50">
                           <SelectValue placeholder="Selecione a marca" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-border/20">
-                          {brands.map((brand) => (
-                            <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>
-                          ))}
+                          {brands.map((brand) => <SelectItem key={brand.id} value={brand.name} className="rounded-lg">{brand.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}
                   </div>
-                  {/* Select Theme */}
                   <div className="space-y-3">
                     <Label htmlFor="theme" className="text-sm font-semibold text-foreground">Tema Estratégico *</Label>
-                    {isLoadingData ? (
-                      <Skeleton className="h-11 w-full rounded-xl" />
-                    ) : (
+                    {isLoadingData ? <Skeleton className="h-11 w-full rounded-xl" /> : (
                       <>
                         <Select onValueChange={handleThemeSelect} value="" disabled={!formData.brand || filteredThemes.length === 0}>
-                          <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : filteredThemes.length === 0 ? "Nenhum tema disponível" : "Adicionar tema"} />
+                          <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 disabled:opacity-50">
+                            <SelectValue placeholder={!formData.brand ? "Primeiro, escolha a marca" : "Adicionar tema"} />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-border/20">
-                            {filteredThemes.map((t) => (
-                              <SelectItem key={t.id} value={t.title} disabled={formData.theme.includes(t.title)} className="rounded-lg">{t.title}</SelectItem>
-                            ))}
+                            {filteredThemes.map((t) => <SelectItem key={t.id} value={t.title} disabled={formData.theme.includes(t.title)} className="rounded-lg">{t.title}</SelectItem>)}
                           </SelectContent>
                         </Select>
-
                         <div className="flex flex-wrap gap-2 min-h-[50px] p-3 rounded-xl border-2 border-dashed border-border/50 bg-muted/20 mt-3">
-                          {formData.theme.length === 0 ? (
-                            <span className="text-sm text-muted-foreground italic self-center">Nenhum tema selecionado</span>
-                          ) : (
+                          {formData.theme.length === 0 ? <span className="text-sm text-muted-foreground italic self-center">Nenhum tema selecionado</span> : (
                             formData.theme.map((t) => (
                               <div key={t} className="flex items-center gap-2 bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-primary text-sm font-semibold px-3 py-1.5 rounded-xl">
                                 {t}
-                                <button
-                                  onClick={() => handleThemeRemove(t)}
-                                  className="ml-1 text-primary hover:text-destructive transition-colors p-0.5 rounded-full hover:bg-destructive/10"
-                                  aria-label={`Remover tema ${t}`}
-                                >
+                                <button onClick={() => handleThemeRemove(t)} className="ml-1 text-primary hover:text-destructive transition-colors p-0.5 rounded-full hover:bg-destructive/10" aria-label={`Remover tema ${t}`}>
                                   <X size={14} />
                                 </button>
                               </div>
@@ -406,11 +273,10 @@ export default function Plan() {
                       </>
                     )}
                   </div>
-                  {/* Select Platform */}
                   <div className="space-y-3">
                     <Label htmlFor="platform" className="text-sm font-semibold text-foreground">Plataforma *</Label>
                     <Select onValueChange={handlePlatformChange} value={formData.platform}>
-                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20">
+                      <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50">
                         <SelectValue placeholder="Selecione a plataforma" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/20">
@@ -421,16 +287,14 @@ export default function Plan() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Input Quantity */}
                   <div className="space-y-3">
                     <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">Quantidade de Posts *</Label>
-                    <Input id="quantity" type="number" min="1" placeholder="Ex: 5" value={formData.quantity} onChange={handleQuantityChange} className="h-11 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 focus:ring-2 focus:ring-primary/20" />
+                    <Input id="quantity" type="number" min="1" placeholder="Ex: 5" value={formData.quantity} onChange={handleQuantityChange} className="h-11 rounded-xl border-2 border-border/50 bg-background/50" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Content Details Section */}
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-secondary/5 to-accent/5">
                 <h2 className="text-xl font-semibold flex items-center gap-3">
@@ -441,32 +305,25 @@ export default function Plan() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Textarea Objective */}
                   <div className="space-y-3">
                     <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo dos Posts *</Label>
-                    <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto, educar o público, aumentar vendas..." value={formData.objective} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" />
+                    <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto, educar o público, aumentar vendas..." value={formData.objective} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
                   </div>
-                  {/* Textarea Additional Info */}
                   <div className="space-y-3">
                     <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Adicionais</Label>
-                    <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista, focar em jovens de 18-25 anos..." value={formData.additionalInfo} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 hover:border-primary/50 focus:border-primary transition-all duration-300 resize-none focus:ring-2 focus:ring-primary/20" />
+                    <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista, focar em jovens de 18-25 anos..." value={formData.additionalInfo} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Action Button Section */}
           <div className="mt-8">
-            <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg backdrop-blur-sm">
+            <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center gap-4">
-                  <Button onClick={handleGeneratePlan} disabled={loading || !formData.brand || formData.theme.length === 0 || !formData.platform || !formData.objective} className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 hover:via-purple-600/90 hover:to-secondary/90 shadow-xl hover:shadow-2xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border-2 border-white/20">
-                    {loading ? (
-                      <><Loader className="animate-spin mr-3 h-5 w-5" /><span>Gerando...</span></>
-                    ) : (
-                      <><Calendar className="mr-3 h-5 w-5" /><span>Gerar Planejamento</span></>
-                    )}
+                  <Button onClick={handleGeneratePlan} disabled={loading || !formData.brand || formData.theme.length === 0 || !formData.platform || !formData.objective} className="w-full max-w-lg h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-primary via-purple-600 to-secondary hover:from-primary/90 shadow-xl transition-all duration-500 disabled:opacity-50">
+                    {loading ? <><Loader className="animate-spin mr-3 h-5 w-5" /><span>Gerando...</span></> : <><Calendar className="mr-3 h-5 w-5" /><span>Gerar Planejamento</span></>}
                   </Button>
                   {(!formData.brand || formData.theme.length === 0 || !formData.platform || !formData.objective) && (
                     <div className="text-center bg-muted/30 p-3 rounded-xl border border-border/30">
@@ -486,7 +343,6 @@ export default function Plan() {
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header Card */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
           <CardHeader className="pb-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -499,7 +355,7 @@ export default function Plan() {
                   <p className="text-muted-foreground text-base">Seu calendário de conteúdo estratégico está pronto</p>
                 </div>
               </div>
-              <Button onClick={handleGoBackToForm} variant="outline" className="rounded-xl px-6 py-3 border-2 border-primary/30 hover:bg-primary transition-all duration-300">
+              <Button onClick={handleGoBackToForm} variant="outline" className="rounded-xl px-6 py-3 border-2 border-primary/30">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Criar Novo Planejamento
               </Button>
@@ -507,7 +363,6 @@ export default function Plan() {
           </CardHeader>
         </Card>
 
-        {/* Content - Planning Result */}
         <div className="space-y-6">
           <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
             <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5 flex flex-row items-center justify-between">
@@ -521,7 +376,7 @@ export default function Plan() {
               {plannedContent && !loading && (
                 <Button onClick={handleCopy} variant="outline" size="sm" className="rounded-lg">
                   {isCopied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Clipboard className="h-4 w-4 mr-2" />}
-                  {isCopied ? 'Copiado!' : 'Copiar'}
+                  {isCopied ? 'Copiado!' : 'Copiar Texto'}
                 </Button>
               )}
             </CardHeader>

@@ -19,18 +19,18 @@ export const ACTION_STYLE_MAP: {
 } = {
   'Criar conteúdo': {
     icon: Sparkles,
-    color: 'text-pink-600',
-    background: 'bg-pink-100 dark:bg-pink-900/20',
+    color: 'text-primary',
+    background: 'bg-primary/10',
   },
   'Revisar conteúdo': {
     icon: CheckCircle,
-    color: 'text-blue-600',
-    background: 'bg-blue-100 dark:bg-blue-900/20',
+    color: 'text-accent',
+    background: 'bg-accent/10',
   },
   'Planejar conteúdo': {
     icon: Calendar,
-    color: 'text-purple-600',
-    background: 'bg-purple-100 dark:bg-purple-900/20',
+    color: 'text-secondary',
+    background: 'bg-secondary/10',
   },
 };
 
@@ -73,3 +73,11 @@ export interface Action {
     email: string;
   };
 }
+
+// Dados mínimos utilizados nas listagens de ações
+export type ActionSummary = {
+  id: string;
+  type: ActionType;
+  createdAt: string;
+  brand: { id: string; name: string } | null;
+};
