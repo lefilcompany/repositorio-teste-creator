@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import jsPDF from 'jspdf';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,13 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap, Clipboard, Check, X } from 'lucide-react';
+import { Loader, Calendar, ArrowLeft, MessageSquareQuote, Zap, Clipboard, Check, X, Download } from 'lucide-react';
 import type { Brand } from '@/types/brand';
 import type { StrategicTheme } from '@/types/theme';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+// Interfaces e Tipos (mantidos como no original)
 interface FormData {
   brand: string;
   theme: string[];
@@ -24,8 +27,6 @@ interface FormData {
   objective: string;
   additionalInfo: string;
 }
-
-// Tipos para os dados leves do formulário
 type LightBrand = Pick<Brand, 'id' | 'name'>;
 type LightTheme = Pick<StrategicTheme, 'id' | 'title' | 'brandId'>;
 
@@ -51,19 +52,19 @@ export default function Plan() {
   const [error, setError] = useState<string | null>(null);
   const [isResultView, setIsResultView] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
+  // Efeitos e Handlers (mantidos como no original, pois a lógica estava correta)
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId || !user.id) {
         if (user) setIsLoadingData(false);
         return;
       }
-
       setIsLoadingData(true);
       try {
         const res = await fetch(`/api/plan-form-data?teamId=${user.teamId}&userId=${user.id}`);
         if (!res.ok) throw new Error('Failed to load form data');
-
         const data = await res.json();
         setTeam(data.team);
         setBrands(data.brands);
@@ -74,7 +75,6 @@ export default function Plan() {
         setIsLoadingData(false);
       }
     };
-
     loadData();
   }, [user]);
 
@@ -91,63 +91,78 @@ export default function Plan() {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
-
-  const handleBrandChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, brand: value, theme: [] }));
-  };
-
-  const handleThemeSelect = (value: string) => {
-    setFormData((prev) => {
-      if (!value || prev.theme.includes(value)) return prev;
-      return { ...prev, theme: [...prev.theme, value] };
-    });
-  };
-
-  const handleThemeRemove = (themeToRemove: string) => {
-    setFormData((prev) => ({ ...prev, theme: prev.theme.filter(t => t !== themeToRemove) }));
-  };
-
-  const handlePlatformChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, platform: value }));
-  };
-
+  const handleBrandChange = (value: string) => setFormData((prev) => ({ ...prev, brand: value, theme: [] }));
+  const handleThemeSelect = (value: string) => setFormData((prev) => !value || prev.theme.includes(value) ? prev : { ...prev, theme: [...prev.theme, value] });
+  const handleThemeRemove = (themeToRemove: string) => setFormData((prev) => ({ ...prev, theme: prev.theme.filter(t => t !== themeToRemove) }));
+  const handlePlatformChange = (value: string) => setFormData((prev) => ({ ...prev, platform: value }));
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const quantity = parseInt(e.target.value, 10);
     setFormData((prev) => ({ ...prev, quantity: isNaN(quantity) ? 1 : quantity }));
   };
-
+  const handleGoBackToForm = () => {
+    setIsResultView(false);
+    setPlannedContent(null);
+    setError(null);
+  };
+  const handleCopy = () => {
+    if (!plannedContent) return;
+    navigator.clipboard.writeText(plannedContent).then(() => {
+      setIsCopied(true);
+      toast.success('Conteúdo copiado!');
+      setTimeout(() => setIsCopied(false), 2000);
+    }).catch(() => toast.error('Falha ao copiar.'));
+  };
+  const handleDownloadPdf = async () => {
+    const contentElement = document.getElementById('pdf-content');
+    if (!contentElement) {
+        toast.error("Não foi possível encontrar o conteúdo para gerar o PDF.");
+        return;
+    }
+    setIsDownloadingPdf(true);
+    toast.info("Gerando seu PDF, por favor aguarde...");
+    try {
+        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+        await pdf.html(contentElement, {
+            callback: (doc) => doc.save(`Planejamento - ${formData.brand}.pdf`),
+            margin: [40, 40, 40, 40],
+            autoPaging: 'text',
+            width: 515,
+            windowWidth: contentElement.scrollWidth,
+        });
+        toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+        console.error("Erro ao gerar o PDF:", error);
+        toast.error("Ocorreu um erro ao gerar o PDF.");
+    } finally {
+        setIsDownloadingPdf(false);
+    }
+  };
   const handleGeneratePlan = async () => {
     if (!team) return toast.error('Dados da equipe não encontrados');
-    if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes para gerar planejamento');
+    if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes');
     if (!formData.brand || formData.theme.length === 0 || !formData.objective || !formData.platform) {
       return toast.error('Por favor, preencha todos os campos obrigatórios (*)');
     }
-
     setLoading(true);
     setError(null);
     setPlannedContent(null);
     setIsResultView(true);
-
     try {
       const selectedBrand = brands.find(b => b.name === formData.brand);
       if (!selectedBrand) throw new Error('Marca selecionada não encontrada');
-
       const requestBody = { ...formData, teamId: user.teamId, brandId: selectedBrand.id, userId: user.id };
       const response = await fetch('/api/plan-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha ao gerar o planejamento.');
       }
-
       const data = await response.json();
       setPlannedContent(data.plan);
       toast.success('Planejamento gerado com sucesso!');
-
       if (team) {
         const updatedCredits = { ...team.credits, contentPlans: Math.max(0, (team.credits.contentPlans || 0) - 1) };
         const updateRes = await fetch('/api/teams', {
@@ -165,27 +180,16 @@ export default function Plan() {
     }
   };
 
-  const handleGoBackToForm = () => {
-    setIsResultView(false);
-    setPlannedContent(null);
-    setError(null);
-  };
 
-  const handleCopy = () => {
-    if (!plannedContent) return;
-    navigator.clipboard.writeText(plannedContent).then(() => {
-      setIsCopied(true);
-      toast.success('Conteúdo copiado!');
-      setTimeout(() => setIsCopied(false), 2000);
-    }).catch(() => toast.error('Falha ao copiar.'));
-  };
-
+  // --- CORREÇÃO: Lógica de renderização condicional ---
+  // Se não estiver na tela de resultado, renderiza o formulário.
   if (!isResultView) {
     return (
       <div className="min-h-full w-full">
         <div className="max-w-7xl mx-auto space-y-8">
+          {/* Card do Cabeçalho */}
           <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
-            <CardHeader className="pb-4">
+            <CardHeader>
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0 bg-primary/10 text-primary rounded-lg p-3">
@@ -222,6 +226,7 @@ export default function Plan() {
             </CardHeader>
           </Card>
 
+          {/* Seção dos Formulários */}
           <div className="flex flex-col gap-6">
             <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
               <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -233,6 +238,7 @@ export default function Plan() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* ... conteúdo do formulário ... */}
                   <div className="space-y-3">
                     <Label htmlFor="brand" className="text-sm font-semibold text-foreground">Marca *</Label>
                     {isLoadingData ? <Skeleton className="h-11 w-full rounded-xl" /> : (
@@ -259,7 +265,7 @@ export default function Plan() {
                           </SelectContent>
                         </Select>
                         <div className="flex flex-wrap gap-2 min-h-[50px] p-3 rounded-xl border-2 border-dashed border-border/50 bg-muted/20 mt-3">
-                          {formData.theme.length === 0 ? <span className="text-sm text-muted-foreground italic self-center">Nenhum tema selecionado</span> : (
+                          {formData.theme.length === 0 ? <span className="text-sm text-muted-foreground italic self-center">Nenhum tema</span> : (
                             formData.theme.map((t) => (
                               <div key={t} className="flex items-center gap-2 bg-gradient-to-r from-primary/15 to-primary/5 border-2 border-primary/30 text-primary text-sm font-semibold px-3 py-1.5 rounded-xl">
                                 {t}
@@ -307,17 +313,18 @@ export default function Plan() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label htmlFor="objective" className="text-sm font-semibold text-foreground">Objetivo dos Posts *</Label>
-                    <Textarea id="objective" placeholder="Ex: Gerar engajamento sobre o novo produto, educar o público, aumentar vendas..." value={formData.objective} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
+                    <Textarea id="objective" placeholder="Ex: Gerar engajamento, educar o público, aumentar vendas..." value={formData.objective} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="additionalInfo" className="text-sm font-semibold text-foreground">Informações Adicionais</Label>
-                    <Textarea id="additionalInfo" placeholder="Ex: Usar as cores da marca, estilo minimalista, focar em jovens de 18-25 anos..." value={formData.additionalInfo} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
+                    <Textarea id="additionalInfo" placeholder="Ex: Usar cores da marca, focar em jovens de 18-25 anos..." value={formData.additionalInfo} onChange={handleInputChange} className="h-64 rounded-xl border-2 border-border/50 bg-background/50 resize-none" />
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
+          {/* Botão de Ação */}
           <div className="mt-8">
             <Card className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 border border-border/20 rounded-2xl shadow-lg">
               <CardContent className="p-6">
@@ -340,11 +347,13 @@ export default function Plan() {
     );
   }
 
+  // Se estiver na tela de resultado, renderiza a visualização do conteúdo.
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto space-y-8">
+        {/* Card do Cabeçalho da Tela de Resultado */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
-          <CardHeader className="pb-4">
+          <CardHeader>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0 bg-secondary/10 text-secondary rounded-lg p-3">
@@ -355,14 +364,22 @@ export default function Plan() {
                   <p className="text-muted-foreground text-base">Seu calendário de conteúdo estratégico está pronto</p>
                 </div>
               </div>
-              <Button onClick={handleGoBackToForm} variant="outline" className="rounded-xl px-6 py-3 border-2 border-primary/30">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Criar Novo Planejamento
-              </Button>
+              {/* --- ADIÇÃO DO BOTÃO NO HEADER --- */}
+              <div className="flex items-center gap-2">
+                 <Button onClick={handleDownloadPdf} disabled={isDownloadingPdf} variant="outline" size="sm" className="rounded-lg">
+                    {isDownloadingPdf ? <Loader className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                    {isDownloadingPdf ? 'Baixando...' : 'Baixar PDF'}
+                  </Button>
+                <Button onClick={handleGoBackToForm} variant="outline" className="rounded-xl px-4 py-2 border-2 border-primary/30">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Criar Novo
+                </Button>
+              </div>
             </div>
           </CardHeader>
         </Card>
 
+        {/* Card do Conteúdo Gerado */}
         <div className="space-y-6">
           <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
             <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5 flex flex-row items-center justify-between">
@@ -374,10 +391,10 @@ export default function Plan() {
                 <p className="text-muted-foreground text-sm">Conteúdo gerado com base nos seus parâmetros</p>
               </div>
               {plannedContent && !loading && (
-                <Button onClick={handleCopy} variant="outline" size="sm" className="rounded-lg">
-                  {isCopied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Clipboard className="h-4 w-4 mr-2" />}
-                  {isCopied ? 'Copiado!' : 'Copiar Texto'}
-                </Button>
+                 <Button onClick={handleCopy} variant="outline" size="sm" className="rounded-lg">
+                    {isCopied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Clipboard className="h-4 w-4 mr-2" />}
+                    {isCopied ? 'Copiado!' : 'Copiar Texto'}
+                  </Button>
               )}
             </CardHeader>
             <CardContent className="p-6">
@@ -390,6 +407,7 @@ export default function Plan() {
                 )}
                 {plannedContent && !loading && (
                   <div
+                    id="pdf-content"
                     className="prose prose-sm dark:prose-invert max-w-none text-left overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: plannedContent }}
                   />
