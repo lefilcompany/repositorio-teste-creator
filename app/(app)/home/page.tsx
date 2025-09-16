@@ -21,7 +21,6 @@ import { useAuth } from '@/hooks/useAuth';
 import type { Action } from '@/types/action';
 import type { TeamSummary } from '@/types/team';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
-import { toast } from 'sonner';
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -64,8 +63,12 @@ export default function HomePage() {
 
     fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=3&summary=true`)
       .then(res => res.json())
-      .then(data => {
-        setAtividadesRecentes(data);
+      .then(response => {
+        // CORREÇÃO APLICADA AQUI
+        // Acessamos a propriedade 'data' que contém o array de ações
+        if (response && Array.isArray(response.data)) {
+          setAtividadesRecentes(response.data);
+        }
       })
       .catch(err => console.error("Falha ao carregar atividades:", err))
       .finally(() => setLoadingStates(prev => ({ ...prev, activities: false })));

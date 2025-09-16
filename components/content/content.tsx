@@ -71,13 +71,13 @@ export default function Creator() {
       setIsLoadingData(true);
       try {
         const res = await fetch(`/api/content-form-data?teamId=${user.teamId}&userId=${user.id}`);
-        
+
         if (!res.ok) {
           throw new Error('Falha ao carregar os dados do formulário');
         }
 
         const data = await res.json();
-        
+
         setTeam(data.team);
         setBrands(data.brands);
         setThemes(data.themes);
@@ -219,8 +219,8 @@ export default function Creator() {
       }
 
       await updateTeamCredits();
-      toast.success('Conteúdo enviado para geração!');
-      router.push('/historico');
+      toast.success('Conteúdo gerado com sucesso! Redirecionando...');
+      router.push('/content/result'); // <-- CORREÇÃO APLICADA AQUI
 
     } catch (err: any) {
       toast.error(err.message || 'Erro ao gerar o conteúdo.');
@@ -251,14 +251,24 @@ export default function Creator() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center space-x-1 rounded-full bg-muted p-1 border">
                   <Button
-                    variant="ghost" size="default" onClick={() => setIsVideoMode(false)}
-                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${!isVideoMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    variant="ghost"
+                    size="default"
+                    onClick={() => setIsVideoMode(false)}
+                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${!isVideoMode
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background/90 hover:text-foreground'
+                        : 'text-muted-foreground opacity-70 hover:opacity-100 hover:text-foreground hover:bg-background/90'
+                      }`}
                   >
                     Imagem
                   </Button>
                   <Button
-                    variant="ghost" size="default" onClick={() => handleVideoModeChange(true)}
-                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${isVideoMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    variant="ghost"
+                    size="default"
+                    onClick={() => handleVideoModeChange(true)}
+                    className={`w-28 rounded-full font-semibold transition-all duration-200 ease-in-out ${isVideoMode
+                        ? 'bg-background text-foreground shadow-sm hover:bg-background/90 hover:text-foreground'
+                        : 'text-muted-foreground opacity-70 hover:opacity-100 hover:text-foreground hover:bg-background/90'
+                      }`}
                   >
                     <div className="flex items-center justify-center gap-1.5">
                       Vídeo
@@ -268,37 +278,43 @@ export default function Creator() {
                     </div>
                   </Button>
                 </div>
+
+                {/* O restante do seu código permanece o mesmo */}
                 {isLoadingData ? (
-                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
-                     <CardContent className="p-4">
-                       <div className="flex items-center gap-3">
-                         <Skeleton className="w-10 h-10 rounded-full" />
-                         <div className="text-center space-y-1">
-                           <Skeleton className="w-12 h-8" />
-                           <Skeleton className="w-24 h-4" />
-                         </div>
-                       </div>
-                     </CardContent>
-                   </Card>
-                ) : team && (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
-                          <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
-                            <Zap className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits?.contentSuggestions || 0}
-                          </span>
-                          <p className="text-sm text-muted-foreground font-medium">criações restantes</p>
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="text-center space-y-1">
+                          <Skeleton className="w-12 h-8" />
+                          <Skeleton className="w-24 h-4" />
                         </div>
                       </div>
                     </CardContent>
                   </Card>
+                ) : (
+                  team && (
+                    <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
+                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
+                              <Zap className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                              {team.credits?.contentSuggestions || 0}
+                            </span>
+                            <p className="text-sm text-muted-foreground font-medium">
+                              criações restantes
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
                 )}
               </div>
             </div>
@@ -414,7 +430,7 @@ export default function Creator() {
                       />
                       {referenceFile && (
                         <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
-                           ✓ Arquivo selecionado: {referenceFile.name}
+                          ✓ Arquivo selecionado: {referenceFile.name}
                         </div>
                       )}
                     </div>
