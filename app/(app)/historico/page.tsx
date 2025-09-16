@@ -1,6 +1,8 @@
+// /app/historico/page.tsx
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { History } from 'lucide-react';
@@ -31,6 +33,13 @@ export default function HistoricoPage() {
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
+  // Novos estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
+  const [initialUrlActionHandled, setInitialUrlActionHandled] = useState(false);
+
   const handleSelectAction = useCallback(async (action: ActionSummary) => {
     setSelectedActionSummary(action);
     setIsLoadingActionDetails(true);
@@ -49,33 +58,45 @@ export default function HistoricoPage() {
     }
   }, [user?.teamId]);
 
-  // Carrega ações aprovadas e marcas via API
+  // Carrega ações aprovadas via API com base nos filtros e página atual
   useEffect(() => {
     const loadData = async () => {
       if (!user?.teamId) return;
 
+      setIsLoadingActions(true);
       try {
-        // Load actions
-        const actionsRes = await fetch(`/api/actions?teamId=${user.teamId}&approved=true&summary=true`);
+        const params = new URLSearchParams({
+          teamId: user.teamId,
+          approved: 'true',
+          summary: 'true',
+          page: String(currentPage),
+          limit: String(ITEMS_PER_PAGE),
+        });
+
+        if (brandFilter !== 'all') {
+          params.append('brandName', brandFilter);
+        }
+        if (typeFilter !== 'all') {
+          params.append('type', typeFilter);
+        }
+
+        const actionsRes = await fetch(`/api/actions?${params.toString()}`);
         if (actionsRes.ok) {
-          const actionsData: ActionSummary[] = await actionsRes.json();
-          const approvedActions = actionsData;
-          setActions(approvedActions);
-          if (actionIdFromUrl && approvedActions.length > 0) {
-            const targetAction = approvedActions.find(action => action.id === actionIdFromUrl);
+          const { data, total } = await actionsRes.json();
+          setActions(data);
+          setTotalPages(Math.ceil(total / ITEMS_PER_PAGE));
+
+          if (actionIdFromUrl && !initialUrlActionHandled) {
+            const targetAction = data.find((action: ActionSummary) => action.id === actionIdFromUrl);
             if (targetAction) {
               await handleSelectAction(targetAction);
-              if (targetAction.brand?.name) {
-                setBrandFilter(targetAction.brand.name);
-              }
-              const actionTypeDisplay = ACTION_TYPE_DISPLAY[targetAction.type];
-              if (actionTypeDisplay) {
-                setTypeFilter(actionTypeDisplay);
-              }
+              setInitialUrlActionHandled(true);
             }
           }
         } else {
           toast.error('Erro ao carregar histórico de ações');
+          setActions([]);
+          setTotalPages(0);
         }
       } catch (error) {
         toast.error('Erro de conexão ao carregar histórico');
@@ -85,12 +106,13 @@ export default function HistoricoPage() {
     };
 
     loadData();
-  }, [user, actionIdFromUrl, handleSelectAction]);
+  }, [user?.teamId, currentPage, brandFilter, typeFilter, actionIdFromUrl, handleSelectAction, initialUrlActionHandled]);
 
+  // Carrega marcas para os filtros
   useEffect(() => {
     const loadBrands = async () => {
       if (!user?.teamId) return;
-
+      setIsLoadingBrands(true);
       try {
         const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}&summary=true`);
         if (brandsRes.ok) {
@@ -105,26 +127,24 @@ export default function HistoricoPage() {
         setIsLoadingBrands(false);
       }
     };
-
     loadBrands();
-  }, [user]);
+  }, [user?.teamId]);
 
-  // Lógica de filtragem
-  const filteredActions = useMemo(() => {
-    return actions.filter(action => {
-      const brandMatch = brandFilter === 'all' || action.brand?.name === brandFilter;
-      const typeMatch = typeFilter === 'all' || ACTION_TYPE_DISPLAY[action.type] === typeFilter;
-      return brandMatch && typeMatch;
-    });
-  }, [actions, brandFilter, typeFilter]);
-
-  // Atualiza a ação selecionada se ela não estiver mais na lista filtrada
+  // Reseta para a primeira página sempre que um filtro é alterado
   useEffect(() => {
-    if (selectedActionSummary && !filteredActions.find(a => a.id === selectedActionSummary.id)) {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandFilter, typeFilter]);
+
+  // Atualiza a ação selecionada se ela não estiver mais na lista da página atual
+  useEffect(() => {
+    if (selectedActionSummary && !actions.find(a => a.id === selectedActionSummary.id)) {
       setSelectedActionSummary(null);
       setSelectedAction(null);
     }
-  }, [filteredActions, selectedActionSummary]);
+  }, [actions, selectedActionSummary]);
 
   // Limpa o parâmetro da URL depois que a ação foi selecionada automaticamente
   useEffect(() => {
@@ -171,9 +191,9 @@ export default function HistoricoPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Ações</SelectItem>
-                  <SelectItem value="Criar conteúdo">Criar conteúdo</SelectItem>
-                  <SelectItem value="Revisar conteúdo">Revisar conteúdo</SelectItem>
-                  <SelectItem value="Planejar conteúdo">Planejar conteúdo</SelectItem>
+                  {Object.values(ACTION_TYPE_DISPLAY).map(displayType => (
+                    <SelectItem key={displayType} value={displayType}>{displayType}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -183,10 +203,13 @@ export default function HistoricoPage() {
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 flex-1">
         <ActionList
-          actions={filteredActions}
+          actions={actions}
           selectedAction={selectedActionSummary}
           onSelectAction={handleSelectAction}
           isLoading={isLoadingActions}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
         />
         {selectedActionSummary ? (
           <ActionDetails action={selectedAction} isLoading={isLoadingActionDetails} />

@@ -71,13 +71,13 @@ export default function Creator() {
       setIsLoadingData(true);
       try {
         const res = await fetch(`/api/content-form-data?teamId=${user.teamId}&userId=${user.id}`);
-        
+
         if (!res.ok) {
           throw new Error('Falha ao carregar os dados do formulário');
         }
 
         const data = await res.json();
-        
+
         setTeam(data.team);
         setBrands(data.brands);
         setThemes(data.themes);
@@ -219,8 +219,8 @@ export default function Creator() {
       }
 
       await updateTeamCredits();
-      toast.success('Conteúdo enviado para geração!');
-      router.push('/historico');
+      toast.success('Conteúdo gerado com sucesso! Redirecionando...');
+      router.push('/content/result'); // <-- CORREÇÃO APLICADA AQUI
 
     } catch (err: any) {
       toast.error(err.message || 'Erro ao gerar o conteúdo.');
@@ -269,17 +269,17 @@ export default function Creator() {
                   </Button>
                 </div>
                 {isLoadingData ? (
-                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
-                     <CardContent className="p-4">
-                       <div className="flex items-center gap-3">
-                         <Skeleton className="w-10 h-10 rounded-full" />
-                         <div className="text-center space-y-1">
-                           <Skeleton className="w-12 h-8" />
-                           <Skeleton className="w-24 h-4" />
-                         </div>
-                       </div>
-                     </CardContent>
-                   </Card>
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="text-center space-y-1">
+                          <Skeleton className="w-12 h-8" />
+                          <Skeleton className="w-24 h-4" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : team && (
                   <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
                     <CardContent className="p-4">
@@ -414,7 +414,7 @@ export default function Creator() {
                       />
                       {referenceFile && (
                         <div className="text-sm text-green-600 flex items-center gap-2 mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
-                           ✓ Arquivo selecionado: {referenceFile.name}
+                          ✓ Arquivo selecionado: {referenceFile.name}
                         </div>
                       )}
                     </div>

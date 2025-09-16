@@ -1,21 +1,7 @@
-/**
- * Página de Resultado de Conteúdo Gerado
- * 
- * Esta página exibe o conteúdo gerado pela IA e permite ao usuário:
- * - Visualizar o conteúdo (imagem + texto + hashtags)
- * - Fazer revisões (até 2 por conteúdo)
- * - Aprovar e salvar no histórico
- * - Fazer download da imagem
- * - Copiar o texto para clipboard
- * - Reverter para versões anteriores
- * 
- * O conteúdo é armazenado diretamente na tabela Actions, sem uso de TemporaryContent.
- */
-
 // app/(app)/content/result/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react'; // AJUSTE: Importado o useRef
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -29,21 +15,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { downloadImage } from '@/lib/download-utils';
 import { cn } from '@/lib/utils';
 
-// Interface para o conteúdo gerado baseada na Action do banco de dados
 interface GeneratedContent {
-  id: string;           // ID único do conteúdo
-  videoUrl?: string;    // URL do vídeo gerado (opcional)
-  imageUrl: string;     // URL da imagem gerada
-  title: string;        // Título/legenda principal
-  body: string;         // Corpo do texto/descrição
-  hashtags: string[];   // Lista de hashtags
-  revisions: number;    // Contador de revisões feitas
-  brand?: string;       // Nome da marca (opcional)
-  theme?: string;       // Tema estratégico usado (opcional)
-  actionId: string;     // ID da Action no banco (para rastreamento)
+  id: string;
+  videoUrl?: string;
+  imageUrl: string;
+  title: string;
+  body: string;
+  hashtags: string[];
+  revisions: number;
+  brand?: string;
+  theme?: string;
+  actionId: string;
 }
 
-// Interface para controle de versões do conteúdo
 interface ContentVersion {
   id: string;
   content: GeneratedContent;
@@ -66,6 +50,9 @@ export default function ResultPage() {
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [brandId, setBrandId] = useState<string>('');
 
+  // AJUSTE: Usando useRef para controlar o estado de aprovação de forma mais segura e contida no componente.
+  const isApproving = useRef(false);
+
   useEffect(() => {
     const loadContent = async () => {
       if (!user?.id || !user?.teamId) {
@@ -74,19 +61,14 @@ export default function ResultPage() {
       }
 
       try {
-        // Busca a Action mais recente não aprovada do usuário
         const response = await fetch(`/api/actions?userId=${user.id}&teamId=${user.teamId}&status=Em revisão&limit=1`);
-        
+
         if (response.ok) {
           const actions = await response.json();
-
-          // Adicione este log:
           console.log('[ResultPage] Dados retornados da API /api/actions:', actions);
 
           if (actions && actions.length > 0) {
             const action = actions[0];
-            
-            // Converte a Action para o formato esperado
             const parsedContent: GeneratedContent = {
               id: action.id,
               actionId: action.id,
@@ -103,7 +85,6 @@ export default function ResultPage() {
             setContent(parsedContent);
             setBrandId(action.brandId);
 
-            // Inicializa as versões com a versão original
             const initialVersion: ContentVersion = {
               id: `version-${Date.now()}`,
               content: parsedContent,
@@ -121,19 +102,12 @@ export default function ResultPage() {
         }
 
         if (user?.teamId) {
-          const loadTeam = async () => {
-            try {
-              const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
-              if (teamsRes.ok) {
-                const teamsData: Team[] = await teamsRes.json();
-                const currentTeam = teamsData.find(t => t.id === user.teamId);
-                setTeam(currentTeam || null);
-              }
-            } catch (error) {
-              // Error loading team data
-            }
-          };
-          loadTeam();
+          const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+          if (teamsRes.ok) {
+            const teamsData: Team[] = await teamsRes.json();
+            const currentTeam = teamsData.find(t => t.id === user.teamId);
+            setTeam(currentTeam || null);
+          }
         }
       } catch (e: any) {
         toast.error(e.message, { description: "Você será redirecionado para criar novo conteúdo." });
@@ -147,71 +121,38 @@ export default function ResultPage() {
   }, [user, router]);
 
   /**
-   * Hook para detectar quando o usuário sai da página sem aprovar
-   * Marca a ação como "Rejeitada" se sair sem aprovar
-   */
+  * Hook para detectar quando o usuário sai da página sem aprovar
+  * Marca a ação como "Rejeitada" se sair sem aprovar
+  */
   useEffect(() => {
-    let isApproving = false; // Flag para evitar marcar como rejeitada durante aprovação
-    
-    const handleBeforeUnload = async () => {
-      if (content && content.actionId && !isApproving) {
-        // Marca como rejeitada se sair sem aprovar
-        try {
-          await fetch('/api/actions', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: content.actionId,
-              status: 'Rejeitada',
-              approved: false,
-              requesterUserId: user?.id
-            })
-          });
-        } catch (error) {
-          // Error marking action as rejected
-        }
-      }
-    };
-
-    const handleRouteChange = () => {
-      if (content && content.actionId && !isApproving) {
-        // Marca como rejeitada ao navegar para outra rota (usando fetch com keepalive)
-        fetch('/api/actions', {
-          method: 'PUT',
+    // AJUSTE: Lógica de rejeição centralizada e corrigida
+    const rejectAction = (useKeepAlive = false) => {
+      if (content && content.actionId && !isApproving.current) {
+        fetch(`/api/actions/${content.actionId}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            id: content.actionId,
             status: 'Rejeitada',
             approved: false,
-            requesterUserId: user?.id
           }),
-          keepalive: true // Garante que a requisição seja enviada mesmo se a página fechar
+          keepalive: useKeepAlive,
         }).catch(() => {
-          // Error in cleanup request
+          // Erro silencioso, pois é uma ação de limpeza
         });
       }
     };
 
-    // Expõe função para sinalizar que a aprovação está em andamento
-    (window as any).__setApprovingFlag = (value: boolean) => {
-      isApproving = value;
-    };
+    const handleBeforeUnload = () => rejectAction(true);
+    const handleRouteChange = () => rejectAction();
 
-    // Listener para fechar aba/navegador
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    // Cleanup quando o componente desmontar (navegação)
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (!isApproving) {
-        handleRouteChange(); // Marca como rejeitada ao desmontar apenas se não estiver aprovando
-      }
+      handleRouteChange();
     };
-  }, [content, user?.id]);
+  }, [content]);
 
-  /**
-   * Atualiza os créditos do time após usar recursos como revisões
-   */
   const updateTeamCredits = useCallback(async (creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
     if (!user?.teamId || !team) return;
     try {
@@ -219,39 +160,28 @@ export default function ResultPage() {
       if (creditType in updatedCredits) {
         (updatedCredits as any)[creditType] -= amount;
       }
-      
       const updateRes = await fetch('/api/teams', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: team.id, credits: updatedCredits }),
       });
-      
       if (updateRes.ok) {
-        const updatedTeam = await updateRes.json();
-        setTeam(updatedTeam);
+        setTeam(await updateRes.json());
       }
     } catch (e) {
-      }
+      // Falha silenciosa na atualização de créditos
+    }
   }, [user?.teamId, team]);
 
-  /**
-   * Atualiza o conteúdo atual na Action do banco de dados
-   * Usado quando o usuário faz revisões
-   */
   const updateCurrentContent = async (newContent: GeneratedContent) => {
-    // Mantém o ID original para rastreamento
     const updatedContent = {
       ...newContent,
-      actionId: content?.actionId || content?.id || newContent.id
+      actionId: content?.actionId || newContent.id
     };
-
-    // Atualiza o estado atual
     setContent(updatedContent);
-
     try {
-      // Atualiza a Action no banco de dados
-      if (user?.id && user?.teamId && updatedContent.actionId) {
-        const response = await fetch(`/api/actions/${updatedContent.actionId}/review`, {
+      if (user?.id && updatedContent.actionId) {
+        await fetch(`/api/actions/${updatedContent.actionId}/review`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -262,67 +192,47 @@ export default function ResultPage() {
             newHashtags: updatedContent.hashtags
           })
         });
-        
-        if (response.ok) {
-          } else {
-          throw new Error('Falha ao atualizar na Action');
-        }
       }
     } catch (error) {
-      toast.error('Erro ao atualizar conteúdo');
+      toast.error('Erro ao atualizar conteúdo da revisão.');
     }
+  };
 
-    };
-
-  /**
-   * Aprova o conteúdo final e redireciona para o histórico
-   * Marca a Action como aprovada no banco de dados
-   */
   const handleApprove = async () => {
-    if (!content) {
-      toast.error('Conteúdo não encontrado');
-      return;
-    }
+    if (!content) return toast.error('Conteúdo não encontrado');
 
-    // Sinaliza que está aprovando para evitar marcação como rejeitada
-    if ((window as any).__setApprovingFlag) {
-      (window as any).__setApprovingFlag(true);
-    }
+    isApproving.current = true; // AJUSTE: Usando useRef
 
     try {
-      const currentVersion = versions[currentVersionIndex];
-      const finalContent = currentVersion ? currentVersion.content : content;
+      const finalContent = versions[currentVersionIndex]?.content || content;
+      const { actionId } = finalContent;
 
-      // Atualiza a Action existente para status "Aprovado"
-      const actionId = finalContent.actionId;
-      
-      if (!actionId) {
-        throw new Error('ID da ação não encontrado');
-      }
+      if (!actionId) throw new Error('ID da ação não encontrado');
 
-      const updateRes = await fetch('/api/actions', {
-        method: 'PUT',
+      const updateRes = await fetch(`/api/actions/${actionId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: actionId,
           status: 'Aprovado',
           approved: true,
-          requesterUserId: user?.id
         })
       });
-      
+
+      // AJUSTE: Tratamento de erro robusto para evitar crash com respostas não-JSON
       if (!updateRes.ok) {
-        const errorData = await updateRes.json();
-        throw new Error(errorData.error || errorData.details || 'Erro ao aprovar ação');
+        const errorText = await updateRes.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || errorData.details || 'Erro ao aprovar ação');
+        } catch (e) {
+          throw new Error(errorText || `Erro ${updateRes.status} ao aprovar a ação`);
+        }
       }
-      
+
       const approvedAction = await updateRes.json();
       toast.success('Conteúdo aprovado e salvo no histórico!');
-
-      // Limpa o conteúdo para evitar que seja marcado como rejeitado
       setContent(null);
 
-      // Aguarda um pouco antes de redirecionar para garantir que a ação foi salva
       setTimeout(() => {
         router.push(`/historico?actionId=${approvedAction.id}`);
       }, 500);
@@ -332,107 +242,64 @@ export default function ResultPage() {
       toast.error(errorMessage, {
         description: "Tente novamente ou entre em contato com o suporte se o problema persistir."
       });
-      
-      // Remove a flag de aprovação em caso de erro
-      if ((window as any).__setApprovingFlag) {
-        (window as any).__setApprovingFlag(false);
-      }
+      isApproving.current = false; // AJUSTE: Reseta a flag em caso de erro
     }
   };
 
-  /**
-   * Inicia o processo de revisão (imagem ou texto)
-   * Verifica se o usuário tem créditos suficientes e se não excedeu o limite de revisões
-   */
   const handleStartRevision = (type: 'image' | 'text') => {
     if (team && team.credits.contentReviews <= 0) {
-      toast.error('Você não tem créditos de revisão suficientes.');
-      return;
+      return toast.error('Você não tem créditos de revisão suficientes.');
     }
     if (content && content.revisions >= 2) {
-      toast.error('Limite de 2 revisões por conteúdo atingido.');
-      return;
+      return toast.error('Limite de 2 revisões por conteúdo atingido.');
     }
     setRevisionType(type);
     setShowRevisionDialog(false);
     setShowRevisionForm(true);
   };
 
-  /**
-   * Processa o resultado de uma revisão
-   * Cria uma nova versão do conteúdo e atualiza a Action
-   */
   const handleRevisionComplete = async (updatedContent: GeneratedContent) => {
     try {
       updateTeamCredits('contentReviews');
-
-      // Incrementa o contador de revisões
       const contentWithRevision = {
         ...updatedContent,
         revisions: (content?.revisions || 0) + 1,
-        actionId: content?.actionId || content?.id || updatedContent.id
+        actionId: content?.actionId || updatedContent.id
       };
-
-      // Cria uma nova versão
       const newVersion: ContentVersion = {
-        id: `version-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: `version-${Date.now()}`,
         content: contentWithRevision,
         timestamp: new Date().toISOString(),
         type: revisionType === 'image' ? 'image_revision' : 'text_revision'
       };
-
-      // Adiciona a nova versão à lista
       const updatedVersions = [...versions, newVersion];
       setVersions(updatedVersions);
       setCurrentVersionIndex(updatedVersions.length - 1);
-
-      // Atualiza o conteúdo atual
       await updateCurrentContent(contentWithRevision);
-
-      // NÃO salva revisões intermediárias no histórico
-      // O histórico será atualizado apenas quando o conteúdo for aprovado
-      
       setShowRevisionForm(false);
       setRevisionType(null);
-
       toast.success(`Revisão ${revisionType === 'image' ? 'da imagem' : 'do texto'} concluída!`);
-
     } catch (error) {
       toast.error('Erro ao processar a revisão');
     }
   };
 
-  /**
-   * Reverte para a versão anterior do conteúdo
-   * Permite desfazer revisões feitas
-   * IMPORTANTE: Mesmo revertendo, os créditos gastos nas revisões não retornam
-   * e o contador de revisões é mantido
-   */
   const handleRevert = async () => {
-    if (currentVersionIndex <= 0) {
-      toast.info("Você já está na versão original.");
-      return;
-    }
+    if (currentVersionIndex <= 0) return toast.info("Você já está na versão original.");
 
     try {
       const previousIndex = currentVersionIndex - 1;
       const previousVersion = versions[previousIndex];
 
       if (previousVersion) {
-        // Atualiza apenas a visualização atual, mas mantém o contador de revisões
-        // Os créditos gastos não retornam conforme solicitado
         setCurrentVersionIndex(previousIndex);
-        
-        // Atualiza o conteúdo visualmente mas preserva o contador de revisões original
         const revertedContent = {
           ...previousVersion.content,
-          revisions: content?.revisions || 0, // Mantém o contador original
-          actionId: content?.actionId || content?.id || previousVersion.content.id
+          revisions: content?.revisions || 0,
+          actionId: content?.actionId || previousVersion.content.id
         };
-        
-        // Atualiza a Action no banco com o conteúdo revertido mas mantendo o contador de revisões
-        if (user?.id && user?.teamId && revertedContent.actionId) {
-          const response = await fetch(`/api/actions/${revertedContent.actionId}`, {
+        if (revertedContent.actionId) {
+          await fetch(`/api/actions/${revertedContent.actionId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -442,68 +309,37 @@ export default function ResultPage() {
                 body: revertedContent.body,
                 hashtags: revertedContent.hashtags
               },
-              // NÃO diminui o contador de revisões - mantém os créditos gastos
-              revisions: content?.revisions || 0
+              revisions: revertedContent.revisions
             })
           });
-          
-          if (response.ok) {
-            // Conteúdo revertido na Action (créditos mantidos)
-          } else {
-            throw new Error('Falha ao reverter na Action');
-          }
         }
-
         setContent(revertedContent);
-        toast.info("Versão anterior restaurada. Os créditos utilizados foram mantidos.");
+        toast.info("Versão anterior restaurada. Créditos utilizados foram mantidos.");
       }
     } catch (error) {
       toast.error('Erro ao reverter para versão anterior');
     }
   };
 
-  /**
-   * Faz o download da imagem gerada usando o utilitário de download
-   */
   const handleDownloadImage = async () => {
-    if (!content?.imageUrl) {
-      toast.error('URL da imagem não encontrada.');
-      return;
-    }
-    
+    if (!content?.imageUrl) return toast.error('URL da imagem não encontrada.');
     setIsDownloading(true);
     toast.info("Iniciando download da imagem...");
-    
     try {
-      // Determinar o nome do arquivo
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
       const filename = `creator-ai-image-${timestamp}`;
-      
-      // Usar o utilitário de download
-      await downloadImage(content.imageUrl, {
-        filename,
-        useProxy: true,
-        timeout: 30000
-      });
-      
+      await downloadImage(content.imageUrl, { filename, useProxy: true, timeout: 30000 });
       toast.success('Download concluído com sucesso!');
-      } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Erro desconhecido ao baixar a imagem';
-        
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast.error(`Falha no download: ${errorMessage}`, {
         description: 'Verifique sua conexão e tente novamente.'
       });
-      
     } finally {
       setIsDownloading(false);
     }
   };
 
-  /**
-   * Copia o conteúdo completo (título + corpo + hashtags) para o clipboard
-   */
   const handleCopyToClipboard = () => {
     if (!content) return;
     const fullText = `${content.title}\n\n${content.body}\n\n${content.hashtags.map(h => `#${h}`).join(' ')}`;
@@ -513,16 +349,14 @@ export default function ResultPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ----- RENDERIZAÇÃO -----
   if (showRevisionForm && content && revisionType) {
     return (
       <RevisionForm
         content={content}
         revisionType={revisionType}
         onRevisionComplete={handleRevisionComplete}
-        onCancel={() => {
-          setShowRevisionForm(false);
-          setRevisionType(null);
-        }}
+        onCancel={() => { setShowRevisionForm(false); setRevisionType(null); }}
         teamId={user?.teamId}
         brandId={brandId}
       />
@@ -565,57 +399,45 @@ export default function ResultPage() {
                 {versions.length > 1 && (
                   <span className="block text-sm text-primary mt-1">
                     Versão {currentVersionIndex + 1} de {versions.length} - {
-                      versions[currentVersionIndex]?.type === 'original' ? 'Original' :
-                        versions[currentVersionIndex]?.type === 'image_revision' ? 'Imagem Revisada' :
-                          'Texto Revisado'
+                      versions[currentVersionIndex]?.type.replace('_', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase())
                     }
-                </span>
-              )}
-            </p>
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 mt-4 md:mt-0 flex-wrap">
-          <Button
-            onClick={handleRevert}
-            variant="outline"
-            className="rounded-full"
-            disabled={currentVersionIndex <= 0}
-            title={currentVersionIndex <= 0 ? "Você já está na versão original" : "Reverte para a versão anterior (créditos utilizados são mantidos)"}
-          >
-            <Undo2 className="mr-2" /> Reverter
-          </Button>
-          <Button
-            onClick={() => setShowRevisionDialog(true)}
-            variant="secondary"
-            className="rounded-full"
-            disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}
-            title={
-              content.revisions >= 2 
-                ? "Limite de 2 revisões atingido" 
-                : team && team.credits.contentReviews <= 0
-                  ? "Sem créditos de revisão disponíveis"
-                  : "Fazer revisão do conteúdo"
-            }
-          >
-            <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
-          </Button>
-          <Button
-            onClick={handleApprove}
-            className="rounded-full bg-green-600 hover:bg-green-700 text-white"
-          >
-            <ThumbsUp className="mr-2" /> Aprovar e Salvar
-          </Button>
-        </div>
-      </header>
+          <div className="flex items-center gap-2 mt-4 md:mt-0 flex-wrap">
+            <Button
+              onClick={handleRevert}
+              variant="outline"
+              className="rounded-full"
+              disabled={currentVersionIndex <= 0}
+              title={currentVersionIndex <= 0 ? "Você já está na versão original" : "Reverte para a versão anterior"}
+            >
+              <Undo2 className="mr-2" /> Reverter
+            </Button>
+            <Button
+              onClick={() => setShowRevisionDialog(true)}
+              variant="secondary"
+              className="rounded-full"
+              disabled={content.revisions >= 2 || (team && team.credits.contentReviews <= 0)}
+              title={
+                content.revisions >= 2 ? "Limite de 2 revisões atingido"
+                  : team && team.credits.contentReviews <= 0 ? "Sem créditos de revisão"
+                    : "Fazer revisão do conteúdo"
+              }
+            >
+              <Edit className="mr-2" /> Revisar ({2 - content.revisions} rest.)
+            </Button>
+            <Button onClick={handleApprove} className="rounded-full bg-green-600 hover:bg-green-700 text-white">
+              <ThumbsUp className="mr-2" /> Aprovar e Salvar
+            </Button>
+          </div>
+        </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <Card
-              className={cn(
-                'w-full bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative',
-                content.videoUrl ? 'aspect-[5/3]' : 'aspect-square'
-              )}
-            >
+            <Card className={cn('w-full bg-muted/30 rounded-2xl overflow-hidden shadow-lg border-2 border-primary/10 relative', content.videoUrl ? 'aspect-[5/3]' : 'aspect-square')}>
               {content.videoUrl ? (
                 <video
                   key={content.videoUrl}
@@ -623,13 +445,8 @@ export default function ResultPage() {
                   controls
                   playsInline
                   preload="metadata"
-                  crossOrigin="anonymous" 
+                  crossOrigin="anonymous"
                   poster={content.imageUrl}
-                  onError={() => {
-                    // Log e fallback
-                    console.error('Erro ao carregar vídeo:', content.videoUrl);
-                    toast.error('Erro ao carregar vídeo. Tente abrir em nova aba.');
-                  }}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -641,16 +458,8 @@ export default function ResultPage() {
                 </Button>
               )}
               {content.videoUrl && (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="absolute bottom-4 right-4 rounded-full"
-                  title="Abrir vídeo em nova aba"
-                >
-                  <a href={content.videoUrl} target="_blank" rel="noopener noreferrer">
-                    Abrir vídeo
-                  </a>
+                <Button asChild variant="outline" size="sm" className="absolute bottom-4 right-4 rounded-full" title="Abrir vídeo em nova aba">
+                  <a href={content.videoUrl} target="_blank" rel="noopener noreferrer">Abrir vídeo</a>
                 </Button>
               )}
             </Card>
@@ -678,32 +487,27 @@ export default function ResultPage() {
           </div>
         </main>
 
-      {/* Dialog para escolher tipo de revisão (imagem ou texto) */}
-      <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>O que você deseja revisar?</DialogTitle>
-            <DialogDescription>
-              Você pode fazer até {2 - content.revisions} revisões. Cada revisão consome 1 crédito.
-              Restam {team?.credits.contentReviews || 0} créditos de revisão.
-              <br />
-              <strong className="text-amber-600 dark:text-amber-400">
-                ⚠️ Importante: Os créditos são consumidos mesmo se você reverter as alterações posteriormente.
-              </strong>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            {!content.videoUrl && (
-              <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">
-                Ajustar a Imagem
-              </Button>
-            )}
-            <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">
-              Ajustar a Legenda
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog open={showRevisionDialog} onOpenChange={setShowRevisionDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>O que você deseja revisar?</DialogTitle>
+              <DialogDescription>
+                Você pode fazer até {2 - content.revisions} revisões. Cada uma consome 1 crédito.
+                Restam {team?.credits.contentReviews || 0} créditos de revisão.
+                <br />
+                <strong className="text-amber-600 dark:text-amber-400">
+                  ⚠️ Importante: Os créditos são consumidos mesmo se você reverter as alterações.
+                </strong>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+              {!content.videoUrl && (
+                <Button onClick={() => handleStartRevision('image')} className="flex-1" variant="secondary">Ajustar a Imagem</Button>
+              )}
+              <Button onClick={() => handleStartRevision('text')} className="flex-1" variant="secondary">Ajustar a Legenda</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -2,17 +2,26 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { ActionType } from '@/types/action';
+
+const DISPLAY_TO_ACTION_TYPE: { [key: string]: ActionType } = {
+  'Criar conteúdo': 'CRIAR_CONTEUDO',
+  'Revisar conteúdo': 'REVISAR_CONTEUDO',
+  'Planejar conteúdo': 'PLANEJAR_CONTEUDO',
+};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get('teamId');
   const userId = searchParams.get('userId');
   const status = searchParams.get('status');
-  const limit = searchParams.get('limit');
   const approved = searchParams.get('approved');
-  const type = searchParams.get('type');
-  
-  // Parâmetros de otimização
+
+  const brandName = searchParams.get('brandName');
+  const typeDisplayName = searchParams.get('type');
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '10', 10);
+
   const summary = searchParams.get('summary') === 'true';
   const getCount = searchParams.get('count') === 'true';
 
@@ -22,52 +31,68 @@ export async function GET(req: Request) {
 
   try {
     const whereClause: any = { teamId };
-    
+
     if (userId) whereClause.userId = userId;
     if (status) whereClause.status = status;
-    if (type) whereClause.type = type;
 
     if (approved === 'true') {
       whereClause.approved = true;
       whereClause.status = 'Aprovado';
     }
 
-    // OTIMIZAÇÃO: Se for apenas para contagem, use `count()` que é muito mais rápido
+    if (brandName) {
+      whereClause.brand = { name: brandName };
+    }
+    if (typeDisplayName && DISPLAY_TO_ACTION_TYPE[typeDisplayName]) {
+      whereClause.type = DISPLAY_TO_ACTION_TYPE[typeDisplayName];
+    }
+
     if (getCount) {
       const count = await prisma.action.count({ where: whereClause });
       return NextResponse.json({ count });
     }
-    
-    // OTIMIZAÇÃO: Se for um resumo, selecione apenas os campos essenciais
+
+    const skip = (page - 1) * limit;
+
     if (summary) {
-      const actions = await prisma.action.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          type: true,
-          createdAt: true,
-          brand: { select: { id: true, name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit ? parseInt(limit, 10) : 3, // Limite menor para resumos
-      });
-      return NextResponse.json(actions);
+      const [actions, total] = await prisma.$transaction([
+        prisma.action.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            type: true,
+            createdAt: true,
+            brand: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: skip,
+        }),
+        prisma.action.count({ where: whereClause }),
+      ]);
+
+      return NextResponse.json({ data: actions, total });
     }
 
-    // Busca completa padrão
-    const takeLimit = limit ? Math.min(parseInt(limit, 10), 100) : 20;
-    const actions = await prisma.action.findMany({
-      where: whereClause,
-      include: {
-        brand: { select: { id: true, name: true, segment: true } },
-        user: { select: { id: true, name: true, email: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: takeLimit,
-    });
-    
-    return NextResponse.json(actions);
+    // Busca completa padrão (com paginação)
+    const [actions, total] = await prisma.$transaction([
+      prisma.action.findMany({
+        where: whereClause,
+        include: {
+          brand: { select: { id: true, name: true, segment: true } },
+          user: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.action.count({ where: whereClause }),
+    ]);
+
+    return NextResponse.json({ data: actions, total });
+
   } catch (error) {
+    console.error("Erro ao buscar ações:", error);
     return NextResponse.json({ error: 'Failed to fetch actions' }, { status: 500 });
   }
 }
@@ -86,7 +111,7 @@ export async function POST(req: Request) {
       prisma.user.findFirst({ where: { id: userId, teamId: teamId } }),
       prisma.brand.findFirst({ where: { id: brandId, teamId: teamId } })
     ]);
-    
+
     if (!user) return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
     if (!brand) return NextResponse.json({ error: 'Brand not found or not part of the team' }, { status: 403 });
 
@@ -98,8 +123,8 @@ export async function POST(req: Request) {
         brandId,
         details: details || null,
         result: result || null,
-        status: 'Em revisão', // Status inicial padrão
-        approved: false, // Sempre `false` ao criar
+        status: 'Em revisão', 
+        approved: false, 
         revisions: 0,
       },
       include: {
