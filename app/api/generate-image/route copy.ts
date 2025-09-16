@@ -211,7 +211,7 @@ async function generateImage(
         : prompt;
 
     const fullPrompt = `${basePrompt}. 
-    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vi  brantes.
+    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vibrantes.
 
     Cores: aplique as cores da marca de maneira predominante, ajustando os elementos gráficos para manter a coesão visual.
 
