@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "powershell -Command \"Remove-Item -Path .next -Recurse -Force -ErrorAction SilentlyContinue\" && next dev",
+    "dev": "next dev",
     "prebuild": "prisma generate",
-    "build": "powershell -Command \"Remove-Item -Path .next -Recurse -Force -ErrorAction SilentlyContinue\" && next build",
-    "start": "next start",  
+    "build": "next build",
+    "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
