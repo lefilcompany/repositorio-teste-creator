@@ -64,10 +64,11 @@ export default function ResultPage() {
         const response = await fetch(`/api/actions?userId=${user.id}&teamId=${user.teamId}&status=Em revisão&limit=1`);
 
         if (response.ok) {
-          const actions = await response.json();
-          console.log('[ResultPage] Dados retornados da API /api/actions:', actions);
+          const json = await response.json();
+          const actions = Array.isArray(json) ? json : json?.data;
+          console.log('[ResultPage] Dados retornados da API /api/actions:', json);
 
-          if (actions && actions.length > 0) {
+          if (Array.isArray(actions) && actions.length > 0) {
             const action = actions[0];
             const parsedContent: GeneratedContent = {
               id: action.id,
