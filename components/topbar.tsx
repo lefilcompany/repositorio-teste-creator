@@ -456,9 +456,11 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 border-border/20 shadow-xl">
-              <DropdownMenuItem className="p-3">
-                <Info className="mr-3 h-4 w-4" />
-                <span>Sobre o Creator</span>
+              <DropdownMenuItem asChild className="p-3">
+                <Link href="/sobre-creator" className="flex items-center">
+                  <Info className="mr-3 h-4 w-4" />
+                  <span>Sobre o Creator</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem className="p-3">
                 <FileText className="mr-3 h-4 w-4" />
