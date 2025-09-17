@@ -56,7 +56,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       return NextResponse.json({ error: 'Action not found' }, { status: 404 });
     }
-    return NextResponse.json({ error: 'Failed to update action' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to update action', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
