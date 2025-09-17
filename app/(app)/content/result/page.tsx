@@ -77,7 +77,6 @@ export default function ResultPage() {
 
         const json = await response.json();
         const actions = Array.isArray(json) ? json : json?.data;
-        console.log('[ResultPage] Dados retornados da API /api/actions:', json);
 
         if (Array.isArray(actions) && actions.length > 0) {
           const action = actions[0];
@@ -159,7 +158,7 @@ export default function ResultPage() {
             approved: false,
           }),
           keepalive: useKeepAlive,
-        }).catch(() => {
+        }).catch((error) => {
           // Erro silencioso, pois é uma ação de limpeza
         });
       }
@@ -172,9 +171,12 @@ export default function ResultPage() {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      handleRouteChange();
+      // Só executa a rejeição se não estiver no processo de aprovação
+      if (!isApproving) {
+        handleRouteChange();
+      }
     };
-  }, [content]);
+  }, [content, isApproving]);
 
   const updateTeamCredits = useCallback(async (creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
     if (!user?.teamId || !team) return;
