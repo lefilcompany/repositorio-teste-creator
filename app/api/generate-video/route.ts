@@ -158,7 +158,9 @@ function buildFullVideoPrompt({
   ratio,
   duration,
 }: any): string {
-  const toneText = Array.isArray(tone) ? tone.map(cleanInput).join(", ") : cleanInput(tone);
+  const toneText = Array.isArray(tone)
+    ? tone.map(cleanInput).join(", ")
+    : cleanInput(tone);
   return [
     `Vídeo comercial para a marca "${cleanInput(brand)}", tema "${cleanInput(theme)}".`,
     `Objetivo: ${cleanInput(objective)}.`,
@@ -171,7 +173,9 @@ function buildFullVideoPrompt({
     `Proporção: ${cleanInput(ratio)}. Duração: ${duration}s.`,
     "Use efeitos modernos, cortes dinâmicos, animações de texto, finalize com logo da marca.",
     "Estética premium, iluminação clara, cores vibrantes, chamada para ação visual.",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // ============================================================================

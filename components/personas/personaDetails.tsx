@@ -15,13 +15,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Edit, Trash2, Users } from 'lucide-react';
 import type { Persona } from '@/types/persona';
-import type { Brand } from '@/types/brand';
+import type { BrandSummary } from '@/types/brand';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PersonaDetailsProps {
   persona: Persona | null;
   onEdit: (persona: Persona) => void;
   onDelete: () => void;
-  brands: Brand[];
+  brands: BrandSummary[];
+  isLoading?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -83,7 +85,27 @@ const JourneyStageField = ({ label, value }: { label: string, value?: string }) 
   );
 };
 
-export default function PersonaDetails({ persona, onEdit, onDelete, brands }: PersonaDetailsProps) {
+export default function PersonaDetails({ persona, onEdit, onDelete, brands, isLoading = false }: PersonaDetailsProps) {
+  if (isLoading) {
+    return (
+      <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-secondary/20 flex flex-col animate-pulse">
+        <div className="flex items-center mb-6 flex-shrink-0">
+          <Skeleton className="w-16 h-16 rounded-xl mr-4" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+        <div className="flex gap-3 mt-6 flex-shrink-0">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 flex-1" />
+        </div>
+      </div>
+    );
+  }
+
   if (!persona) {
     return (
       <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center space-y-2">

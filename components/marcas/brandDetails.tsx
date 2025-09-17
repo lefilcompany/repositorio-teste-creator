@@ -17,11 +17,13 @@ import {
 // **NOVO:** Importando ícones adicionais
 import { Edit, Trash2, Tag, ExternalLink, FileDown, Palette } from 'lucide-react';
 import type { Brand, MoodboardFile, ColorItem } from '@/types/brand';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface BrandDetailsProps {
   brand: Brand | null;
   onEdit: (brand: Brand) => void;
   onDelete: () => void;
+  isLoading?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -151,7 +153,27 @@ const ColorPaletteField = ({ colors }: { colors?: ColorItem[] | null }) => {
 };
 
 
-export default function BrandDetails({ brand, onEdit, onDelete }: BrandDetailsProps) {
+export default function BrandDetails({ brand, onEdit, onDelete, isLoading = false }: BrandDetailsProps) {
+  if (isLoading) {
+    return (
+      <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-secondary/20 flex flex-col animate-pulse">
+        <div className="flex items-center mb-6 flex-shrink-0">
+          <Skeleton className="w-16 h-16 rounded-xl mr-4" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full" />
+          ))}
+        </div>
+        <div className="flex gap-3 mt-6 flex-shrink-0">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 flex-1" />
+        </div>
+      </div>
+    );
+  }
+
   if (!brand) {
     return (
       <div className="lg:col-span-1 h-full bg-card p-6 rounded-2xl border-2 border-dashed border-secondary/20 flex flex-col items-center justify-center text-center">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, Check, Users, UserPlus, UserX, Clock, Info, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Bell, Check, Users, UserPlus, UserX, Clock, Info, AlertTriangle, AlertCircle, BellRing, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface Notification {
   id: string;
@@ -23,7 +24,7 @@ interface Notification {
   createdAt: string;
 }
 
-export default function Notifications() {
+export default function   Notifications() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -208,114 +209,155 @@ export default function Notifications() {
         <Button
           id="topbar-notifications"
           variant="ghost"
-          size="icon"
-          className="rounded-2xl h-12 w-12 hover:bg-primary/20 transition-all duration-200 border border-transparent bg-background hover:border-primary/40 hover:shadow-md relative"
-        >
-          <Bell className="h-5 w-5 text-muted-foreground transition-colors duration-200" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-medium animate-pulse">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
+          size="sm"
+          className={cn(
+            "h-12 w-12 rounded-2xl hover:bg-primary/20 transition-all duration-200 border border-transparent bg-background hover:border-primary/40 hover:shadow-md hover:text-muted-foreground",
+            unreadCount > 0 ? "text-primary" : "text-muted-foreground"
           )}
-          <span className="sr-only">Notificações</span>
+        >
+          {unreadCount > 0 ? (
+            <BellRing className="h-4 w-4 md:h-5 md:w-5" />
+          ) : (
+            <Bell className="h-4 w-4 md:h-5 md:w-5" />
+          )}
+          
+          {unreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-bold animate-pulse border-2 border-background">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+          <span className="sr-only">
+            Notificações {unreadCount > 0 && `(${unreadCount} não lidas)`}
+          </span>
         </Button>
       </DropdownMenuTrigger>
+      
       <DropdownMenuContent 
         align="end" 
-        className="w-80 max-h-96 overflow-y-auto border-border/20 shadow-xl"
-        sideOffset={8}
+        className="w-80 md:w-96 max-h-[70vh] overflow-hidden border-border/20 shadow-2xl rounded-xl"
+        sideOffset={12}
       >
-        <div className="p-3 border-b border-border/20">
-          <h3 className="font-semibold text-foreground">Notificações</h3>
-          {unreadCount > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {unreadCount} não lida{unreadCount > 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-
-        {isLoading ? (
-          <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-            <p className="text-sm text-muted-foreground mt-2">Carregando...</p>
-          </div>
-        ) : notifications.length > 0 ? (
-          <div className="py-2">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`p-4 border-b border-border/30 last:border-b-0 ${
-                  !notification.read ? 'bg-muted/30' : ''
-                }`}
+        {/* Header */}
+        <div className="p-4 border-b border-border/20 bg-muted/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">Notificações</h3>
+              {unreadCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {unreadCount} não lida{unreadCount > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+            {notifications.length > 0 && unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={markAllAsRead}
+                className="text-xs h-7 px-2 hover:bg-primary/10 hover:text-primary"
               >
-                <div className="flex items-start gap-3 w-full">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={`text-sm leading-relaxed ${!notification.read ? 'font-medium' : ''}`}>
-                        {notification.message}
-                      </p>
-                      {!notification.read && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markAsRead(notification.id);
-                          }}
-                          className="flex-shrink-0 p-1 hover:bg-primary/10 rounded transition-colors"
-                          title="Marcar como lida"
-                        >
-                          <Check className="h-3 w-3 text-primary" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {formatTime(notification.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-6 text-center">
-            <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            {!user?.teamId ? (
-              <>
-                <p className="text-muted-foreground">Sem notificações</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Entre em uma equipe para receber notificações
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-muted-foreground">Nenhuma notificação</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Você será notificado sobre atividades da equipe
-                </p>
-              </>
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Marcar todas
+              </Button>
             )}
           </div>
-        )}
+        </div>
 
-                 {notifications.length > 0 && (
-           <>
-             <DropdownMenuSeparator />
-             <div className="p-3">
-               <button
-                 onClick={markAllAsRead}
-                 className="text-sm text-primary hover:text-primary/80 transition-colors w-full text-left"
-               >
-                 Marcar todas como lidas
-               </button>
-             </div>
-           </>
-         )}
+        {/* Content */}
+        <div className="overflow-y-auto max-h-80">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-3"></div>
+              <p className="text-sm text-muted-foreground">Carregando notificações...</p>
+            </div>
+          ) : notifications.length > 0 ? (
+            <div className="divide-y divide-border/20">
+              {notifications.map((notification, index) => (
+                <div
+                  key={notification.id}
+                  className={cn(
+                    "p-4 transition-all duration-200 hover:bg-muted/30 group cursor-pointer",
+                    !notification.read && "bg-primary/5 border-l-4 border-l-primary"
+                  )}
+                  onClick={() => !notification.read && markAsRead(notification.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Icon */}
+                    <div className={cn(
+                      "p-2 rounded-lg flex-shrink-0 mt-0.5",
+                      !notification.read ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    )}>
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "text-sm leading-relaxed",
+                        !notification.read ? "font-medium text-foreground" : "text-muted-foreground"
+                      )}>
+                        {notification.message}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground/70">
+                          {formatTime(notification.createdAt)}
+                        </p>
+                        
+                        {!notification.read && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsRead(notification.id);
+                            }}
+                            className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Marcar lida
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Unread indicator */}
+                    {!notification.read && (
+                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <Bell className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-sm font-medium text-muted-foreground mb-1">Nenhuma notificação</p>
+              <p className="text-xs text-muted-foreground/70">
+                Você está em dia! Todas as suas notificações foram visualizadas.
+              </p>
+            </div>
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
+// Helper function to get notification icon
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'team_join':
+      return <UserPlus className="h-4 w-4" />;
+    case 'team_leave':
+      return <UserX className="h-4 w-4" />;
+    case 'team_update':
+      return <Users className="h-4 w-4" />;
+    case 'warning':
+      return <AlertTriangle className="h-4 w-4" />;
+    case 'error':
+      return <AlertCircle className="h-4 w-4" />;
+    case 'info':
+    default:
+      return <Info className="h-4 w-4" />;
+  }
+};

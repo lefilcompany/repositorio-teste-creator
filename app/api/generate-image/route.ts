@@ -10,11 +10,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MAX_PROMPT_LENGTH = 3950;
+const MAX_PROMPT_LENGTH = 5000;
 
-/**
- * Converte dados de imagem base64 para data URL
- */
 function createImageDataUrl(
   base64Data: string,
   mimeType: string = "image/png"
@@ -22,11 +19,6 @@ function createImageDataUrl(
   return `data:${mimeType};base64,${base64Data}`;
 }
 
-/**
- * Limpa o texto de entrada de forma mínima, removendo apenas caracteres
- * que podem corromper a sintaxe do prompt e normalizando espaços em branco.
- * NÃO remove palavras nem faz substituições, preservando a intenção original do usuário.
- */
 function cleanInput(text: string | string[] | undefined | null): string {
   if (!text) return "";
 
@@ -50,18 +42,19 @@ function cleanInput(text: string | string[] | undefined | null): string {
  * Esta versão utiliza o input do usuário de forma direta, sem sanitização de palavras.
  */
 function buildDetailedImagePrompt(formData: any): string {
-  const description = cleanInput(formData.prompt);
   const brand = cleanInput(formData.brand);
   const theme = cleanInput(formData.theme);
-  const objective = cleanInput(formData.objective);
+  const persona = cleanInput(formData.persona);
   const platform = cleanInput(formData.platform);
   const audience = cleanInput(formData.audience);
+
+  const objective = cleanInput(formData.objective);
+  const description = cleanInput(formData.prompt);
   const tones = Array.isArray(formData.tone)
     ? formData.tone
     : formData.tone
       ? [formData.tone]
       : [];
-  const persona = cleanInput(formData.persona);
   const additionalInfo = cleanInput(formData.additionalInfo);
 
   let promptParts: string[] = [];
@@ -69,7 +62,7 @@ function buildDetailedImagePrompt(formData: any): string {
   // 0. Marca e Tema sempre explícitos no início
   if (brand && theme) {
     promptParts.push(
-      `Imagem publicitária criada para a marca "${brand}", destacando o tema "${theme}".`
+      `Imagem profissional criada para a marca "${brand}", destacando o tema "${theme}".`
     );
   } else if (brand) {
     promptParts.push(`Imagem comercial para a marca "${brand}".`);
@@ -80,7 +73,17 @@ function buildDetailedImagePrompt(formData: any): string {
   // 1. Assunto Principal e Qualidade Central
   if (description) {
     promptParts.push(
-      `Uma obra-prima de fotografia comercial, hiper-detalhada e fotorrealista de: ${description}`
+      `Uma fotografia comercial de alta precisão e fotorrealismo, com atenção detalhada aos aspectos de iluminação e composição. A cena será meticulosamente projetada para capturar a luz natural de forma eficaz, utilizando uma combinação de fontes de luz suave e direta para criar um contraste harmonioso. As cores quentes serão empregadas de forma estratégica para evocar uma sensação de acolhimento e profissionalismo. Cada elemento da composição será cuidadosamente alinhado para otimizar a percepção visual, com foco em criar uma narrativa visual impactante, utilizando métodos comprovados de design fotográfico e análise de impacto visual para maximizar a eficiência da comunicação visual.
+      seguindo e priorizando a descrição: ${description}.
+      
+      Cores: aplique as cores da marca de maneira predominante, ajustando os elementos gráficos para manter a coesão visual.
+
+      Tipografia: se houver fontes específicas ou estilos tipográficos na identidade da marca, insira-as no design, adaptando para o tom visual da imagem (ex: fontes serifadas para formalidade, sans-serif para modernidade).
+
+      Elementos gráficos: utilize ícones, padrões, texturas e formas que são parte da identidade visual da marca, como elementos repetitivos, bordas, ou estilos gráficos que caracterizam o cliente.
+
+      Estilo visual: faça ajustes no estilo de composição (ex: simétrico, assimétrico, centralizado, etc.), baseando-se no comportamento e preferências visuais do público-alvo da marca.
+      `
     );
   }
 
@@ -97,29 +100,48 @@ function buildDetailedImagePrompt(formData: any): string {
   if (tones.length > 0) {
     const toneMap: { [key: string]: string } = {
       inspirador:
-        "banhado em uma luz quente da golden hour, criando uma atmosfera edificante e motivacional, com sombras suaves",
+        "Cena iluminada pela luz dourada da golden hour, com raios suaves atravessando o cenário. Atmosfera edificante e esperançosa, com sombras delicadas que sugerem crescimento. Ajuste os detalhes de iluminação e cores conforme a identidade visual do cliente, aplicando o estilo único de sua marca (exemplo: cores principais ou elementos visuais usados). Utilize formas suaves e espacialidade bem definida.",
       motivacional:
-        "energia dinâmica capturada com cores vibrantes e um leve motion blur para encorajar a ação",
+        "Cores vibrantes e saturadas, com iluminação dinâmica e uso de motion blur leve para dar sensação de movimento. A composição energética deve incentivar ação e conquistas, sendo fiel ao estilo visual da marca. Alinhe o uso de contrastes de cores com os padrões de identidade visual (exemplo: tons específicos ou estilo gráfico). Certifique-se de que o dinamismo da imagem combine com a energia da marca.",
       profissional:
-        "estética corporativa limpa, com iluminação de estúdio neutra e foco nítido, transmitindo confiança e expertise",
+        "Estética corporativa limpa, iluminação neutra, com foco nítido e fundo minimalista. Use espacamento e equilíbrio para transmitir autoridade e clareza. Ajuste a paleta de cores primárias da marca, e a tipografia (caso haja) para manter o visual alinhado com a identidade profissional. Mantenha uma composição estruturada e evite elementos visuais excessivos, destacando os valores da marca.",
       casual:
-        "atmosfera relaxada com iluminação natural e suave, como a de uma janela, criando um ambiente amigável e convidativo",
+        "Luz natural suave, com elementos cotidianos e uma paleta de cores acolhedora. A composição descontraída e espontânea deve transmitir autenticidade. Aplique a paleta de cores informais e o estilo visual que melhor represente o tom amigável da marca. Use detalhes simples e texturizados, como elementos de estilo 'handmade', se for relevante para a identidade visual do cliente.",
       elegante:
-        "estilo sofisticado com uma paleta de cores refinada, iluminação suave e composição minimalista para um toque luxuoso",
+        "Paleta refinada, com iluminação suave e texturas nobres como mármore ou veludo. A composição minimalista deve refletir sofisticação e luxo. Ajuste as cores de fundo e o detalhamento das texturas conforme o estilo da marca, incorporando elementos visuais que falem diretamente ao segmento de alto padrão que o cliente deseja atingir (como detalhes dourados ou metálicos, se for aplicável).",
       moderno:
-        "design contemporâneo com linhas arrojadas, iluminação de alto contraste e uma estética de vanguarda",
+        "Design arrojado com formas geométricas e alta contrastância de cores. Iluminação intensa e elementos gráficos com uma estética futurista. Aplique a paleta de cores principais da marca (caso haja) e use tipografia contemporânea para transmitir inovação. Esteja atento para que o estilo visual esteja alinhado com as preferências mais atuais do cliente, refletindo o dinamismo de sua marca.",
       tradicional:
-        "apelo atemporal com cores clássicas, iluminação equilibrada e composição simétrica, transmitindo herança e confiabilidade",
+        "Paleta de cores clássicas, com iluminação equilibrada e composição simétrica. A imagem deve evocar confiança e estabilidade, com elementos visuais que falem à tradição. Use detalhes sutis, como texturas suaves ou linhas clássicas, adaptando a paleta de cores da marca para garantir que a imagem se encaixe com a herança visual e identidade do cliente.",
       divertido:
-        "humor divertido capturado com cores saturadas, iluminação brilhante e uma composição lúdica e energética",
+        "Cores vibrantes, com elementos gráficos lúdicos e iluminação alegre. A composição enérgica deve destacar a diversão e criatividade. Personalize a paleta de cores de acordo com o tom visual da marca, e use elementos interativos ou detalhes que incentivem o engajamento visual, como emojis, padrões repetitivos ou elementos gráficos descontraídos, se for relevante.",
       sério:
-        "tom formal com iluminação dramática (chiaroscuro), sombras profundas e uma apresentação imponente para transmitir gravidade",
+        "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
+      futurista:
+        "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
+      nostálgico:
+        "Cores desbotadas e textura de filme analógico, criando uma atmosfera melancólica e acolhedora. Ajuste os efeitos vintage e tipografia clássica para refletir a estética única da marca, aplicando cores de fundo e elementos visuais que ressoem com o legado da marca e seus valores emocionais.",
+      romântico:
+        "Paleta suave em tons pastel, com iluminação delicada e difusa. A composição intimista deve refletir carinho e proximidade emocional. Aplique a paleta de cores da marca, ajustando a iluminação para que o visual combine com os valores românticos ou afetivos do cliente, usando elementos como detalhes florais ou texturas suaves.",
+      minimalista:
+        "Paleta monocromática ou neutra, com iluminação uniforme e composição limpa. A imagem deve transmitir simplicidade e clareza, destacando o essencial. Use espaços negativos, tipografia limpa e formas geométricas para garantir um visual simples, alinhado com o design visual minimalista do cliente.",
+      artístico:
+        "Composição inspirada em pintura (óleo, aquarela ou surrealismo), com pinceladas visíveis e cores expressivas. A imagem deve evocar criatividade e liberdade. Adapte o estilo artístico conforme a marca, aplicando padrões visuais únicos ou elementos gráficos personalizados, como técnicas de pintura manual ou detalhes visuais que destacam a arte digital.",
+      épico:
+        "Iluminação grandiosa, com ângulos heroicos e composição monumental. A imagem deve transmitir poder e grandeza. Personalize a iluminação e ângulos de câmera de acordo com a identidade visual da marca, usando formas dramáticas ou elementos em 3D para garantir que a imagem tenha a escala e o impacto que a marca exige.",
+      tecnológico:
+        "Iluminação dramática e composição formal, com contraste forte e ângulos monumentais. A imagem deve transmitir autoridade e seriedade. Ajuste a iluminação e composição de sombras para refletir a força da marca, garantindo que tipografia robusta ou formas sólidas se alinhem com o tom da marca, transmitindo confiança e respeito.",
+      orgânico:
+        "Luz natural suave e elementos de madeira, pedra e plantas. A imagem deve transmitir uma conexão com a natureza e sustentabilidade. Adapte os elementos naturais e a paleta de cores verdes da marca para garantir que a imagem seja harmoniosa com a identidade visual da marca, criando um ambiente orgânico e sustentável.",
+      luxuoso:
+        "Detalhes em dourado, iluminação suave e superfícies brilhantes. A imagem deve refletir exclusividade e requinte. Ajuste os elementos de brilho e textura para se alinhar com a identidade visual do cliente, utilizando tipografia sofisticada e detalhes refinados para garantir um visual luxuoso e elegante.",
     };
     const mappedTones = tones
       .map((tone) => {
         const cleanTone = cleanInput(tone);
         return (
-          toneMap[cleanTone.toLowerCase()] || `com uma estética ${cleanTone}`
+          toneMap[cleanTone.toLowerCase()] ||
+          `com uma estética ${cleanTone} de forma única e criativa `
         );
       })
       .join(", ");
@@ -128,25 +150,26 @@ function buildDetailedImagePrompt(formData: any): string {
 
   // 4. Detalhes Técnicos da Câmera
   promptParts.push(
-    "Detalhes técnicos: foto tirada com uma câmera DSLR profissional (como uma Canon EOS R5) e uma lente de 85mm f/1.4, resultando em uma profundidade de campo rasa e um belo efeito bokeh no fundo"
+    "Detalhes técnicos: a foto foi capturada com uma câmera DSLR de alta qualidade, como a Canon EOS R5, equipada com uma lente de 85mm f/1.4. Essa combinação proporciona uma profundidade de campo rasa, criando um efeito bokeh suave e bem definido no fundo, que destaca o sujeito principal e confere uma estética profissional e cinematográfica à imagem. A escolha da lente também contribui para um desfoque agradável, mantendo o foco nítido e claro nos elementos mais importantes da composição."
   );
 
   // 5. Otimização para Plataforma
   const platformStyles: { [key: string]: string } = {
     instagram:
-      "formato quadrado 1:1, cores vibrantes, otimizado para feed do Instagram",
+      "formato quadrado 1:1, cores vibrantes, otimizado para engajamento no feed e stories do Instagram",
     facebook:
-      "composição envolvente, focada na comunidade, otimizada para compartilhamento social",
+      "composição envolvente, focada na comunidade, otimizada para compartilhamento e interação social no Facebook",
     linkedin:
-      "estética profissional e corporativa, ideal para posts de negócios",
+      "estética profissional e corporativa, ideal para posts informativos e de negócios, com ênfase na clareza e objetividade",
     twitter:
-      "design limpo e chamativo, otimizado para visibilidade no Twitter/X",
-    x: "design limpo e chamativo, otimizado para visibilidade no Twitter/X",
+      "design clean e chamativo, otimizado para máxima visibilidade e engajamento em threads no Twitter/X",
+    x: "design clean e chamativo, otimizado para visibilidade e interações rápidas no Twitter/X",
     tiktok:
-      "formato vertical 9:16, composição dinâmica e energia jovem, perfeito para TikTok",
+      "formato vertical 9:16, composição dinâmica e energia jovem, perfeito para vídeos curtos e envolventes no TikTok",
     youtube:
-      "estilo thumbnail de alto contraste, otimizado para taxas de clique no YouTube",
+      "estilo thumbnail de alto contraste, otimizado para aumentar taxas de clique e visualizações no YouTube, com foco em visual impactante",
   };
+
   if (platform && platformStyles[platform.toLowerCase()]) {
     promptParts.push(
       `Otimizado para a plataforma: ${platformStyles[platform.toLowerCase()]}`
@@ -164,7 +187,36 @@ function buildDetailedImagePrompt(formData: any): string {
 
   // 7. Palavras-chave de Reforço e "Prompt Negativo"
   promptParts.push(
-    `Esta imagem é para um anúncio da marca "${brand}" sobre o tema "${theme}".`
+    `Esta imagem é para um anúncio da marca "${brand}" sobre o tema "${theme}".
+    Não inclua nada além do que foi pedido.
+    não adicione texto que não foi pedido.`
+  );
+
+  // 8. Textos e fontes - Técnicas e Métricas
+  promptParts.push(
+    `Textos na imagem: 
+    - **Posicionamento**: Coloque o texto em áreas onde não interfira nos elementos principais da imagem. Idealmente, posicione-o nas **áreas vazias ou de maior contraste** para garantir legibilidade. Em imagens simétricas, tente alinhar o texto ao centro ou à esquerda/direita, dependendo da composição. Evite posicionar o texto no topo ou fundo da imagem, onde pode se perder.
+    - **Margem e Distância**: Mantenha uma **margem mínima de 10% da largura da imagem** de cada lado do texto. A distância entre linhas (leading) deve ser de pelo menos **120% da altura da fonte** para garantir boa legibilidade e evitar sobreposição visual.
+    - **Espaçamento entre as palavras**: Ajuste o **tracking** (espaçamento entre letras) conforme o peso da fonte. Para fontes mais finas, use um **tracking maior** (0,05 em termos de unidades tipográficas), e para fontes mais grossas, um **tracking menor** para evitar que o texto se torne difícil de ler.
+  
+  **Fontes**: 
+    - **Estilo da fonte**: Para títulos, use fontes **negritadas (bold)** ou **sem serifa** (sans-serif), pois elas são mais impactantes e visíveis. Para textos secundários ou explicativos, prefira fontes **serifadas** ou **light sans-serif**, que são mais elegantes e legíveis em blocos de texto.
+    - **Tamanho da fonte**: 
+      - **Títulos**: Entre **36px a 60px**, dependendo do tamanho da imagem.
+      - **Subtítulos**: Entre **24px a 36px**.
+      - **Textos de apoio**: Entre **14px a 20px**, com um peso mais leve, para que o texto não roube a atenção.
+    - **Contraste e legibilidade**: Certifique-se de que o contraste entre o texto e o fundo seja de pelo menos **4.5:1** para garantir legibilidade em dispositivos móveis e desktops, conforme as diretrizes WCAG.
+    
+  **Métricas de Alinhamento**:
+    - **Alinhamento horizontal**: Para títulos, considere o alinhamento **à esquerda ou ao centro**. Para textos menores ou descrições, **alinhamento à esquerda** funciona melhor para fluidez visual.
+    - **Alinhamento vertical**: Evite centralizar texto em toda a altura da imagem, a menos que a imagem seja minimalista. Em composições mais complexas, alinhe o texto na **parte superior ou inferior** para não sobrecarregar o design.
+
+  **Métodos de Composição Visual**:
+    - **Contraste e hierarquia**: Utilize um **alto contraste** para os textos principais (títulos), e contraste mais suave para textos de apoio. Estabeleça uma clara **hierarquia tipográfica**, onde os títulos e subtítulos se destacam, seguidos pelo corpo do texto.
+    - **Utilização de blocos de cor**: Se necessário, coloque um **bloco de cor semitransparente** atrás do texto para garantir a legibilidade, especialmente em imagens complexas ou com fundo movimentado.
+
+    Esses métodos garantirão que o texto se destaque de maneira eficaz, sem interferir no impacto visual da imagem, mantendo sempre a clareza e harmonia no design.
+  `
   );
 
   const finalPrompt = promptParts.join(". ");
@@ -172,66 +224,6 @@ function buildDetailedImagePrompt(formData: any): string {
     ? finalPrompt.substring(0, MAX_PROMPT_LENGTH)
     : finalPrompt;
 }
-
-/**
- * Prompt alternativo mais conservador.
- */
-// function buildConservativePrompt(formData: any): string {
-//   const description = cleanInput(formData.prompt);
-//   const brand = cleanInput(formData.brand);
-//   const platform = cleanInput(formData.platform);
-
-//   let prompt = "Fotografia comercial profissional, fundo limpo, iluminação natural suave, alta qualidade, realista, pronta para marketing";
-//   if (description) prompt += `, apresentando uma visão de: ${description.split(' ').slice(0, 25).join(' ')}`;
-//   if (brand) prompt += ` para a marca ${brand}`;
-//   if (platform) prompt += ` otimizado para a plataforma ${platform}`;
-//   prompt += ", estética moderna e visualmente agradável.";
-//   return prompt;
-// }
-
-// /**
-//  * Prompt de emergência ultra-conservador.
-//  */
-// function buildFallbackPrompt(): string {
-//   return "Fotografia comercial profissional, fundo minimalista e limpo, iluminação natural suave, alta resolução, foco no produto, pronto para marketing, composição simples e clara.";
-// }
-
-// /**
-//  * Interface para parâmetros específicos do GPT-Image-1
-//  */
-// interface GPTImage1Params {
-//   prompt: string;
-//   model: 'gpt-image-1';
-//   background?: 'auto' | 'transparent' | 'opaque';
-//   quality?: 'low' | 'medium' | 'high' | 'auto';
-//   size?: '1024x1024' | '1792x1024' | '1024x1792';
-//   output_format?: 'png' | 'jpeg';
-//   moderation?: 'auto' | 'low';
-//   n?: number;
-// }
-
-// /**
-//  * Função específica para gerar imagens com GPT-Image-1
-//  */
-// async function generateImageWithGPTImage1(prompt: string, quality: 'low' | 'medium' | 'high' | 'auto' = 'high'): Promise<any> {
-//   try {
-//     console.log(`Gerando imagem com GPT-Image-1, prompt: "${prompt.substring(0, 100)}..."`);
-//     const imageParams: GPTImage1Params = {
-//       model: 'gpt-image-1',
-//       prompt,
-//       background: 'transparent',
-//       n: 1,
-//       quality,
-//       size: '1024x1024',
-//       output_format: 'png',
-//       moderation: 'auto',
-//     };
-//     const response = await openai.images.generate(imageParams);
-//     return response;
-//   } catch (error) {
-//     //     throw error;
-//   }
-// }
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API,
@@ -250,7 +242,17 @@ async function generateImage(
         ? prompt.substring(0, maxPromptLength)
         : prompt;
 
-    const fullPrompt = `${basePrompt}. Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vibrantes.`;
+    const fullPrompt = `${basePrompt}. 
+    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vi  brantes.
+
+    Cores: aplique as cores da marca de maneira predominante, ajustando os elementos gráficos para manter a coesão visual.
+
+    Tipografia: se houver fontes específicas ou estilos tipográficos na identidade da marca, insira-as no design, adaptando para o tom visual da imagem (ex: fontes serifadas para formalidade, sans-serif para modernidade).
+
+    Elementos gráficos: utilize ícones, padrões, texturas e formas que são parte da identidade visual da marca, como elementos repetitivos, bordas, ou estilos gráficos que caracterizam o cliente.
+
+    Estilo visual: faça ajustes no estilo de composição (ex: simétrico, assimétrico, centralizado, etc.), baseando-se no comportamento e preferências visuais do público-alvo da marca.
+    `;
 
     const contents: any[] = [];
     if (referenceImage) {
@@ -268,7 +270,7 @@ async function generateImage(
     contents.push({ text: fullPrompt });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-preview-image-generation", 
+      model: "gemini-2.5-flash-image-preview",
       contents,
       config: {
         responseModalities: [Modality.TEXT, Modality.IMAGE],
@@ -777,7 +779,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: errorMessage,
-        model: "gemini-2.0-flash-preview-image-generation",
+        model: "gemini-2.5-flash-image-preview",
         timestamp: new Date().toISOString(),
         shouldRedirectToHistory: statusCode === 500, // Só redireciona para histórico em erros críticos
       },

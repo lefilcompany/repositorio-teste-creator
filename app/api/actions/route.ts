@@ -1,184 +1,121 @@
+// /app/api/actions/route.ts
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { ActionType } from '@/types/action';
+
+const DISPLAY_TO_ACTION_TYPE: { [key: string]: ActionType } = {
+  'Criar conteúdo': 'CRIAR_CONTEUDO',
+  'Revisar conteúdo': 'REVISAR_CONTEUDO',
+  'Planejar conteúdo': 'PLANEJAR_CONTEUDO',
+};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get('teamId');
   const userId = searchParams.get('userId');
   const status = searchParams.get('status');
-  const limit = searchParams.get('limit');
   const approved = searchParams.get('approved');
-  const type = searchParams.get('type');
-  
+
+  const brandName = searchParams.get('brandName');
+  const typeDisplayName = searchParams.get('type');
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '10', 10);
+
+  const summary = searchParams.get('summary') === 'true';
+  const getCount = searchParams.get('count') === 'true';
+
   if (!teamId) {
     return NextResponse.json({ error: 'teamId is required' }, { status: 400 });
   }
-  
+
   try {
     const whereClause: any = { teamId };
-    
-    if (userId) {
-      whereClause.userId = userId;
-    }
-    
-    if (status) {
-      whereClause.status = status;
-    }
-    
-    if (type) {
-      whereClause.type = type;
-    }
-    
-    // Filtro específico para ações aprovadas (usado no histórico)
+
+    if (userId) whereClause.userId = userId;
+    if (status) whereClause.status = status;
+
     if (approved === 'true') {
       whereClause.approved = true;
       whereClause.status = 'Aprovado';
     }
-    
-    // Definir limite padrão para evitar queries muito grandes
-    const takeLimit = limit ? Math.min(parseInt(limit, 10), 100) : 20;
-    
-    const queryOptions: any = {
-      where: whereClause,
-      include: {
-        brand: {
-          select: {
-            id: true,
-            name: true,
-            segment: true,
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: takeLimit
-    };
-    
-    const actions = await prisma.action.findMany(queryOptions);
-    return NextResponse.json(actions);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch actions' }, { status: 500 });
-  }
-}
 
-export async function PUT(req: Request) {
-  try {
-    const data = await req.json();
-    const { id, status, approved, requesterUserId } = data;
-    
-    if (!id) {
-      return NextResponse.json({ error: 'Action ID is required' }, { status: 400 });
+    if (brandName) {
+      whereClause.brand = { name: brandName };
     }
-    
-    // Busca a action para validar permissões
-    const existingAction = await prisma.action.findUnique({
-      where: { id },
-      select: { 
-        id: true, 
-        teamId: true, 
-        userId: true,
-        status: true,
-        approved: true,
-        result: true
-      }
-    });
-    
-    if (!existingAction) {
-      return NextResponse.json({ error: 'Action not found' }, { status: 404 });
+    if (typeDisplayName && DISPLAY_TO_ACTION_TYPE[typeDisplayName]) {
+      whereClause.type = DISPLAY_TO_ACTION_TYPE[typeDisplayName];
     }
-    
-    // Verifica permissão do usuário
-    if (requesterUserId && existingAction.userId !== requesterUserId) {
-      const requester = await prisma.user.findFirst({
-        where: { 
-          id: requesterUserId, 
-          teamId: existingAction.teamId 
-        }
-      });
-      if (!requester) {
-        return NextResponse.json({ error: 'Sem permissão para atualizar esta ação' }, { status: 403 });
-      }
+
+    if (getCount) {
+      const count = await prisma.action.count({ where: whereClause });
+      return NextResponse.json({ count });
     }
-    
-    // Atualiza apenas os campos fornecidos
-    const updateData: any = {
-      updatedAt: new Date()
-    };
-    
-    if (status !== undefined) {
-      updateData.status = status;
-      }
-    if (approved !== undefined) {
-      updateData.approved = approved;
-      }
-    
-    const updatedAction = await prisma.action.update({
-      where: { id },
-      data: updateData,
-      include: {
-        brand: true,
-        user: {
+
+    const skip = (page - 1) * limit;
+
+    if (summary) {
+      const [actions, total] = await prisma.$transaction([
+        prisma.action.findMany({
+          where: whereClause,
           select: {
             id: true,
-            name: true,
-            email: true,
-          }
-        }
-      }
-    });
-    
-    return NextResponse.json(updatedAction);
-    
+            type: true,
+            createdAt: true,
+            brand: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: skip,
+        }),
+        prisma.action.count({ where: whereClause }),
+      ]);
+
+      return NextResponse.json({ data: actions, total });
+    }
+
+    // Busca completa padrão (com paginação)
+    const [actions, total] = await prisma.$transaction([
+      prisma.action.findMany({
+        where: whereClause,
+        include: {
+          brand: { select: { id: true, name: true, segment: true } },
+          user: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.action.count({ where: whereClause }),
+    ]);
+
+    return NextResponse.json({ data: actions, total });
+
   } catch (error) {
-    return NextResponse.json({ 
-      error: 'Failed to update action', 
-      details: error instanceof Error ? error.message : 'Erro desconhecido' 
-    }, { status: 500 });
+    console.error("Erro ao buscar ações:", error);
+    return NextResponse.json({ error: 'Failed to fetch actions' }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    const { teamId, userId, brandId, type, details, result, status, approved, revisions } = data;
-    
-    // Validações básicas
+    const { teamId, userId, brandId, type, details, result } = data;
+
     if (!teamId || !userId || !brandId || !type) {
       return NextResponse.json({ error: 'teamId, userId, brandId and type are required' }, { status: 400 });
     }
-    
-    // Verificar se o usuário pertence à equipe
-    const user = await prisma.user.findFirst({
-      where: { 
-        id: userId, 
-        teamId: teamId 
-      }
-    });
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
-    }
-    
-    // Verificar se a marca pertence à equipe
-    const brand = await prisma.brand.findFirst({
-      where: {
-        id: brandId,
-        teamId: teamId
-      }
-    });
-    
-    if (!brand) {
-      return NextResponse.json({ error: 'Brand not found or not part of the team' }, { status: 403 });
-    }
 
-    // Criar a ação - sempre com status "Em revisão" para CRIAR_CONTEUDO
-    const action = await prisma.action.create({ 
+    // OTIMIZAÇÃO: Valide permissões em paralelo
+    const [user, brand] = await Promise.all([
+      prisma.user.findFirst({ where: { id: userId, teamId: teamId } }),
+      prisma.brand.findFirst({ where: { id: brandId, teamId: teamId } })
+    ]);
+
+    if (!user) return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
+    if (!brand) return NextResponse.json({ error: 'Brand not found or not part of the team' }, { status: 403 });
+
+    const action = await prisma.action.create({
       data: {
         type,
         teamId,
@@ -186,19 +123,13 @@ export async function POST(req: Request) {
         brandId,
         details: details || null,
         result: result || null,
-        status: type === 'CRIAR_CONTEUDO' ? 'Em revisão' : (status || 'Em revisão'),
-        approved: false, // Sempre false inicialmente
-        revisions: revisions || 0,
+        status: 'Em revisão', 
+        approved: false, 
+        revisions: 0,
       },
       include: {
         brand: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
+        user: { select: { id: true, name: true, email: true } }
       }
     });
 
@@ -207,4 +138,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to create action' }, { status: 500 });
   }
 }
-

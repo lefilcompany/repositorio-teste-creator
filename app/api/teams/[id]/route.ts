@@ -1,3 +1,5 @@
+// app/api/teams/[id]/route.ts
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -6,65 +8,94 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const team = await prisma.team.findUnique({ 
-      where: { id: params.id },
-      include: {
-        admin: {
-          select: {
-            email: true
-          }
-        },
-        members: {
-          select: {
-            email: true
-          }
-        },
-        joinRequests: {
-          where: {
-            status: 'PENDING'
+    const { searchParams } = new URL(req.url);
+    const isSummary = searchParams.get('summary') === 'true';
+
+    if (isSummary) {
+      const team = await prisma.team.findUnique({
+        where: { id: params.id },
+        select: {
+          id: true,
+          name: true,
+          displayCode: true,
+          plan: true,
+          credits: true,
+          _count: {
+            select: {
+              brands: true,
+              actions: true,
+            },
           },
-          select: {
-            id: true,
-            user: {
-              select: {
-                email: true
-              }
-            }
-          }
-        }
+        },
+      });
+
+      if (!team) {
+        return NextResponse.json({ error: 'Team not found' }, { status: 404 });
       }
-    });
+
+      const transformedTeam = {
+        id: team.id,
+        name: team.name,
+        code: team.displayCode,
+        admin: '', 
+        members: [], 
+        pending: [], 
+        plan: team.plan,
+        credits: team.credits,
+        totalBrands: team._count.brands,
+        totalContents: team._count.actions,
+      };
+
+      return NextResponse.json(transformedTeam);
+    }
     
-    if (!team) {
+    const [teamData, members, pendingRequests] = await Promise.all([
+      prisma.team.findUnique({
+        where: { id: params.id },
+        select: {
+          id: true,
+          name: true,
+          displayCode: true,
+          plan: true,
+          credits: true,
+          admin: { select: { email: true } },
+          _count: {
+            select: { brands: true, actions: true },
+          },
+        },
+      }),
+      prisma.user.findMany({
+        where: { teamId: params.id },
+        select: { email: true },
+      }),
+      prisma.joinRequest.findMany({
+        where: { teamId: params.id, status: 'PENDING' },
+        select: {
+          user: { select: { email: true } },
+        },
+      }),
+    ]);
+
+    if (!teamData) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
-    // Buscar contadores usando raw SQL temporariamente
-    const countersResult = await prisma.$queryRaw<[{totalContents: number, totalBrands: number}]>`
-      SELECT COALESCE("totalContents", 0) as "totalContents", 
-             COALESCE("totalBrands", 0) as "totalBrands"
-      FROM "Team" 
-      WHERE id = ${params.id}
-    `;
-    
-    const counters = countersResult[0] || { totalContents: 0, totalBrands: 0 };
-
-    // Transform the data to match the expected Team interface
     const transformedTeam = {
-      id: team.id,
-      name: team.name,
-      code: team.displayCode, // Usar displayCode para exibição
-      admin: team.admin.email,
-      members: team.members.map(member => member.email),
-      pending: team.joinRequests.map(request => request.user.email),
-      plan: team.plan,
-      credits: team.credits,
-      totalContents: counters.totalContents,
-      totalBrands: counters.totalBrands
+      id: teamData.id,
+      name: teamData.name,
+      code: teamData.displayCode,
+      admin: teamData.admin.email,
+      members: members.map(member => member.email),
+      pending: pendingRequests.map(request => request.user.email),
+      plan: teamData.plan,
+      credits: teamData.credits,
+      totalBrands: teamData._count.brands,
+      totalContents: teamData._count.actions,
     };
 
     return NextResponse.json(transformedTeam);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 });
+    console.error("Erro ao buscar equipe:", error);
+    return NextResponse.json({ error: 'Erro ao buscar equipe' }, { status: 500 });
   }
 }

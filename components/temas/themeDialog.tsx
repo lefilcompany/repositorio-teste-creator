@@ -17,7 +17,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import type { StrategicTheme } from '@/types/theme';
-import type { Brand } from '@/types/brand';
+import type { Brand, BrandSummary } from '@/types/brand';
 import type { ColorItem } from '@/types/brand';
 import { toast } from 'sonner';
 import { StrategicThemeColorPicker } from '../ui/strategic-theme-color-picker';
@@ -31,7 +31,7 @@ interface ThemeDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: ThemeFormData) => void;
   themeToEdit: StrategicTheme | null;
-  brands?: Brand[]; // Recebe a lista de marcas para o select
+  brands?: BrandSummary[]; // Recebe a lista de marcas para o select
 }
 
 const initialFormData: ThemeFormData = {

@@ -83,21 +83,6 @@ export default function ActionViewPage() {
     );
   }
 
-  if (!action) {
-    return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Ação não encontrada</h2>
-          <p className="text-muted-foreground mb-4">A ação solicitada não foi encontrada ou não está mais disponível.</p>
-          <Button onClick={() => router.push('/historico')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Histórico
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const displayType = ACTION_TYPE_DISPLAY[action.type];
   const style = ACTION_STYLE_MAP[displayType];
   const Icon = style.icon;

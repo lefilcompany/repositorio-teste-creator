@@ -4,12 +4,12 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Brand } from '@/types/brand';
+import type { BrandSummary } from '@/types/brand';
 
 interface BrandListProps {
-  brands: Brand[];
-  selectedBrand: Brand | null;
-  onSelectBrand: (brand: Brand) => void;
+  brands: BrandSummary[] | undefined;
+  selectedBrand: BrandSummary | null;
+  onSelectBrand: (brand: BrandSummary) => void;
   isLoading?: boolean;
 }
 
@@ -35,6 +35,7 @@ const BrandSkeleton = () => (
 
 export default function BrandList({ brands, selectedBrand, onSelectBrand, isLoading = false }: BrandListProps) {
   const sortedBrands = useMemo(() => {
+    if (!brands || !Array.isArray(brands)) return [];
     return [...brands].sort((a, b) => a.name.localeCompare(b.name));
   }, [brands]);
 

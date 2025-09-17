@@ -8,7 +8,7 @@ import BrandList from '@/components/marcas/brandList';
 import BrandDetails from '@/components/marcas/brandDetails';
 import BrandDialog from '@/components/marcas/brandDialog';
 import CascadeDeleteDialog from '@/components/ui/cascade-delete-dialog';
-import type { Brand } from '@/types/brand';
+import type { Brand, BrandSummary } from '@/types/brand';
 import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -18,9 +18,11 @@ type BrandFormData = Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'teamId' | '
 
 export default function MarcasPage() {
   const { user } = useAuth();
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brands, setBrands] = useState<BrandSummary[]>([]);
   const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [selectedBrandSummary, setSelectedBrandSummary] = useState<BrandSummary | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
+  const [isLoadingBrandDetails, setIsLoadingBrandDetails] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [brandToEdit, setBrandToEdit] = useState<Brand | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
@@ -35,9 +37,9 @@ export default function MarcasPage() {
       
       try {
         // Carrega marcas
-        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}`);
+        const brandsRes = await fetch(`/api/brands?teamId=${user.teamId}&summary=true`);
         if (brandsRes.ok) {
-          const brandsData: Brand[] = await brandsRes.json();
+          const brandsData: BrandSummary[] = await brandsRes.json();
           setBrands(brandsData);
         } else {
           toast.error('Erro ao carregar marcas');
@@ -93,6 +95,24 @@ export default function MarcasPage() {
     setIsDialogOpen(true);
   }, [brands.length, team]);
 
+  const handleSelectBrand = useCallback(async (brand: BrandSummary) => {
+    setSelectedBrandSummary(brand);
+    setIsLoadingBrandDetails(true);
+    try {
+      const res = await fetch(`/api/brands/${brand.id}?teamId=${user?.teamId}`);
+      if (res.ok) {
+        const data: Brand = await res.json();
+        setSelectedBrand(data);
+      } else {
+        toast.error('Erro ao carregar detalhes da marca');
+      }
+    } catch {
+      toast.error('Erro de conexão ao carregar detalhes da marca');
+    } finally {
+      setIsLoadingBrandDetails(false);
+    }
+  }, [user?.teamId]);
+
   const handleSaveBrand = useCallback(async (formData: BrandFormData) => {
     if (!user?.teamId || !user.id) {
       toast.error('Usuário não autenticado ou sem equipe');
@@ -119,20 +139,27 @@ export default function MarcasPage() {
       
       const saved: Brand = await res.json();
       
-      // Atualiza a lista de marcas
+      // Atualiza a lista de marcas (somente campos essenciais)
       setBrands(prev => {
+        const summary: BrandSummary = {
+          id: saved.id,
+          name: saved.name,
+          responsible: saved.responsible,
+          createdAt: saved.createdAt,
+        };
         if (brandToEdit) {
-          return prev.map(brand => brand.id === saved.id ? saved : brand);
+          return prev.map(brand => brand.id === summary.id ? summary : brand);
         }
-        return [...prev, saved];
+        return [...prev, summary];
       });
-      
+
       // Atualiza a marca selecionada se necessário
       if (brandToEdit && selectedBrand?.id === saved.id) {
         setSelectedBrand(saved);
+        setSelectedBrandSummary({ id: saved.id, name: saved.name, responsible: saved.responsible, createdAt: saved.createdAt });
       } else if (!brandToEdit) {
-        // Se for uma nova marca, seleciona ela automaticamente
         setSelectedBrand(saved);
+        setSelectedBrandSummary({ id: saved.id, name: saved.name, responsible: saved.responsible, createdAt: saved.createdAt });
       }
       
       toast.success(
@@ -162,6 +189,7 @@ export default function MarcasPage() {
       if (res.ok) {
         setBrands(prev => prev.filter(brand => brand.id !== selectedBrand.id));
         setSelectedBrand(null);
+        setSelectedBrandSummary(null);
         setIsDialogOpen(false);
         setBrandToEdit(null);
         setShowDeleteDialog(false);
@@ -221,14 +249,15 @@ export default function MarcasPage() {
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 flex-1">
         <BrandList
           brands={brands}
-          selectedBrand={selectedBrand}
-          onSelectBrand={setSelectedBrand}
+          selectedBrand={selectedBrandSummary}
+          onSelectBrand={handleSelectBrand}
           isLoading={isLoadingBrands}
         />
         <BrandDetails
           brand={selectedBrand}
           onEdit={handleOpenDialog}
-          onDelete={() => handleDeleteBrand()} // Garante que o botão chama SEM parâmetro
+          onDelete={() => handleDeleteBrand()}
+          isLoading={isLoadingBrandDetails}
         />
       </main>
 

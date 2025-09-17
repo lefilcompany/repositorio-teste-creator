@@ -1,3 +1,5 @@
+// /components/historico/actionList.tsx
+
 'use client';
 
 import { cn } from '@/lib/utils';
@@ -5,14 +7,26 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { Action } from '@/types/action';
+import type { ActionSummary } from '@/types/action';
 import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 interface ActionListProps {
-  actions: Action[];
-  selectedAction: Action | null;
-  onSelectAction: (action: Action) => void;
+  actions: ActionSummary[];
+  selectedAction: ActionSummary | null;
+  onSelectAction: (action: ActionSummary) => void;
   isLoading?: boolean;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -20,6 +34,20 @@ const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+
+const generatePagination = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  if (currentPage <= 3) {
+    return [1, 2, 3, 4, '...', totalPages];
+  }
+  if (currentPage >= totalPages - 2) {
+    return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+};
+
 
 const ActionSkeleton = () => (
   <div className="w-full text-left p-4 rounded-lg border-2 border-transparent bg-muted/50 flex items-center justify-between gap-4">
@@ -37,18 +65,35 @@ const ActionSkeleton = () => (
   </div>
 );
 
-export default function ActionList({ actions, selectedAction, onSelectAction, isLoading = false }: ActionListProps) {
+export default function ActionList({
+  actions,
+  selectedAction,
+  onSelectAction,
+  isLoading = false,
+  currentPage,
+  totalPages,
+  onPageChange,
+}: ActionListProps) {
   const router = useRouter();
 
   const handleViewAction = (actionId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Previne que o clique selecione a ação
+    event.stopPropagation();
     router.push(`/historico/${actionId}`);
   };
+
+  const handlePageClick = (page: number | string) => {
+    if (typeof page === 'number' && page > 0 && page <= totalPages && page !== currentPage) {
+      onPageChange(page);
+    }
+  };
+
+  const paginationRange = generatePagination(currentPage, totalPages);
 
   return (
     <div className="lg:col-span-2 bg-card p-4 md:p-6 rounded-2xl border-2 border-primary/10 flex flex-col h-full max-h-[calc(100vh-16rem)]">
       <h2 className="text-2xl font-semibold text-foreground mb-4 px-2 flex-shrink-0">Ações Recentes</h2>
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+        {/* ... (código da lista de ações permanece o mesmo) ... */}
         {isLoading ? (
           <ul className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -71,7 +116,8 @@ export default function ActionList({ actions, selectedAction, onSelectAction, is
                       "w-full text-left p-4 rounded-lg border-2 transition-all duration-200 flex items-center justify-between gap-4",
                       selectedAction?.id === action.id
                         ? "bg-primary/10 border-primary shadow-md"
-                        : "bg-muted/50 border-transparent hover:border-primary/50 hover:bg-primary/5"
+                        : "bg-muted/50 border-transparent hover:border-border/60 hover:bg-muted"
+
                     )}
                   >
                     <div className="flex items-center overflow-hidden flex-1">
@@ -108,6 +154,50 @@ export default function ActionList({ actions, selectedAction, onSelectAction, is
           </div>
         )}
       </div>
+
+      {totalPages > 1 && !isLoading && (
+        <div className="pt-2 mt-auto flex-shrink-0 border-t border-border/20">
+          <Pagination className="scale-90"> 
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); handlePageClick(currentPage - 1); }}
+                  className={cn("cursor-pointer", currentPage === 1 && "pointer-events-none opacity-50")}
+                  aria-disabled={currentPage === 1}
+                />
+              </PaginationItem>
+              
+              {paginationRange.map((page, index) => {
+                if (typeof page === 'string') {
+                  return <PaginationEllipsis key={`ellipsis-${index}`} />;
+                }
+                return (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); handlePageClick(page); }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); handlePageClick(currentPage + 1); }}
+                  className={cn("cursor-pointer", currentPage === totalPages && "pointer-events-none opacity-50")}
+                  aria-disabled={currentPage === totalPages}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

@@ -73,3 +73,11 @@ export interface Action {
     email: string;
   };
 }
+
+// Dados mínimos utilizados nas listagens de ações
+export type ActionSummary = {
+  id: string;
+  type: ActionType;
+  createdAt: string;
+  brand: { id: string; name: string } | null;
+};

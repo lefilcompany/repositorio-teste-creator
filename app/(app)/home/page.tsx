@@ -1,4 +1,3 @@
-// app/(app)/home/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,271 +17,107 @@ import {
   Home,
   Plus
 } from 'lucide-react';
-
 import { useAuth } from '@/hooks/useAuth';
-import type { Brand } from '@/types/brand';
 import type { Action } from '@/types/action';
-import type { Team } from '@/types/team';
+import type { TeamSummary } from '@/types/team';
 import { ACTION_TYPE_DISPLAY } from '@/types/action';
-import { toast } from 'sonner';
 
 export default function HomePage() {
-  const { user, team } = useAuth();
+  const { user } = useAuth();
+
   const [stats, setStats] = useState({ acoesTotais: 0, marcasGerenciadas: 0 });
   const [atividadesRecentes, setAtividadesRecentes] = useState<Action[]>([]);
-  const [isAuthLoaded, setIsAuthLoaded] = useState(false);
-  const [teamRealtime, setTeamRealtime] = useState<Team | null>(null);
-  const [loadingTeamRealtime, setLoadingTeamRealtime] = useState(true);
-
-  // Estados de carregamento independentes
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingActivities, setIsLoadingActivities] = useState(true);
-  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
-
-  // Detecta quando a autenticação está carregada
-  useEffect(() => {
-    if (user !== undefined) {
-      setIsAuthLoaded(true);
-    }
-  }, [user]);
-
-  // Carrega dados da equipe via API
-  useEffect(() => {
-    const loadTeamData = async () => {
-      if (!user?.teamId) {
-        setLoadingTeamRealtime(false);
-        return;
-      }
-      
-      try {
-        const teamRes = await fetch(`/api/teams?userId=${user.id}`);
-        if (teamRes.ok) {
-          const teamsData: Team[] = await teamRes.json();
-          const currentTeam = teamsData.find(t => t.id === user.teamId);
-          if (currentTeam) setTeamRealtime(currentTeam);
-        }
-      } catch (error) {
-        // Silently handle error for team data
-      } finally {
-        setLoadingTeamRealtime(false);
-      }
-    };
-
-    loadTeamData();
-  }, [user]);
+  const [teamRealtime, setTeamRealtime] = useState<TeamSummary | null>(null);
+  const [loadingStates, setLoadingStates] = useState({
+    team: true,
+    stats: true,
+    activities: true,
+  });
 
   useEffect(() => {
-    let isMounted = true; // Flag para evitar updates se componente foi desmontado
-    
-    const fetchBrands = async () => {
-      if (!user?.teamId || !isAuthLoaded) {
-        setIsLoadingBrands(false);
-        return;
+    if (!user?.teamId || !user?.id) {
+      if (user) {
+        setLoadingStates({ team: false, stats: false, activities: false });
       }
-
-      try {
-        // Primeiro tentar buscar dados do team com contadores
-        const teamResponse = await fetch(`/api/teams/${user.teamId}`);
-        if (teamResponse.ok) {
-          const teamData = await teamResponse.json();
-          if (isMounted) {
-            setStats(prev => ({ 
-              ...prev, 
-              marcasGerenciadas: teamData.totalBrands || 0 
-            }));
-          }
-        } else {
-          // Fallback: buscar marcas diretamente (se a API de brands não precisar de teamId)
-          const brandsResponse = await fetch(`/api/brands`);
-          if (brandsResponse.ok) {
-            const brandsData: Brand[] = await brandsResponse.json();
-            // Filtrar marcas do team atual
-            const teamBrands = brandsData.filter(brand => brand.teamId === user.teamId);
-            if (isMounted) {
-              setStats(prev => ({ ...prev, marcasGerenciadas: teamBrands.length }));
-            }
-          } else {
-            // Se ambas as APIs falharem, usar 0
-            if (isMounted) {
-              setStats(prev => ({ ...prev, marcasGerenciadas: 0 }));
-            }
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          setStats(prev => ({ ...prev, marcasGerenciadas: 0 }));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingBrands(false);
-        }
-      }
-    };
-
-    const fetchActivities = async () => {
-      if (!user?.id || !user?.teamId || !isAuthLoaded) {
-        setIsLoadingActivities(false);
-        return;
-      }
-
-      try {
-        // Buscar ações aprovadas do usuário específico
-        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=5`);
-        if (actionsResponse.ok) {
-          const actionsData: Action[] = await actionsResponse.json();
-          
-          // Filtrar apenas ações válidas e aprovadas do usuário específico
-          const validActions = actionsData.filter(action => {
-            if (!action.approved || action.status !== 'Aprovado') return false;
-            if (action.userId !== user.id) return false; // Garantir que é do usuário específico
-            if (!action.result) return false;
-            
-            // Validar se a ação tem conteúdo válido
-            if (action.type === 'REVISAR_CONTEUDO') {
-              return !!(action.result as any)?.feedback;
-            }
-            if (action.type === 'CRIAR_CONTEUDO') {
-              const result = action.result as any;
-              return !!(result?.title || result?.body || result?.content);
-            }
-            if (action.type === 'PLANEJAR_CONTEUDO') {
-              return !!(action.result as any)?.plan;
-            }
-            
-            return true;
-          });
-          
-          if (isMounted) {
-            setAtividadesRecentes(validActions.slice(0, 3));
-          }
-        } else {
-          // Se a API falhar, usar array vazio
-          if (isMounted) {
-            setAtividadesRecentes([]);
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          setAtividadesRecentes([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingActivities(false);
-        }
-      }
-    };
-
-    const fetchStats = async () => {
-      if (!user?.id || !user?.teamId || !isAuthLoaded) {
-        setIsLoadingStats(false);
-        return;
-      }
-
-      try {
-        // Buscar todas as ações aprovadas do usuário específico (todos os tipos)
-        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true`);
-        if (actionsResponse.ok) {
-          const actionsData: Action[] = await actionsResponse.json();
-          // Contar todas as ações aprovadas do usuário (criar, revisar e planejar conteúdo)
-          const userTotalActions = actionsData.filter(action => 
-            action.approved && 
-            action.status === 'Aprovado' && 
-            action.userId === user.id &&
-            (action.type === 'CRIAR_CONTEUDO' || action.type === 'REVISAR_CONTEUDO' || action.type === 'PLANEJAR_CONTEUDO')
-          );
-          if (isMounted) {
-            setStats(prev => ({ ...prev, acoesTotais: userTotalActions.length }));
-          }
-        } else {
-          // Se a API falhar, usar 0
-          if (isMounted) {
-            setStats(prev => ({ ...prev, acoesTotais: 0 }));
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          setStats(prev => ({ ...prev, acoesTotais: 0 }));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingStats(false);
-        }
-      }
-    };
-
-    if (isAuthLoaded && user?.id && user?.teamId) {
-      // Executar com pequenos delays para melhor UX
-      const timer1 = setTimeout(fetchBrands, 0);
-      const timer2 = setTimeout(fetchActivities, 100);
-      const timer3 = setTimeout(fetchStats, 200);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
+      return;
     }
 
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, [user, isAuthLoaded]);
+    setLoadingStates({ team: true, stats: true, activities: true });
 
-  // Calculando créditos corretamente - os créditos no team.credits são os créditos restantes
+    fetch(`/api/teams/${user.teamId}?summary=true`)
+      .then(res => res.json())
+      .then(data => {
+        setTeamRealtime(data);
+        setStats(prev => ({ ...prev, marcasGerenciadas: data.totalBrands || 0 }));
+      })
+      .catch(err => console.error("Falha ao carregar dados da equipe:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, team: false })));
+
+    fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&count=true`)
+      .then(res => res.json())
+      .then(data => {
+        setStats(prev => ({ ...prev, acoesTotais: data.count || 0 }));
+      })
+      .catch(err => console.error("Falha ao carregar estatísticas:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, stats: false })));
+
+    fetch(`/api/actions?teamId=${user.teamId}&userId=${user.id}&approved=true&limit=3&summary=true`)
+      .then(res => res.json())
+      .then(response => {
+        // CORREÇÃO APLICADA AQUI
+        // Acessamos a propriedade 'data' que contém o array de ações
+        if (response && Array.isArray(response.data)) {
+          setAtividadesRecentes(response.data);
+        }
+      })
+      .catch(err => console.error("Falha ao carregar atividades:", err))
+      .finally(() => setLoadingStates(prev => ({ ...prev, activities: false })));
+
+  }, [user]);
+
   const creditos = teamRealtime ? {
-    // Garantir que estamos usando os valores corretos do banco
     restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
-    total: (typeof teamRealtime.plan === 'object' ? 
-      ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5)) 
-      : 45) // Valor padrão para plano FREE: 20 + 20 + 5 = 45
+    total: (typeof teamRealtime.plan === 'object' && teamRealtime.plan !== null ?
+      ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5))
+      : 45)
   } : { restantes: 0, total: 0 };
 
   const creditosUsadosPercentual = (creditos.total > 0)
     ? ((creditos.total - creditos.restantes) / creditos.total) * 100
     : 0;
 
-  const formattedAtividadesRecentes = atividadesRecentes.slice(0, 3).map(action => {
-    // Monta o título e subtítulo baseado no tipo de ação
+  const formattedAtividadesRecentes = atividadesRecentes.map(action => {
     let titulo = '';
     let subtitulo = '';
-    
+
+    const brandName = action.brand?.name || 'a marca';
+
     switch (action.type) {
       case 'CRIAR_CONTEUDO':
         titulo = 'Conteúdo Criado';
-        const createResult = action.result as any;
-        if (createResult?.title) {
-          subtitulo = createResult.title;
-        } else {
-          subtitulo = `Conteúdo para ${action.brand?.name || 'marca não especificada'}`;
-        }
+        subtitulo = `Para a marca ${brandName}`;
         break;
-        
       case 'REVISAR_CONTEUDO':
         titulo = 'Revisão de Imagem';
-        subtitulo = `Análise realizada para ${action.brand?.name || 'marca não especificada'}`;
+        subtitulo = `Análise para ${brandName}`;
         break;
-        
       case 'PLANEJAR_CONTEUDO':
         titulo = 'Calendário Planejado';
-        subtitulo = `Planejamento para ${action.brand?.name || 'marca não especificada'}`;
+        subtitulo = `Planejamento para ${brandName}`;
         break;
-        
       default:
         titulo = ACTION_TYPE_DISPLAY[action.type] || 'Ação realizada';
-        subtitulo = action.brand?.name || 'Marca não especificada';
+        subtitulo = brandName;
     }
-    
+
     return {
       id: action.id,
-      tipo: ACTION_TYPE_DISPLAY[action.type] || action.type,
       titulo: titulo,
       subtitulo: subtitulo,
       data: new Date(action.createdAt).toLocaleDateString('pt-BR'),
     };
   });
 
-  // Componentes de skeleton
   const StatsCardSkeleton = () => (
     <Card className="bg-card shadow-lg border-2 border-transparent">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -334,7 +169,6 @@ export default function HomePage() {
   return (
     <div className="min-h-full">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Cabeçalho */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
           <CardHeader className="pb-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -343,7 +177,7 @@ export default function HomePage() {
                   <Home className="h-8 w-8" />
                 </div>
                 <div>
-                  {!isAuthLoaded || !user ? (
+                  {!user ? (
                     <>
                       <Skeleton className="h-8 w-48 mb-2" />
                       <Skeleton className="h-4 w-64" />
@@ -370,10 +204,8 @@ export default function HomePage() {
           </CardHeader>
         </Card>
 
-        {/* Grid de Cards de Estatísticas */}
         <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Card de Créditos */}
-          {(!isAuthLoaded || loadingTeamRealtime) ? (
+          {loadingStates.team ? (
             <CreditsCardSkeleton />
           ) : (
             <Card className="lg:col-span-2 bg-card shadow-lg border-2 border-primary/20">
@@ -396,8 +228,7 @@ export default function HomePage() {
             </Card>
           )}
 
-          {/* Card de Conteúdos Gerados */}
-          {isLoadingStats ? (
+          {loadingStates.stats ? (
             <StatsCardSkeleton />
           ) : (
             <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
@@ -412,8 +243,7 @@ export default function HomePage() {
             </Card>
           )}
 
-          {/* Card de Marcas Gerenciadas */}
-          {isLoadingBrands ? (
+          {loadingStates.team ? (
             <StatsCardSkeleton />
           ) : (
             <Card className="bg-card shadow-lg border-2 border-transparent hover:border-secondary/20 transition-colors">
@@ -429,9 +259,7 @@ export default function HomePage() {
           )}
         </main>
 
-        {/* Seção de Ações Rápidas e Atividades Recentes */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Ações Rápidas */}
           <div className="lg:col-span-1 space-y-4">
             <Card className="shadow-lg border-0 bg-gradient-to-r from-secondary/5 via-primary/5 to-secondary/5">
               <CardHeader className="pb-4">
@@ -480,7 +308,6 @@ export default function HomePage() {
             </Card>
           </div>
 
-          {/* Atividades Recentes */}
           <div className="lg:col-span-2">
             <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
               <CardHeader className="pb-4 border-b">
@@ -492,7 +319,7 @@ export default function HomePage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {isLoadingActivities ? (
+                {loadingStates.activities ? (
                   <ActivitiesSkeleton />
                 ) : (
                   <div className="divide-y">
