@@ -79,6 +79,19 @@ export default function LoginPage() {
 
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
+      {/* Header mobile com logo e texto */}
+      <div className="lg:hidden bg-gradient-to-br from-primary to-secondary text-white p-6 text-center">
+        <Image
+          src="/assets/logoCreatorBranca.png"
+          alt="Creator Logo"
+          width={150}
+          height={41}
+          className="mx-auto mb-4"
+        />
+        <h2 className="text-xl font-bold">Bem-vindo de volta!</h2>
+        <p className="mt-2 text-white/80 text-sm">Acesse sua conta e continue criando.</p>
+      </div>
+
       <div className="hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-primary to-secondary text-white relative">
         <div className="flex flex-col items-center justify-center gap-16 w-full">
           <Carousel
@@ -110,9 +123,9 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="text-center">
+      <div className="flex items-center justify-center p-6 lg:p-8 bg-background">
+        <div className="w-full max-w-sm space-y-6 lg:space-y-8">
+          <div className="text-center lg:block hidden">
             <Image
               src="/assets/logoCreatorPreta.png"
               alt="Creator Logo"
@@ -125,7 +138,16 @@ export default function LoginPage() {
               Bem-vindo de volta! Por favor, insira seus dados.
             </p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-6">
+          
+          {/* Título mobile mais compacto */}
+          <div className="text-center lg:hidden">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Acesse sua Conta</h1>
+            <p className="text-muted-foreground text-sm">
+              Insira seus dados para continuar.
+            </p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-5 lg:space-y-6">
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -176,7 +198,7 @@ export default function LoginPage() {
 
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-            <Button type="submit" className="w-full rounded-lg text-base py-6 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider" disabled={isLoading}>
+            <Button type="submit" className="w-full rounded-lg text-base py-5 lg:py-6 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : 'LOGIN'}
             </Button>
           </form>
