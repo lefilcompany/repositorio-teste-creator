@@ -23,7 +23,7 @@ interface FormData {
   brand: string;
   theme: string[];
   platform: string;
-  quantity: number;
+  quantity: number | '';
   objective: string;
   additionalInfo: string;
 }
@@ -92,18 +92,39 @@ export default function Plan() {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
   const handleBrandChange = (value: string) => setFormData((prev) => ({ ...prev, brand: value, theme: [] }));
+
   const handleThemeSelect = (value: string) => setFormData((prev) => !value || prev.theme.includes(value) ? prev : { ...prev, theme: [...prev.theme, value] });
+
   const handleThemeRemove = (themeToRemove: string) => setFormData((prev) => ({ ...prev, theme: prev.theme.filter(t => t !== themeToRemove) }));
+
   const handlePlatformChange = (value: string) => setFormData((prev) => ({ ...prev, platform: value }));
+
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const quantity = parseInt(e.target.value, 10);
-    setFormData((prev) => ({ ...prev, quantity: isNaN(quantity) ? 1 : quantity }));
+    const value = e.target.value;
+    if (value === '') {
+      setFormData(prev => ({ ...prev, quantity: '' }));
+      return;
+    }
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num <= 7) {
+      setFormData(prev => ({ ...prev, quantity: num }));
+    } else if (!isNaN(num) && num > 7) {
+      setFormData(prev => ({ ...prev, quantity: 7 }));
+    }
   };
+
+  const handleQuantityBlur = () => {
+    if (formData.quantity === '' || formData.quantity < 1) {
+      setFormData(prev => ({ ...prev, quantity: 1 }));
+    }
+  };
+
   const handleGoBackToForm = () => {
     setIsResultView(false);
     setPlannedContent(null);
     setError(null);
   };
+
   const handleCopy = () => {
     if (!plannedContent) return;
     navigator.clipboard.writeText(plannedContent).then(() => {
@@ -112,31 +133,33 @@ export default function Plan() {
       setTimeout(() => setIsCopied(false), 2000);
     }).catch(() => toast.error('Falha ao copiar.'));
   };
+
   const handleDownloadPdf = async () => {
     const contentElement = document.getElementById('pdf-content');
     if (!contentElement) {
-        toast.error("Não foi possível encontrar o conteúdo para gerar o PDF.");
-        return;
+      toast.error("Não foi possível encontrar o conteúdo para gerar o PDF.");
+      return;
     }
     setIsDownloadingPdf(true);
     toast.info("Gerando seu PDF, por favor aguarde...");
     try {
-        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-        await pdf.html(contentElement, {
-            callback: (doc) => doc.save(`Planejamento - ${formData.brand}.pdf`),
-            margin: [40, 40, 40, 40],
-            autoPaging: 'text',
-            width: 515,
-            windowWidth: contentElement.scrollWidth,
-        });
-        toast.success("PDF gerado com sucesso!");
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+      await pdf.html(contentElement, {
+        callback: (doc) => doc.save(`Planejamento - ${formData.brand}.pdf`),
+        margin: [40, 40, 40, 40],
+        autoPaging: 'text',
+        width: 515,
+        windowWidth: contentElement.scrollWidth,
+      });
+      toast.success("PDF gerado com sucesso!");
     } catch (error) {
-        console.error("Erro ao gerar o PDF:", error);
-        toast.error("Ocorreu um erro ao gerar o PDF.");
+      console.error("Erro ao gerar o PDF:", error);
+      toast.error("Ocorreu um erro ao gerar o PDF.");
     } finally {
-        setIsDownloadingPdf(false);
+      setIsDownloadingPdf(false);
     }
   };
+
   const handleGeneratePlan = async () => {
     if (!team) return toast.error('Dados da equipe não encontrados');
     if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes');
@@ -180,9 +203,6 @@ export default function Plan() {
     }
   };
 
-
-  // --- CORREÇÃO: Lógica de renderização condicional ---
-  // Se não estiver na tela de resultado, renderiza o formulário.
   if (!isResultView) {
     return (
       <div className="min-h-full w-full">
@@ -196,27 +216,29 @@ export default function Plan() {
                     <Calendar className="h-8 w-8" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold">Planejar Conteúdo</h1>
-                    <p className="text-muted-foreground text-base">Preencha os campos para gerar seu planejamento de posts</p>
+                    <h1 className="text-xl lg:text-3xl font-bold">Planejar Conteúdo</h1>
+                    <p className="text-muted-foreground text-xs lg:text-base">Preencha os campos para gerar seu planejamento de posts</p>
                   </div>
                 </div>
                 {isLoadingData ? (
-                  <Skeleton className="w-48 h-16 rounded-xl" />
+                  <Skeleton className="h-14 w-full sm:w-40 rounded-xl" />
                 ) : team && (
-                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 backdrop-blur-sm shadow-md">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 flex-shrink-0">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-center gap-4">
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                           <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
                             <Zap className="h-4 w-4" />
                           </div>
                         </div>
-                        <div className="text-center">
-                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                        <div className="text-left gap-4 flex justify-center items-center">
+                          <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                             {team.credits?.contentPlans || 0}
                           </span>
-                          <p className="text-sm text-muted-foreground font-medium">planejamentos restantes</p>
+                          <p className="text-md text-muted-foreground font-medium leading-tight">
+                            Planejamentos Restantes
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -294,8 +316,18 @@ export default function Plan() {
                     </Select>
                   </div>
                   <div className="space-y-3">
-                    <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">Quantidade de Posts *</Label>
-                    <Input id="quantity" type="number" min="1" placeholder="Ex: 5" value={formData.quantity} onChange={handleQuantityChange} className="h-11 rounded-xl border-2 border-border/50 bg-background/50" />
+                    <Label htmlFor="quantity" className="text-sm font-semibold text-foreground">Quantidade de Posts (1-7) *</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      max="7"
+                      placeholder="Ex: 5"
+                      value={formData.quantity}
+                      onChange={handleQuantityChange}
+                      onBlur={handleQuantityBlur}
+                      className="h-11 rounded-xl border-2 border-border/50 bg-background/50"
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -360,16 +392,15 @@ export default function Plan() {
                   <MessageSquareQuote className="h-8 w-8" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold">Planejamento Gerado pela IA</h1>
-                  <p className="text-muted-foreground text-base">Seu calendário de conteúdo estratégico está pronto</p>
+                  <h1 className="text-2xl md:text-3xl font-bold">Planejar Conteúdo</h1>
+                  <p className="text-muted-foreground text-sm md:text-base">Gere seu calendário de posts com IA</p>
                 </div>
               </div>
-              {/* --- ADIÇÃO DO BOTÃO NO HEADER --- */}
               <div className="flex items-center gap-2">
-                 <Button onClick={handleDownloadPdf} disabled={isDownloadingPdf} variant="outline" size="sm" className="rounded-lg">
-                    {isDownloadingPdf ? <Loader className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                    {isDownloadingPdf ? 'Baixando...' : 'Baixar PDF'}
-                  </Button>
+                <Button onClick={handleDownloadPdf} disabled={isDownloadingPdf} variant="outline" size="sm" className="rounded-lg">
+                  {isDownloadingPdf ? <Loader className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  {isDownloadingPdf ? 'Baixando...' : 'Baixar PDF'}
+                </Button>
                 <Button onClick={handleGoBackToForm} variant="outline" className="rounded-xl px-4 py-2 border-2 border-primary/30">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Criar Novo
@@ -379,7 +410,6 @@ export default function Plan() {
           </CardHeader>
         </Card>
 
-        {/* Card do Conteúdo Gerado */}
         <div className="space-y-6">
           <Card className="backdrop-blur-sm bg-card/60 border border-border/20 shadow-lg shadow-black/5 rounded-2xl overflow-hidden">
             <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-secondary/5 flex flex-row items-center justify-between">
@@ -391,10 +421,10 @@ export default function Plan() {
                 <p className="text-muted-foreground text-sm">Conteúdo gerado com base nos seus parâmetros</p>
               </div>
               {plannedContent && !loading && (
-                 <Button onClick={handleCopy} variant="outline" size="sm" className="rounded-lg">
-                    {isCopied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Clipboard className="h-4 w-4 mr-2" />}
-                    {isCopied ? 'Copiado!' : 'Copiar Texto'}
-                  </Button>
+                <Button onClick={handleCopy} variant="outline" size="sm" className="rounded-lg">
+                  {isCopied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Clipboard className="h-4 w-4 mr-2" />}
+                  {isCopied ? 'Copiado!' : 'Copiar Texto'}
+                </Button>
               )}
             </CardHeader>
             <CardContent className="p-6">

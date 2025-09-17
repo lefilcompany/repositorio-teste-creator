@@ -168,22 +168,24 @@ export default function Revisar() {
                   </div>
                 </div>
                 {isLoadingData ? (
-                  <Skeleton className="w-48 h-16 rounded-xl" />
+                  <Skeleton className="h-14 w-full sm:w-40 rounded-xl" />
                 ) : team && (
-                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
+                  <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30 flex-shrink-0">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-center gap-4">
                         <div className="relative">
                           <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full blur-sm opacity-40"></div>
                           <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-full p-2">
                             <Zap className="h-4 w-4" />
                           </div>
                         </div>
-                        <div className="text-center">
-                          <span className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                        <div className="text-left gap-4 flex justify-center items-center">
+                          <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                             {team.credits?.contentReviews || 0}
                           </span>
-                          <p className="text-sm text-muted-foreground font-medium">revisões restantes</p>
+                          <p className="text-md text-muted-foreground font-medium leading-tight">
+                            Revisões Restantes
+                          </p>
                         </div>
                       </div>
                     </CardContent>

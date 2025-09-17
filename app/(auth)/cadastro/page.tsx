@@ -171,17 +171,38 @@ export default function CadastroPage() {
   return (
     <>
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
+      {/* Header mobile com logo e texto */}
+      <div className="lg:hidden bg-gradient-to-br from-primary to-secondary text-white p-6 text-center">
+        <Image
+          src="/assets/logoCreatorBranca.png"
+          alt="Creator Logo"
+          width={150}
+          height={41}
+          className="mx-auto mb-4"
+        />
+        <h2 className="text-xl font-bold">Junte-se a nós!</h2>
+        <p className="mt-2 text-white/80 text-sm">Crie sua conta e comece a transformar ideias em conteúdo.</p>
+      </div>
+
       {/* Coluna Esquerda: Formulário de Cadastro */}
-      <div className="flex items-center justify-center p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-6">
-          <div className="text-center">
+      <div className="flex items-center justify-center p-6 lg:p-8 bg-background overflow-y-auto">
+        <div className="w-full max-w-md space-y-5 lg:space-y-6">
+          <div className="text-center hidden lg:block">
             <h1 className="text-3xl font-bold text-foreground">Crie sua Conta</h1>
             <p className="text-muted-foreground mt-2">
               É rápido e fácil. Vamos começar!
             </p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5">
+          {/* Título mobile mais compacto */}
+          <div className="text-center lg:hidden">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Crie sua Conta</h1>
+            <p className="text-muted-foreground text-sm">
+              É rápido e fácil. Vamos começar!
+            </p>
+          </div>
+
+          <form onSubmit={handleRegister} className="space-y-4 lg:space-y-5">
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="name" placeholder="Nome Completo" required value={formData.name} onChange={handleInputChange} className="pl-10 h-12" />
@@ -190,8 +211,8 @@ export default function CadastroPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="email" type="email" placeholder="E-mail" required value={formData.email} onChange={handleInputChange} className="pl-10 h-12" />
             </div>
-            {/* Campos de senha lado a lado */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Campos de senha lado a lado no desktop, empilhados no mobile */}
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
@@ -230,7 +251,7 @@ export default function CadastroPage() {
             {/* Indicadores de validação da senha */}
             {formData.password && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200/50 shadow-md">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <div className="flex items-center gap-2 text-sm">
                     <div className={`w-3 h-3 rounded-full flex items-center justify-center transition-all ${
                       isPasswordValid ? 'bg-green-500 shadow-sm' : 'bg-red-500'
@@ -262,7 +283,7 @@ export default function CadastroPage() {
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input id="phone" type="tel" placeholder="(XX) XXXXX-XXXX" value={formData.phone} onChange={handleInputChange} className="pl-10 h-12" maxLength={15} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="state" className="text-muted-foreground text-xs">Estado</Label>
                 <Select value={formData.state} onValueChange={(value) => handleSelectChange('state', value)} disabled={loadingStates}>
@@ -283,23 +304,28 @@ export default function CadastroPage() {
               </div>
             </div>
             {/* Checkbox de política de privacidade */}
-            <div className="flex items-center gap-2 mt-2">
-              <Checkbox id="privacy" checked={privacyChecked} onCheckedChange={(checked) => {
-                if (checked) {
-                  setPrivacyModalOpen(true);
-                } else {
-                  setPrivacyChecked(false);
-                  setPrivacyAccepted(false);
-                }
-              }} />
-              <Label htmlFor="privacy" className="text-xs text-muted-foreground select-none cursor-pointer">
+            <div className="flex items-start gap-2 mt-2">
+              <Checkbox 
+                id="privacy" 
+                checked={privacyChecked} 
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setPrivacyModalOpen(true);
+                  } else {
+                    setPrivacyChecked(false);
+                    setPrivacyAccepted(false);
+                  }
+                }} 
+                className="mt-1" 
+              />
+              <Label htmlFor="privacy" className="text-xs text-muted-foreground select-none cursor-pointer leading-relaxed">
                 Li e concordo com a <button type="button" className="underline text-primary hover:text-secondary transition-colors" onClick={() => setPrivacyModalOpen(true)}>Política de Privacidade</button>
               </Label>
             </div>
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
             <Button
               type="submit"
-              className="w-full rounded-lg text-base py-5 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider"
+              className="w-full rounded-lg text-base py-4 lg:py-5 bg-gradient-to-r from-primary to-secondary font-bold tracking-wider"
               disabled={
                 isLoading ||
                 !formData.name ||
@@ -340,46 +366,81 @@ export default function CadastroPage() {
     </div>
     {/* Modal de Política de Privacidade */}
     <Dialog open={privacyModalOpen} onOpenChange={setPrivacyModalOpen}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Política de Privacidade – Uso de Dados e IA</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 text-sm text-muted-foreground max-h-72 overflow-y-auto">
-          <p>👋 Olá! Antes de usar nossa plataforma, é importante que você saiba como cuidamos dos seus dados:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><b>O que coletamos:</b> informações de cadastro (nome, e-mail, telefone), dados de navegação, histórico de uso e, quando necessário, informações de pagamento.</li>
-            <li><b>Como usamos:</b> para oferecer e melhorar os serviços, personalizar sua experiência, enviar novidades e cumprir obrigações legais.</li>
-            <li><b>Inteligência Artificial:</b> usamos IA para recomendar conteúdos, apoiar no suporte e ajudar na criação de materiais. Mas sempre com transparência e sem usar dados sensíveis sem sua permissão.</li>
-            <li><b>Compartilhamento:</b> nunca vendemos seus dados. Só compartilhamos com parceiros essenciais para o funcionamento da plataforma ou quando a lei exigir.</li>
-            <li><b>Seus direitos:</b> você pode pedir acesso, correção, exclusão ou portabilidade dos seus dados, além de cancelar comunicações de marketing a qualquer momento.</li>
-            <li><b>Segurança:</b> seus dados ficam protegidos com medidas avançadas de segurança e só são armazenados pelo tempo necessário.</li>
-          </ul>
-          <p className="mt-2">📌 Ao continuar, você concorda com nossa <a href="#" className="underline text-primary">Política de Privacidade completa</a>.</p>
+      <DialogContent className="max-w-[100vw] md:max-w-lg w-full mx-0 md:mx-4 max-h-[100vh] md:max-h-[85vh] p-0 rounded-none md:rounded-lg border-0 md:border">
+        <div className="flex flex-col h-[100vh] md:h-auto md:max-h-[85vh]">
+          {/* Header fixo */}
+          <DialogHeader className="flex-shrink-0 p-3 md:p-6 pb-2 md:pb-4 border-b bg-background">
+            <DialogTitle className="text-sm md:text-lg font-bold leading-tight pr-8 text-foreground">
+              Política de Privacidade – Uso de Dados e IA
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Conteúdo com scroll */}
+          <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-2 md:pt-4">
+            <div className="space-y-2 md:space-y-4 text-xs md:text-sm text-muted-foreground">
+              <p className="font-medium text-foreground text-xs md:text-sm">
+                👋 Olá! Antes de usar nossa plataforma, é importante que você saiba como cuidamos dos seus dados:
+              </p>
+              <ul className="list-disc pl-3 md:pl-5 space-y-1.5 md:space-y-3">
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">O que coletamos:</span> informações de cadastro (nome, e-mail, telefone), dados de navegação, histórico de uso e, quando necessário, informações de pagamento.
+                </li>
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">Como usamos:</span> para oferecer e melhorar os serviços, personalizar sua experiência, enviar novidades e cumprir obrigações legais.
+                </li>
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">Inteligência Artificial:</span> usamos IA para recomendar conteúdos, apoiar no suporte e ajudar na criação de materiais. Mas sempre com transparência e sem usar dados sensíveis sem sua permissão.
+                </li>
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">Compartilhamento:</span> nunca vendemos seus dados. Só compartilhamos com parceiros essenciais para o funcionamento da plataforma ou quando a lei exigir.
+                </li>
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">Seus direitos:</span> você pode pedir acesso, correção, exclusão ou portabilidade dos seus dados, além de cancelar comunicações de marketing a qualquer momento.
+                </li>
+                <li className="leading-relaxed text-xs md:text-sm">
+                  <span className="font-semibold text-foreground">Segurança:</span> seus dados ficam protegidos com medidas avançadas de segurança e só são armazenados pelo tempo necessário.
+                </li>
+              </ul>
+              <div className="pt-1 md:pt-3">
+                <p className="font-medium text-foreground text-xs md:text-sm">
+                  📌 Ao continuar, você concorda com nossa{' '}
+                  <button type="button" className="underline text-primary hover:text-secondary transition-colors font-semibold">
+                    Política de Privacidade completa
+                  </button>.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer fixo */}
+          <DialogFooter className="flex-shrink-0 p-3 md:p-6 pt-2 md:pt-4 border-t bg-background">
+            <div className="flex flex-col-reverse md:flex-row gap-2 md:gap-2 w-full">
+              <Button
+                variant="outline"
+                type="button"
+                className="w-full md:w-auto md:min-w-[120px] h-11 md:h-10 text-xs md:text-sm font-medium"
+                onClick={() => {
+                  setPrivacyModalOpen(false);
+                  setPrivacyChecked(false);
+                  setPrivacyAccepted(false);
+                }}
+              >
+                Não aceito
+              </Button>
+              <Button
+                type="button"
+                className="w-full md:w-auto md:min-w-[120px] h-11 md:h-10 bg-gradient-to-r from-primary to-secondary font-bold text-xs md:text-sm"
+                onClick={() => {
+                  setPrivacyModalOpen(false);
+                  setPrivacyChecked(true);
+                  setPrivacyAccepted(true);
+                }}
+              >
+                Aceito e concordo
+              </Button>
+            </div>
+          </DialogFooter>
         </div>
-        <DialogFooter className="flex flex-row gap-2 justify-end mt-4">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => {
-              setPrivacyModalOpen(false);
-              setPrivacyChecked(false);
-              setPrivacyAccepted(false);
-            }}
-          >
-            Não aceito
-          </Button>
-          <Button
-            type="button"
-            className="bg-gradient-to-r from-primary to-secondary font-bold"
-            onClick={() => {
-              setPrivacyModalOpen(false);
-              setPrivacyChecked(true);
-              setPrivacyAccepted(true);
-            }}
-          >
-            Aceito e concordo
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
     <TeamDialog 
