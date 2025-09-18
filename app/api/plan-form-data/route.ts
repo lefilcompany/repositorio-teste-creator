@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       }),
       prisma.brand.findMany({
         where: { teamId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, moodboard: true },
         orderBy: { name: 'asc' },
       }),
       prisma.strategicTheme.findMany({

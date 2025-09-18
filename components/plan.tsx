@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import jsPDF from 'jspdf';
 
@@ -18,6 +18,7 @@ import type { Team } from '@/types/team';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+
 // Interfaces e Tipos (mantidos como no original)
 interface FormData {
   brand: string;
@@ -27,7 +28,11 @@ interface FormData {
   objective: string;
   additionalInfo: string;
 }
-type LightBrand = Pick<Brand, 'id' | 'name'>;
+type LightBrand = {
+  id: string;
+  name: string;
+  moodboard?: any;
+};
 type LightTheme = Pick<StrategicTheme, 'id' | 'title' | 'brandId'>;
 
 export default function Plan() {
@@ -53,6 +58,8 @@ export default function Plan() {
   const [isResultView, setIsResultView] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  // Novo estado para armazenar o moodboard da marca selecionada
+  const [selectedMoodboard, setSelectedMoodboard] = useState<any>(null);
 
   // Efeitos e Handlers (mantidos como no original, pois a lógica estava correta)
   useEffect(() => {
@@ -82,8 +89,11 @@ export default function Plan() {
     if (formData.brand) {
       const selectedBrand = brands.find(b => b.name === formData.brand);
       setFilteredThemes(selectedBrand ? themes.filter(t => t.brandId === selectedBrand.id) : []);
+      // Atualiza o moodboard da marca selecionada
+      setSelectedMoodboard(selectedBrand?.moodboard || null);
     } else {
       setFilteredThemes([]);
+      setSelectedMoodboard(null);
     }
   }, [formData.brand, brands, themes]);
 
@@ -173,7 +183,8 @@ export default function Plan() {
     try {
       const selectedBrand = brands.find(b => b.name === formData.brand);
       if (!selectedBrand) throw new Error('Marca selecionada não encontrada');
-      const requestBody = { ...formData, teamId: user.teamId, brandId: selectedBrand.id, userId: user.id };
+      // Inclui o moodboard da marca selecionada, se existir
+      const requestBody = { ...formData, teamId: user.teamId, brandId: selectedBrand.id, userId: user.id, moodboard: selectedMoodboard };
       const response = await fetch('/api/plan-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
