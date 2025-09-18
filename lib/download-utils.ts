@@ -20,90 +20,152 @@ export interface DownloadOptions {
 export async function downloadImage(imageUrl: string, options: DownloadOptions = {}): Promise<void> {
   const {
     filename,
-    useProxy = true,
-    timeout = 30000
+    useProxy = false, // Mudamos o padrão para false
+    timeout = 15000 // Reduzimos o timeout para 15 segundos
   } = options;
 
   if (!imageUrl) {
     throw new Error('URL da imagem não fornecida');
   }
 
-  let response: Response;
-  let blob: Blob;
-  let finalFilename = filename || 'image';
+  const imageInfo = getImageUrlInfo(imageUrl);
+  let finalFilename = filename || `creator-ai-image-${Date.now()}`;
 
-  // Controle de timeout
+  try {
+    // Tratamento para imagem base64
+    if (imageInfo.isBase64) {
+      const blob = base64ToBlob(imageUrl, imageInfo.mimeType || 'image/png');
+      if (!finalFilename.includes('.')) {
+        const extension = getExtensionFromMimeType(imageInfo.mimeType || 'image/png');
+        finalFilename = `${finalFilename}.${extension}`;
+      }
+      await executeDownload(blob, finalFilename);
+      return;
+    }
+
+    // Tratamento para URLs (internas ou externas)
+    let blob: Blob;
+    
+    // Para URLs externas, tenta primeiro download direto, depois proxy como fallback
+    if (imageInfo.isExternal) {
+      try {
+        blob = await downloadDirect(imageUrl, timeout);
+      } catch (directError) {
+        console.warn('Download direto falhou, tentando via proxy:', directError);
+        try {
+          blob = await downloadViaProxy(imageUrl, timeout);
+        } catch (proxyError) {
+          console.error('Ambos os métodos falharam:', { directError, proxyError });
+          throw new Error(`Falha no download: ${directError instanceof Error ? directError.message : 'Erro direto'}`);
+        }
+      }
+    } else {
+      // Para URLs internas, usa proxy se solicitado, senão download direto
+      if (useProxy) {
+        blob = await downloadViaProxy(imageUrl, timeout);
+      } else {
+        blob = await downloadDirect(imageUrl, timeout);
+      }
+    }
+
+    // Adiciona extensão se necessário
+    if (!finalFilename.includes('.')) {
+      const extension = getExtensionFromBlob(blob);
+      finalFilename = `${finalFilename}.${extension}`;
+    }
+
+    await executeDownload(blob, finalFilename);
+
+  } catch (error) {
+    console.error('Erro no download:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido no download';
+    throw new Error(`Falha no download da imagem: ${errorMessage}`);
+  }
+}
+
+/**
+ * Download direto da URL
+ */
+async function downloadDirect(imageUrl: string, timeout: number): Promise<Blob> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Se useProxy for true ou for URL interna, usar a API de proxy
-    if (useProxy || imageUrl.startsWith('/')) {
-      const proxyUrl = `/api/download-image?url=${encodeURIComponent(imageUrl)}`;
-      
-      response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'image/*' },
-        signal: controller.signal
-      });
+    const response = await fetch(imageUrl, {
+      method: 'GET',
+      mode: 'cors',
+      headers: { 
+        'Accept': 'image/*,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      signal: controller.signal
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      blob = await response.blob();
-
-      // Extrair filename do header se não foi fornecido
-      if (!filename) {
-        const contentDisposition = response.headers.get('Content-Disposition');
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-          if (filenameMatch && filenameMatch[1]) {
-            finalFilename = filenameMatch[1].replace(/['"]/g, '');
-          }
-        }
-      }
-    } else {
-      // Download direto para URLs externas
-      response = await fetch(imageUrl, {
-        method: 'GET',
-        mode: 'cors',
-        headers: { 'Accept': 'image/*' },
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      blob = await response.blob();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Verificar se o blob não está vazio
+    const blob = await response.blob();
+    
     if (!blob || blob.size === 0) {
       throw new Error('A imagem está vazia ou corrompida');
     }
 
-    // Determinar extensão se não foi fornecida no filename
-    if (!finalFilename.includes('.')) {
-      const contentType = response.headers.get('Content-Type') || blob.type || 'image/png';
-      const extension = contentType.includes('jpeg') || contentType.includes('jpg') 
-        ? 'jpg' 
-        : contentType.includes('webp') 
-        ? 'webp'
-        : contentType.includes('gif')
-        ? 'gif'
-        : 'png';
-      finalFilename = `${finalFilename}.${extension}`;
-    }
-
-    // Executar o download
-    await executeDownload(blob, finalFilename);
-
+    return blob;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Download via proxy da API
+ */
+async function downloadViaProxy(imageUrl: string, timeout: number): Promise<Blob> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const proxyUrl = `/api/download-image?url=${encodeURIComponent(imageUrl)}`;
+    
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'image/*' },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    
+    if (!blob || blob.size === 0) {
+      throw new Error('A imagem está vazia ou corrompida');
+    }
+
+    return blob;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Obtém a extensão do arquivo a partir do tipo MIME
+ */
+function getExtensionFromMimeType(mimeType: string): string {
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
+  if (mimeType.includes('webp')) return 'webp';
+  if (mimeType.includes('gif')) return 'gif';
+  if (mimeType.includes('svg')) return 'svg';
+  return 'png';
+}
+
+/**
+ * Obtém a extensão do arquivo a partir do blob
+ */
+function getExtensionFromBlob(blob: Blob): string {
+  return getExtensionFromMimeType(blob.type || 'image/png');
 }
 
 /**
@@ -112,19 +174,58 @@ export async function downloadImage(imageUrl: string, options: DownloadOptions =
  * @param filename - Nome do arquivo
  */
 async function executeDownload(blob: Blob, filename: string): Promise<void> {
-  const url = window.URL.createObjectURL(blob);
-  
   try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.style.display = 'none';
+    // Método preferido: usando a API do navegador
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'Imagens',
+            accept: {
+              'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+            }
+          }]
+        });
+        
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (error) {
+        // Se o usuário cancelar ou não suportar, continua para o método tradicional
+        console.log('Usando método tradicional de download');
+      }
+    }
+
+    // Método tradicional: usando link temporário
+    const url = window.URL.createObjectURL(blob);
     
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } finally {
-    window.URL.revokeObjectURL(url);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      // Adiciona o link ao DOM, clica e remove
+      document.body.appendChild(link);
+      link.click();
+      
+      // Remove o link após um breve delay para garantir que o download iniciou
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+      
+    } finally {
+      // Revoga o URL do objeto após um delay para garantir que o download foi processado
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+    }
+    
+  } catch (error) {
+    console.error('Erro ao executar download:', error);
+    throw new Error('Falha ao iniciar o download');
   }
 }
 

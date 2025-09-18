@@ -108,17 +108,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fazer o fetch da imagem externa com headers apropriados
-    const imageResponse = await fetch(imageUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CreatorAI/1.0)',
-        'Accept': 'image/*',
-        'Referer': req.nextUrl.origin,
-      },
-      // Timeout de 30 segundos
-      signal: AbortSignal.timeout(30000)
-    });
+    // Fazer o fetch da imagem externa com headers apropriados e timeout manual
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
+    
+    let imageResponse: Response;
+    try {
+      imageResponse = await fetch(imageUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'image/*,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+        },
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!imageResponse.ok) {
       return NextResponse.json(
@@ -161,7 +169,7 @@ export async function GET(req: NextRequest) {
     let statusCode = 500;
 
     if (error instanceof Error) {
-      if (error.name === 'TimeoutError') {
+      if (error.name === 'AbortError') {
         errorMessage = 'Timeout ao baixar a imagem';
         statusCode = 408;
       } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -171,6 +179,8 @@ export async function GET(req: NextRequest) {
         errorMessage = error.message;
       }
     }
+    
+    console.error('Erro no download da imagem:', error);
     
     return NextResponse.json(
       { error: errorMessage }, 

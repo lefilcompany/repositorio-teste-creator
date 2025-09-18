@@ -44,6 +44,8 @@ export function DownloadButton({
     try {
       await downloadImage(imageUrl, {
         filename,
+        useProxy: false,
+        timeout: 15000,
         ...downloadOptions,
       });
 

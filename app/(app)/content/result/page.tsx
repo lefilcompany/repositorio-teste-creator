@@ -414,7 +414,7 @@ export default function ResultPage() {
     try {
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
       const filename = `creator-ai-image-${timestamp}`;
-      await downloadImage(content.imageUrl, { filename, useProxy: true, timeout: 30000 });
+      await downloadImage(content.imageUrl, { filename, useProxy: false, timeout: 15000 });
       toast.success('Download concluído com sucesso!');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
