@@ -11,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  // ... (outros imports do dropdown)
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -22,15 +21,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  // ... (outros imports do dialog)
 } from '@/components/ui/dialog';
-// Adicione o ícone de Menu
 import { Search, Settings, User, LogOut, Info, FileText, Shield, Loader2, Users, Palette, Tag, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import Notifications from '@/components/notifications';
+import { cn } from '@/lib/utils'; // **ALTERAÇÃO:** Importei o cn para usar nas classes condicionais.
 
-// ... (interface SearchResult e outras lógicas permanecem as mesmas) ...
 interface SearchResult {
   id: string;
   name: string;
@@ -53,7 +50,7 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
   const [searchCache, setSearchCache] = useState<Map<string, SearchResult[]>>(new Map());
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Keyboard shortcut for search (Cmd/Ctrl + K)
+  // ... (toda a lógica de busca permanece a mesma) ...
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
@@ -71,26 +68,22 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isSearchDialogOpen]);
 
-  // Focus search input when dialog opens
   useEffect(() => {
     if (isSearchDialogOpen && searchInputRef.current) {
-      // Small delay to ensure dialog is fully rendered
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 150);
     } else if (!isSearchDialogOpen) {
-      // Limpar pesquisa quando dialog fecha
       setSearchQuery('');
       setShowResults(false);
       setSearchResults([]);
     }
   }, [isSearchDialogOpen]);
 
-  // Limpar cache periodicamente (a cada 3 minutos) para melhor performance
   useEffect(() => {
     const clearCacheInterval = setInterval(() => {
       setSearchCache(new Map());
-    }, 3 * 60 * 1000); // 3 minutos
+    }, 3 * 60 * 1000);
 
     return () => clearInterval(clearCacheInterval);
   }, []);
@@ -110,7 +103,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
   }, [isSearchDialogOpen]);
 
   useEffect(() => {
-    // Cancelar pesquisa anterior se ainda estiver em andamento
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -122,7 +114,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
       return;
     }
 
-    // Verificar cache primeiro
     const cacheKey = searchQuery.toLowerCase().trim();
     if (searchCache.has(cacheKey)) {
       setSearchResults(searchCache.get(cacheKey) || []);
@@ -134,14 +125,12 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
     const searchTimeout = setTimeout(async () => {
       if (!user?.teamId) return;
 
-      // Criar novo AbortController para esta pesquisa
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
       setIsSearching(true);
 
       try {
-        // Fazer todas as requisições em paralelo para maior velocidade
         const searchPromises = [
           fetch(`/api/brands?teamId=${user.teamId}&search=${encodeURIComponent(searchQuery)}`, { signal }),
           fetch(`/api/themes?teamId=${user.teamId}&search=${encodeURIComponent(searchQuery)}`, { signal }),
@@ -150,10 +139,8 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
 
         const [brandsResponse, themesResponse, personasResponse] = await Promise.allSettled(searchPromises);
 
-        // Verificar se a pesquisa foi cancelada
         if (signal.aborted) return;
 
-        // Processar resultados apenas se as requisições foram bem-sucedidas
         let brands = [];
         let themes = [];
         let personas = [];
@@ -166,7 +153,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
           personas = personasResponse.status === 'fulfilled' && personasResponse.value.ok
             ? await personasResponse.value.json() : [];
         } catch (parseError) {
-          // Tentar requisições individuais simples como fallback
           try {
             const simpleBrands = await fetch(`/api/brands?teamId=${user.teamId}`, { signal });
             if (simpleBrands.ok) brands = await simpleBrands.json();
@@ -181,7 +167,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
           } catch { }
         }
 
-        // Processar resultados de forma mais eficiente
         const results: SearchResult[] = [
           ...(Array.isArray(brands) ? brands : []).map((brand: any) => ({
             id: brand.id || brand._id || '',
@@ -202,7 +187,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
             description: persona.description || ''
           }))
         ].filter(result => {
-          // Filtrar apenas resultados que realmente correspondem ao termo pesquisado
           if (!result.name && !result.description) return false;
 
           const searchTerm = searchQuery.toLowerCase().trim();
@@ -211,32 +195,26 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
 
           return nameMatch || descriptionMatch;
         }).sort((a, b) => {
-          // Ordenar por relevância: primeiro os que começam com o termo, depois os que contêm
           const searchTerm = searchQuery.toLowerCase().trim();
           const aNameMatch = (a.name || '').toLowerCase();
           const bNameMatch = (b.name || '').toLowerCase();
 
-          // Prioridade 1: Correspondência exata
           if (aNameMatch === searchTerm && bNameMatch !== searchTerm) return -1;
           if (bNameMatch === searchTerm && aNameMatch !== searchTerm) return 1;
 
-          // Prioridade 2: Começa com o termo
           const aStartsWith = aNameMatch.startsWith(searchTerm);
           const bStartsWith = bNameMatch.startsWith(searchTerm);
           if (aStartsWith && !bStartsWith) return -1;
           if (bStartsWith && !aStartsWith) return 1;
 
-          // Prioridade 3: Contém no nome vs descrição
           const aNameContains = aNameMatch.includes(searchTerm);
           const bNameContains = bNameMatch.includes(searchTerm);
           if (aNameContains && !bNameContains) return -1;
           if (bNameContains && !aNameContains) return 1;
 
-          // Ordem alfabética como último critério
           return (a.name || '').localeCompare(b.name || '');
-        }).slice(0, 10); // Limitar a 10 resultados para melhor performance
+        }).slice(0, 10);
 
-        // Salvar no cache
         setSearchCache(prev => new Map(prev.set(cacheKey, results)));
         setSearchResults(results);
         setShowResults(true);
@@ -248,7 +226,7 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
           setIsSearching(false);
         }
       }
-    }, 100); // Debounce reduzido de 150ms para 100ms para maior rapidez
+    }, 100);
 
     return () => {
       clearTimeout(searchTimeout);
@@ -259,7 +237,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
   }, [searchQuery, user?.teamId, searchCache]);
 
   const highlightSearchTerm = (text: string, searchTerm: string) => {
-    // Verificações de segurança
     if (!text || typeof text !== 'string' || !searchTerm || !searchTerm.trim()) {
       return text || '';
     }
@@ -276,7 +253,6 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
         ) : part
       );
     } catch (error) {
-      // Em caso de erro, retornar o texto original
       return text;
     }
   };
@@ -315,9 +291,10 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 md:h-20 items-center justify-between shadow-sm shadow-primary/10 bg-card/95 backdrop-blur-md border-b border-border/20 px-3 md:px-6 lg:px-8 flex-shrink-0 transition-all duration-300">
-      {/* Left section - Mobile menu + Logo on mobile */}
-      <div className="flex items-center gap-2 md:gap-4">
+    // **ALTERAÇÃO 1:** Ajustado o z-index de z-30 para z-20 para que fique abaixo do overlay da sidebar.
+    <header className="sticky top-0 z-20 flex h-16 md:h-20 items-center justify-between shadow-sm shadow-primary/10 bg-card/95 backdrop-blur-md border-b border-border/20 px-3 md:px-6 lg:px-8 flex-shrink-0 transition-all duration-300">
+      {/* **ALTERAÇÃO 2:** Adicionado flex-1 para o container da esquerda para melhor espaçamento. */}
+      <div className="flex items-center gap-2 md:gap-4 flex-1">
         {/* Botão Hambúrguer para Mobile */}
         <Button
           variant="ghost"
@@ -329,8 +306,8 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
           <span className="sr-only">Abrir menu</span>
         </Button>
 
-        {/* Logo visible only on mobile when sidebar is hidden */}
-        <div className="lg:hidden">
+        {/* **ALTERAÇÃO 3:** Logo agora fica oculto em telas menores que 420px para não espremer. */}
+        <div className="hidden min-[420px]:block lg:hidden">
           <Link href="/" className="block">
             <Image
               src="/assets/logoCreatorPreta.png"
@@ -361,13 +338,12 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
               }
             }}
             onFocus={() => searchQuery.trim().length >= 2 && setShowResults(true)}
-            className={`w-full rounded-2xl pl-12 pr-12 py-3 text-base border-2 bg-background/50 transition-all duration-200 ${
-              isSearching 
-                ? 'border-primary/50 shadow-md' 
+            className={`w-full rounded-2xl pl-12 pr-12 py-3 text-base border-2 bg-background/50 transition-all duration-200 ${isSearching
+                ? 'border-primary/50 shadow-md'
                 : 'border-border/50 hover:border-primary/30 focus:border-primary/50'
-            }`}
+              }`}
           />
-          
+
           {/* Resultados da pesquisa */}
           {showResults && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border/50 rounded-2xl shadow-xl z-50 max-h-96 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
@@ -512,9 +488,9 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
           id="topbar-profile"
           href="/perfil"
           className="flex h-12 w-12 items-center justify-center rounded-2xl 
-            bg-gradient-to-br from-primary via-purple-600 to-secondary text-white font-bold text-lg
-            transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25
-            border-2 border-transparent hover:border-white/20"
+            bg-gradient-to-br from-primary via-purple-600 to-secondary text-white font-bold text-lg
+            transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25
+            border-2 border-transparent hover:border-white/20"
         >
           <User className="h-6 w-6" />
           <span className="sr-only">Perfil</span>
