@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
       teamId,
       brandId,
       userId,
+      moodboard,
     } = body;
 
     const themes: string[] = Array.isArray(theme) ? theme.map(String).filter(Boolean) : (theme ? [String(theme)] : []);
@@ -140,7 +141,27 @@ export async function POST(req: NextRequest) {
 
     const themesContext = selectedThemes.map(t => `- TEMA: ${t.title}\n  - TOM DE VOZ: ${t.toneOfVoice}\n  - RESUMO: ${t.description}`).join('\n\n');
 
-    // --- PROMPT ATUALIZADO PARA USAR A ESTRUTURA DE TABELA ---
+    // --- PROMPT ATUALIZADO PARA USAR A ESTRUTURA DE TABELA E O MOODBOARD ---
+    let moodboardContext = '';
+    if (moodboard && moodboard.content) {
+      // Se for PDF, DOCX ou TXT, apenas informe o nome e tipo e inclua um trecho do texto se possível
+      let moodboardText = '';
+      if (moodboard.type?.includes('text') && typeof moodboard.content === 'string') {
+        // TXT: decodifica base64
+        try {
+          const base64 = moodboard.content.split(',')[1] || moodboard.content;
+          moodboardText = Buffer.from(base64, 'base64').toString('utf-8').slice(0, 1000);
+        } catch {}
+      } else if (moodboard.type?.includes('pdf')) {
+        moodboardText = '[Arquivo PDF enviado: ' + moodboard.name + ']';
+      } else if (moodboard.type?.includes('word') || moodboard.name?.endsWith('.docx')) {
+        moodboardText = '[Arquivo DOCX enviado: ' + moodboard.name + ']';
+      } else {
+        moodboardText = '[Arquivo enviado: ' + moodboard.name + ']';
+      }
+      moodboardContext = `\n7.  **Moodboard/Referências Visuais:** ${moodboardText}`;
+    }
+
     const planningPrompt = `
 Você é um Estrategista de Conteúdo Sênior, especialista em criar planos de conteúdo B2B e B2C alinhados a objetivos de negócio. Sua tarefa é gerar um planejamento de conteúdo em HTML com ${quantity} sugestões de posts para a marca "${brand}".
 
@@ -158,6 +179,7 @@ Você é um Estrategista de Conteúdo Sênior, especialista em criar planos de c
         * **10% Cultura/Marca:** Bastidores, valores da empresa, equipe.
     * **Garantia de Variedade:** Não repita a mesma ideia. Cada post deve ter um objetivo, formato e ângulo únicos.
 6.  **Restrição Importante:** É estritamente proibido o uso de emojis em qualquer parte do conteúdo gerado. O texto deve ser limpo e profissional.
+${moodboardContext}
 
 --- ESTRUTURA DE SAÍDA (HTML OBRIGATÓRIO) ---
 Gere o conteúdo HTML INTERNO, começando com a tag <h1> e terminando após a última tag </article>. Siga RIGOROSAMENTE a estrutura de TABELA abaixo para CADA uma das ${quantity} sugestões de post.
