@@ -16,6 +16,9 @@ model Team {
   adminId       String
   plan          Json
   credits       Json
+  planKey       PlanKey          @default(TRIAL)
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  trialEndsAt    DateTime?
   totalContents Int              @default(0)
   totalBrands   Int              @default(0)
   actions       Action[]
@@ -209,6 +212,19 @@ enum UserStatus {
   PENDING
   INACTIVE
   NO_TEAM
+}
+
+enum PlanKey {
+  TRIAL
+  BASIC
+  PRO
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }
 
 enum ActionType {

@@ -18,7 +18,7 @@ export default function PerfilPage() {
   const [teamInfo, setTeamInfo] = useState({
     teamName: 'Sem equipe',
     plan: '-',
-    actionsRemaining: { total: 0, createContent: 0, reviewContent: 0, planContent: 0 },
+    actionsRemaining: { total: 0, createContent: 0, customContent: 0, reviewContent: 0, planContent: 0 },
   });
 
   // Carrega dados da equipe via API
@@ -52,8 +52,12 @@ export default function PerfilPage() {
       teamName: team.name,
       plan: typeof team.plan === 'string' ? team.plan : team.plan.name,
       actionsRemaining: {
-        total: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
+        total: (team.credits?.contentSuggestions || 0)
+          + (team.credits?.customCreations || 0)
+          + (team.credits?.contentReviews || 0)
+          + (team.credits?.contentPlans || 0),
         createContent: team.credits?.contentSuggestions || 0,
+        customContent: team.credits?.customCreations || 0,
         reviewContent: team.credits?.contentReviews || 0,
         planContent: team.credits?.contentPlans || 0,
       },

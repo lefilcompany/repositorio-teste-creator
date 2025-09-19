@@ -50,10 +50,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
 
   // Calcular progresso baseado nos créditos da equipe
   const creditosDisponiveis = team ? {
-    total: typeof team.plan === 'object' 
-      ? ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5))
+    total: typeof team.plan === 'object'
+      ? ((team.plan.limits?.contentSuggestions || 20)
+        + (team.plan.limits?.customCreations || 0)
+        + (team.plan.limits?.contentReviews || 20)
+        + (team.plan.limits?.contentPlans || team.plan.limits?.calendars || 5))
       : 45,
-    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0)
+    restantes: (team.credits?.contentSuggestions || 0)
+      + (team.credits?.customCreations || 0)
+      + (team.credits?.contentReviews || 0)
+      + (team.credits?.contentPlans || 0)
   } : { total: 45, restantes: 0 };
 
   const creditosUsados = creditosDisponiveis.total - creditosDisponiveis.restantes;

@@ -76,9 +76,15 @@ export default function HomePage() {
   }, [user]);
 
   const creditos = teamRealtime ? {
-    restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
+    restantes: (teamRealtime.credits?.contentSuggestions || 0)
+      + (teamRealtime.credits?.customCreations || 0)
+      + (teamRealtime.credits?.contentReviews || 0)
+      + (teamRealtime.credits?.contentPlans || 0),
     total: (typeof teamRealtime.plan === 'object' && teamRealtime.plan !== null ?
-      ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5))
+      ((teamRealtime.plan.limits?.contentSuggestions || 20)
+        + (teamRealtime.plan.limits?.customCreations || 0)
+        + (teamRealtime.plan.limits?.contentReviews || 20)
+        + (teamRealtime.plan.limits?.contentPlans || teamRealtime.plan.limits?.calendars || 5))
       : 45)
   } : { restantes: 0, total: 0 };
 

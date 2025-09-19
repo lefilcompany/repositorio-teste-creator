@@ -1,3 +1,5 @@
+import type { PlanKey, PlanSnapshot, SubscriptionStatus, TeamCredits } from '@/lib/plans';
+
 export interface Team {
   id: string;
   name: string;
@@ -6,23 +8,11 @@ export interface Team {
   admin: string; // admin email
   members: string[];
   pending: string[];
-  plan: string | {
-    name: string;
-    limits: {
-      members: number;
-      brands: number;
-      themes: number;
-      personas: number;
-      calendars: number;
-      contentSuggestions: number;
-      contentReviews: number;
-    };
-  };
-  credits?: {
-    contentSuggestions: number;
-    contentReviews: number;
-    contentPlans: number;
-  };
+  plan: string | PlanSnapshot;
+  planKey?: PlanKey;
+  subscriptionStatus?: SubscriptionStatus;
+  trialEndsAt?: string | null;
+  credits?: TeamCredits;
 }
 
 export interface TeamSummary {

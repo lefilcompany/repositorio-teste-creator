@@ -107,18 +107,22 @@ export function PlanLimits({ team, currentCounts, entityType }: PlanLimitsProps)
         })}
         
         <div className="pt-2 border-t border-border/50">
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <p className="text-xs text-muted-foreground">Créditos Conteúdo</p>
+              <p className="text-xs text-muted-foreground">Conteúdos rápidos</p>
               <p className="text-sm font-semibold">{team.credits?.contentSuggestions || 0}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Créditos Revisão</p>
-              <p className="text-sm font-semibold">{team.credits?.contentReviews || 0}</p>
+              <p className="text-xs text-muted-foreground">Conteúdos personalizados</p>
+              <p className="text-sm font-semibold">{team.credits?.customCreations || 0}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Calendários</p>
+              <p className="text-xs text-muted-foreground">Planejamentos</p>
               <p className="text-sm font-semibold">{team.credits?.contentPlans || 0}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Revisões</p>
+              <p className="text-sm font-semibold">{team.credits?.contentReviews || 0}</p>
             </div>
           </div>
         </div>

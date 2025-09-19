@@ -7,13 +7,117 @@ import { User } from '@/types/user';
 import { Team } from '@/types/team';
 import { isTokenExpired, getTokenPayload } from '@/lib/jwt';
 import { api } from '@/lib/api';
+import { buildPlanSnapshot, getDefaultCredits, getPlanDefinition, PlanKey, resolvePlanKey } from '@/lib/plans';
+
+const trialPlanDefinition = getPlanDefinition('TRIAL');
+const fallbackPlanSnapshot = buildPlanSnapshot(trialPlanDefinition);
+const fallbackCredits = getDefaultCredits(trialPlanDefinition);
+
+const normalizePlanSnapshot = (planKey: PlanKey, plan: any) => {
+  const baseDefinition = getPlanDefinition(planKey);
+  const baseSnapshot = buildPlanSnapshot(baseDefinition);
+  if (!plan || typeof plan !== 'object') return baseSnapshot;
+
+  return {
+    ...baseSnapshot,
+    ...plan,
+    key: plan.key ?? baseSnapshot.key,
+    price: plan.price ?? baseSnapshot.price,
+    description: plan.description ?? baseSnapshot.description,
+    isTrial: plan.isTrial ?? baseSnapshot.isTrial,
+    trialDays: plan.trialDays ?? baseSnapshot.trialDays,
+    limits: {
+      ...baseSnapshot.limits,
+      ...(plan.limits || {}),
+      calendars: plan.limits?.calendars ?? plan.limits?.contentPlans ?? baseSnapshot.limits.calendars,
+      contentPlans: plan.limits?.contentPlans ?? plan.limits?.calendars ?? baseSnapshot.limits.contentPlans,
+      contentSuggestions: plan.limits?.contentSuggestions ?? baseSnapshot.limits.contentSuggestions,
+      contentReviews: plan.limits?.contentReviews ?? baseSnapshot.limits.contentReviews,
+      customCreations: plan.limits?.customCreations ?? baseSnapshot.limits.customCreations,
+      members: plan.limits?.members ?? baseSnapshot.limits.members,
+      brands: plan.limits?.brands ?? baseSnapshot.limits.brands,
+      themes: plan.limits?.themes ?? baseSnapshot.limits.themes,
+      personas: plan.limits?.personas ?? baseSnapshot.limits.personas,
+    },
+  };
+};
+
+const normalizeCredits = (planKey: PlanKey, credits: any) => {
+  const definition = getPlanDefinition(planKey);
+  const defaults = getDefaultCredits(definition);
+  return {
+    contentSuggestions: typeof credits?.contentSuggestions === 'number' ? credits.contentSuggestions : defaults.contentSuggestions,
+    customCreations: typeof credits?.customCreations === 'number' ? credits.customCreations : defaults.customCreations,
+    contentPlans: typeof credits?.contentPlans === 'number'
+      ? credits.contentPlans
+      : typeof credits?.calendars === 'number'
+        ? credits.calendars
+        : defaults.contentPlans,
+    contentReviews: typeof credits?.contentReviews === 'number' ? credits.contentReviews : defaults.contentReviews,
+  };
+};
+
+const extractEmails = (items: any[], accessor?: (item: any) => string | null | undefined) => {
+  if (!Array.isArray(items)) return [] as string[];
+  return items
+    .map(item => {
+      if (accessor) return accessor(item) ?? null;
+      if (typeof item === 'string') return item;
+      if (item && typeof item.email === 'string') return item.email;
+      if (item && item.user && typeof item.user.email === 'string') return item.user.email;
+      return null;
+    })
+    .filter((email): email is string => Boolean(email));
+};
+
+const transformTeamResponse = (teamSource: any, userEmail: string, userRole?: string): Team => {
+  if (!teamSource) {
+    return {
+      id: '',
+      name: '',
+      code: '',
+      admin: userRole === 'ADMIN' ? userEmail : '',
+      members: [],
+      pending: [],
+      plan: fallbackPlanSnapshot,
+      planKey: 'TRIAL',
+      subscriptionStatus: 'TRIAL',
+      trialEndsAt: null,
+      credits: fallbackCredits,
+    };
+  }
+
+  const planKey = resolvePlanKey(teamSource.planKey, teamSource.plan?.name);
+  const planSnapshot = normalizePlanSnapshot(planKey, teamSource.plan);
+  const credits = normalizeCredits(planKey, teamSource.credits);
+
+  const members = extractEmails(teamSource.members ?? []);
+  const pendingJoinRequests = extractEmails(teamSource.joinRequests ?? []);
+  const pendingDirect = extractEmails(teamSource.pending ?? []);
+  const pending = Array.from(new Set([...pendingDirect, ...pendingJoinRequests]));
+
+  return {
+    id: teamSource.id,
+    name: teamSource.name,
+    code: teamSource.displayCode ?? teamSource.code ?? '',
+    displayCode: teamSource.displayCode ?? teamSource.code ?? '',
+    admin: teamSource.admin?.email ?? (userRole === 'ADMIN' ? userEmail : (teamSource.admin || 'N/A')),
+    members,
+    pending,
+    plan: planSnapshot,
+    planKey,
+    subscriptionStatus: teamSource.subscriptionStatus ?? (planKey === 'TRIAL' ? 'TRIAL' : 'ACTIVE'),
+    trialEndsAt: teamSource.trialEndsAt ?? null,
+    credits,
+  };
+};
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   team: Team | null;
   pendingNoTeamUser: User | null;
-  login: (data: Omit<User, 'name'> & { rememberMe?: boolean }) => Promise<'success' | 'pending' | 'invalid' | 'no_team'>;
+  login: (data: Omit<User, 'name'> & { rememberMe?: boolean }) => Promise<'success' | 'pending' | 'invalid' | 'no_team' | 'trial_expired'>;
   completeLogin: (user: User, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
   updateUser: (updatedData: Partial<User>) => Promise<void>;
@@ -72,19 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Carregar equipe se existir
           if (userData.team) {
-            const teamData = {
-              id: userData.team.id,
-              name: userData.team.name,
-              code: userData.team.displayCode,
-              displayCode: userData.team.displayCode,
-              admin: userData.role === 'ADMIN' ? userData.email : 'N/A',
-              members: userData.team.members?.map((member: any) => member.email) || [],
-              pending: [],
-              plan: userData.team.plan || 'FREE',
-              credits: userData.team.credits || {}
-            };
-            setTeam(teamData);
+            setTeam(transformTeamResponse(userData.team, userData.email, userData.role));
             console.log('✅ Equipe carregada');
+          } else {
+            setTeam(null);
           }
           
         } catch (error) {
@@ -113,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (
     data: Omit<User, 'name'> & { rememberMe?: boolean }
-  ): Promise<'success' | 'pending' | 'invalid' | 'no_team'> => {
+  ): Promise<'success' | 'pending' | 'invalid' | 'no_team' | 'trial_expired'> => {
     try {
       const { rememberMe, ...loginData } = data;
       setLoginRememberMe(rememberMe ?? false);
@@ -122,12 +217,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...loginData, rememberMe }),
       });
-      
-      if (res.status === 403) return 'pending';
-      if (!res.ok) return 'invalid';
 
-      const responseData = await res.json();
-      
+      const responseData = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        if (res.status === 403 && responseData?.status === 'pending') return 'pending';
+        if (res.status === 402 && responseData?.status === 'trial_expired') return 'trial_expired';
+        return 'invalid';
+      }
+
+      if (!responseData) {
+        return 'invalid';
+      }
+
       // Se retornou status no_team, não fazer login ainda
       if (responseData.status === 'no_team') {
         setPendingNoTeamUser(responseData.user);
@@ -148,49 +250,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const fullUserData = await api.get(`/api/users/${userToAuth.id}`);
         console.log('Dados completos do usuário no login:', fullUserData);
         setUser(fullUserData);
-        
-        if (fullUserData.team) {
-          const teamData = {
-            id: fullUserData.team.id,
-            name: fullUserData.team.name,
-            code: fullUserData.team.displayCode,
-            displayCode: fullUserData.team.displayCode,
-            admin: fullUserData.role === 'ADMIN' ? fullUserData.email : 'N/A',
-            members: fullUserData.team.members?.map((member: any) => member.email) || [],
-            pending: [],
-            plan: fullUserData.team.plan || 'FREE',
-            credits: fullUserData.team.credits || {
-              contentSuggestions: 20,
-              contentReviews: 20,
-              contentPlans: 1
-            }
-          };
-          console.log('Dados da equipe no login:', teamData);
-          setTeam(teamData);
-        }
-        } catch (error) {
-          console.error('Erro ao carregar dados completos:', error);
-          // Carregar equipe básica se falhou
-          if (userToAuth.teamId) {
-            setTeam({
-              id: userToAuth.teamId,
-              name: 'Loading...',
-              code: '',
-              displayCode: '',
-              admin: '',
-              members: [],
-              pending: [],
-              plan: 'FREE',
-              credits: {
-                contentSuggestions: 20,
-                contentReviews: 20,
-                contentPlans: 1
-              }
-            });
-          }
-        }
 
-        router.push('/home');
+        if (fullUserData.team) {
+          const normalizedTeam = transformTeamResponse(fullUserData.team, fullUserData.email, fullUserData.role);
+          console.log('Dados da equipe no login:', normalizedTeam);
+          setTeam(normalizedTeam);
+        } else {
+          setTeam(null);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados completos:', error);
+        // Carregar equipe básica se falhou
+        if (userToAuth.teamId) {
+          setTeam(transformTeamResponse({
+            id: userToAuth.teamId,
+            name: 'Carregando...',
+            displayCode: '',
+            code: '',
+            admin: { email: userToAuth.email },
+            members: [],
+            pending: [],
+            planKey: 'TRIAL',
+            plan: null,
+            credits: {},
+          }, userToAuth.email || '', userToAuth.role));
+        }
+      }
+
+      router.push('/home');
       return 'success';
     } catch (error) {
       console.error('Login failed', error);
@@ -222,23 +309,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(fullUserData);
           
           if (fullUserData.team) {
-            const teamData = {
-              id: fullUserData.team.id,
-              name: fullUserData.team.name,
-              code: fullUserData.team.displayCode,
-              displayCode: fullUserData.team.displayCode,
-              admin: fullUserData.role === 'ADMIN' ? fullUserData.email : 'N/A',
-              members: fullUserData.team.members?.map((member: any) => member.email) || [],
-              pending: [],
-              plan: fullUserData.team.plan || 'FREE',
-              credits: fullUserData.team.credits || {
-                contentSuggestions: 20,
-                contentReviews: 20,
-                contentPlans: 1
-              }
-            };
-            console.log('Dados da equipe no completeLogin:', teamData);
-            setTeam(teamData);
+            const normalizedTeam = transformTeamResponse(fullUserData.team, fullUserData.email, fullUserData.role);
+            console.log('Dados da equipe no completeLogin:', normalizedTeam);
+            setTeam(normalizedTeam);
+          } else {
+            setTeam(null);
           }
         } catch (error) {
           console.error('Erro ao carregar dados completos no completeLogin:', error);
@@ -308,22 +383,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await api.get(`/api/users/${user.id}`);
         setUser(userData);
         if (userData.team) {
-          const teamData = {
-            id: userData.team.id,
-            name: userData.team.name,
-            code: userData.team.displayCode,
-            displayCode: userData.team.displayCode,
-            admin: userData.role === 'ADMIN' ? userData.email : 'N/A',
-            members: userData.team.members?.map((member: any) => member.email) || [],
-            pending: [],
-            plan: userData.team.plan || 'FREE',
-            credits: userData.team.credits || {
-              contentSuggestions: 20,
-              contentReviews: 20,
-              contentPlans: 1
-            }
-          };
-          setTeam(teamData);
+          setTeam(transformTeamResponse(userData.team, userData.email, userData.role));
+        } else {
+          setTeam(null);
         }
       } catch (error) {
         console.error('Erro ao recarregar equipe:', error);

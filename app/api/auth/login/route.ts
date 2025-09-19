@@ -6,7 +6,12 @@ import { createJWT } from '@/lib/jwt';
 export async function POST(req: Request) {
   const { email, password, rememberMe } = await req.json();
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        team: true,
+      },
+    });
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
@@ -29,6 +34,33 @@ export async function POST(req: Request) {
     if (user.status === 'NO_TEAM') {
       const { password: _pw, ...safeUser } = user;
       return NextResponse.json({ status: 'no_team', user: safeUser }, { status: 200 });
+    }
+
+    // Verificar status de assinatura e trial da equipe
+    if (user.team) {
+      const { team } = user;
+      const isTrialPlan = team.planKey === 'TRIAL' || team.subscriptionStatus === 'TRIAL';
+      let subscriptionStatus = team.subscriptionStatus;
+
+      if (isTrialPlan && team.trialEndsAt) {
+        const trialEndsAt = new Date(team.trialEndsAt as Date);
+        const now = new Date();
+        if (!Number.isNaN(trialEndsAt.getTime()) && trialEndsAt.getTime() < now.getTime()) {
+          const updatedTeam = await prisma.team.update({
+            where: { id: team.id },
+            data: { subscriptionStatus: 'EXPIRED' },
+            select: { subscriptionStatus: true },
+          });
+          subscriptionStatus = updatedTeam.subscriptionStatus;
+        }
+      }
+
+      if (subscriptionStatus === 'EXPIRED') {
+        return NextResponse.json({
+          status: 'trial_expired',
+          message: 'Período de teste encerrado. Escolha um novo plano para continuar usando o Creator.',
+        }, { status: 402 });
+      }
     }
 
     // Criar JWT token para usuários ativos com duração baseada em rememberMe

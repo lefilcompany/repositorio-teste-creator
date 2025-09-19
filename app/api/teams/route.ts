@@ -101,6 +101,9 @@ export async function GET(req: Request) {
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),
       plan: team.plan,
+      planKey: team.planKey,
+      subscriptionStatus: team.subscriptionStatus,
+      trialEndsAt: team.trialEndsAt,
       credits: team.credits
     };
 
@@ -113,20 +116,28 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const data = await req.json();
-    const { id, credits, plan, ...otherData } = data;
-    
+    const { id, credits, plan, planKey, subscriptionStatus, trialEndsAt, ...otherData } = data;
+
     if (!id) {
       return NextResponse.json({ error: 'Team ID is required' }, { status: 400 });
     }
-    
+
+    const updateData: Record<string, any> = {
+      ...otherData,
+    };
+
+    if (typeof credits !== 'undefined') updateData.credits = credits;
+    if (typeof plan !== 'undefined') updateData.plan = plan;
+    if (typeof planKey !== 'undefined') updateData.planKey = planKey;
+    if (typeof subscriptionStatus !== 'undefined') updateData.subscriptionStatus = subscriptionStatus;
+    if (typeof trialEndsAt !== 'undefined') {
+      updateData.trialEndsAt = trialEndsAt ? new Date(trialEndsAt) : null;
+    }
+
     // Atualizar o team
     const updatedTeam = await prisma.team.update({
       where: { id },
-      data: {
-        ...otherData,
-        credits: credits || undefined,
-        plan: plan || undefined,
-      },
+      data: updateData,
       include: {
         admin: {
           select: {
@@ -168,6 +179,9 @@ export async function PATCH(req: Request) {
       members: updatedTeam.members.map(member => member.email),
       pending: updatedTeam.joinRequests.map(request => request.user.email),
       plan: updatedTeam.plan,
+      planKey: updatedTeam.planKey,
+      subscriptionStatus: updatedTeam.subscriptionStatus,
+      trialEndsAt: updatedTeam.trialEndsAt,
       credits: updatedTeam.credits
     };
 

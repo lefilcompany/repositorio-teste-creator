@@ -71,6 +71,9 @@ export default function LoginPage() {
       // Usuário precisa escolher equipe
       setTeamDialogOpen(true);
       toast.info('Escolha uma equipe para continuar');
+    } else if (result === 'trial_expired') {
+      setError('O período de teste da sua equipe terminou. Escolha um novo plano para voltar a usar o Creator.');
+      toast.error('Período de teste encerrado. Selecione um plano para continuar.');
     } else if (result === 'success') {
       toast.success('Login realizado com sucesso!');
     }

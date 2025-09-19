@@ -19,6 +19,9 @@ export async function GET(
           name: true,
           displayCode: true,
           plan: true,
+          planKey: true,
+          subscriptionStatus: true,
+          trialEndsAt: true,
           credits: true,
           _count: {
             select: {
@@ -40,11 +43,14 @@ export async function GET(
         admin: '', 
         members: [], 
         pending: [], 
-        plan: team.plan,
-        credits: team.credits,
-        totalBrands: team._count.brands,
-        totalContents: team._count.actions,
-      };
+      plan: team.plan,
+      planKey: team.planKey,
+      subscriptionStatus: team.subscriptionStatus,
+      trialEndsAt: team.trialEndsAt,
+      credits: team.credits,
+      totalBrands: team._count.brands,
+      totalContents: team._count.actions,
+    };
 
       return NextResponse.json(transformedTeam);
     }
@@ -57,6 +63,9 @@ export async function GET(
           name: true,
           displayCode: true,
           plan: true,
+          planKey: true,
+          subscriptionStatus: true,
+          trialEndsAt: true,
           credits: true,
           admin: { select: { email: true } },
           _count: {
@@ -88,6 +97,9 @@ export async function GET(
       members: members.map(member => member.email),
       pending: pendingRequests.map(request => request.user.email),
       plan: teamData.plan,
+      planKey: teamData.planKey,
+      subscriptionStatus: teamData.subscriptionStatus,
+      trialEndsAt: teamData.trialEndsAt,
       credits: teamData.credits,
       totalBrands: teamData._count.brands,
       totalContents: teamData._count.actions,

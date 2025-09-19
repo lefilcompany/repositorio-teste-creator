@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { User } from '@/types/user';
+import { buildPlanSnapshot, calculateTrialEndDate, getDefaultCredits, getPlanDefinition } from '@/lib/plans';
 
 interface TeamDialogProps {
   isOpen: boolean;
@@ -64,18 +65,9 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
     }
     setIsCreating(true);
     try {
-      const freePlan = {
-        name: 'Free',
-        limits: {
-          members: 5,
-          brands: 1,
-          themes: 3,
-          personas: 2,
-          calendars: 5,
-          contentSuggestions: 20,
-          contentReviews: 20,
-        },
-      };
+      const trialPlanDefinition = getPlanDefinition('TRIAL');
+      const planSnapshot = buildPlanSnapshot(trialPlanDefinition);
+      const trialEndsAt = calculateTrialEndDate(trialPlanDefinition);
       const res = await fetch('/api/teams/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,12 +75,9 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
           userId: user.id,
           name: teamName,
           code: teamCode,
-          plan: freePlan,
-          credits: {
-            contentSuggestions: freePlan.limits.contentSuggestions,
-            contentReviews: freePlan.limits.contentReviews,
-            contentPlans: freePlan.limits.calendars, // calendars = 5
-          },
+          plan: planSnapshot,
+          credits: getDefaultCredits(trialPlanDefinition),
+          trialEndsAt,
         }),
       });
       if (res.ok) {

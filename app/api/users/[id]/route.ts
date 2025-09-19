@@ -30,6 +30,9 @@ export async function GET(
             displayCode: true,
             adminId: true,
             plan: true,
+            planKey: true,
+            subscriptionStatus: true,
+            trialEndsAt: true,
             credits: true,
             // Otimização: buscar apenas contagem de membros ao invés de todos os dados
             _count: {
