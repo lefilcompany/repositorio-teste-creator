@@ -59,6 +59,16 @@ function buildDetailedImagePrompt(formData: any): string {
 
   let promptParts: string[] = [];
 
+  // Moodboard: cores e imagens extraídas
+  if (formData.moodboard) {
+    if (formData.moodboard.colors && Array.isArray(formData.moodboard.colors) && formData.moodboard.colors.length > 0) {
+      promptParts.push(`Use predominantemente as seguintes cores extraídas do moodboard da marca: ${formData.moodboard.colors.join(", ")}. Estas cores representam a identidade visual do cliente e devem ser aplicadas de forma harmônica e criativa em todos os elementos gráficos da imagem.`);
+    }
+    if (formData.moodboard.images && Array.isArray(formData.moodboard.images) && formData.moodboard.images.length > 0) {
+      promptParts.push(`Inspire-se nas imagens extraídas do moodboard da marca (referências visuais internas do PDF) para compor a cena, estilo e atmosfera. As imagens devem servir como referência visual para texturas, padrões, elementos gráficos ou ambientação. NÃO copie literalmente, mas use como inspiração para a composição visual.`);
+    }
+  }
+
   // 0. Marca e Tema sempre explícitos no início
   if (brand && theme) {
     promptParts.push(
