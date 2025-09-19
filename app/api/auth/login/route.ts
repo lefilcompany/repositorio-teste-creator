@@ -40,34 +40,27 @@ export async function POST(req: Request) {
       status: user.status,
     }, rememberMe === true);
 
-    // Iniciar sessão de uso - Fechar sessões abertas anteriores
-    await prisma.usageSession.updateMany({
-      where: {
-        userId: user.id,
-        active: true
-      },
-      data: {
-        active: false,
-        logoutTime: new Date()
-      }
-    });
-
-    // Criar nova sessão de uso
-    await prisma.usageSession.create({
-      data: {
-        userId: user.id,
-        loginTime: new Date(),
-        active: true,
-        date: new Date()
-      }
-    });
+    console.log(`✅ Login realizado com sucesso: ${user.email}`);
 
     const { password: _pw, ...safeUser } = user;
-    return NextResponse.json({
+    
+    // Criar resposta com token
+    const response = NextResponse.json({
       user: safeUser,
       token,
       message: 'Login realizado com sucesso'
     });
+
+    // Definir cookie para o middleware
+    response.cookies.set('authToken', token, {
+      httpOnly: false, // Permite acesso via JavaScript
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60, // 30 dias ou 1 dia
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }

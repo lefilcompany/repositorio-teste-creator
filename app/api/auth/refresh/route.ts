@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       include: {
         team: {
           include: {
+            currentPlan: true, // Incluir currentPlan
             members: true
           }
         }
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
         id: user.team.id,
         name: user.team.name,
         displayCode: user.team.displayCode,
-        plan: user.team.plan,
+        plan: user.team.currentPlan, // Usar currentPlan em vez de plan
         credits: user.team.credits,
         members: user.team.members
       } : null

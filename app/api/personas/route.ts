@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { canTeamCreatePersona } from '@/lib/subscription-utils';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -57,20 +58,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
     }
 
-    // Verificar limite de personas do plano
-    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
-      const teamPlan = user.team.plan as any;
-      if (teamPlan.limits) {
-        const currentPersonasCount = await prisma.persona.count({
-          where: { teamId: teamId }
-        });
+    // Verificar limite de personas usando o novo sistema
+    const currentPersonasCount = await prisma.persona.count({
+      where: { teamId: teamId }
+    });
 
-        if (currentPersonasCount >= teamPlan.limits.personas) {
-          return NextResponse.json({ 
-            error: `Limite de personas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.personas} persona(s).` 
-          }, { status: 400 });
-        }
-      }
+    const canCreate = await canTeamCreatePersona(teamId, currentPersonasCount);
+    if (!canCreate.canCreate) {
+      return NextResponse.json({ 
+        error: canCreate.reason || 'Limite de personas atingido'
+      }, { status: 400 });
     }
 
     // Preparar dados da persona com valores padrão para campos opcionais

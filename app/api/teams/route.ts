@@ -16,6 +16,7 @@ export async function GET(req: Request) {
       include: {
         team: {
           include: {
+            currentPlan: true, // Incluir plano atual
             admin: {
               select: {
                 id: true,
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
         },
         adminTeams: {
           include: {
+            currentPlan: true, // Incluir plano atual
             admin: {
               select: {
                 id: true,
@@ -100,7 +102,7 @@ export async function GET(req: Request) {
       admin: team.admin.email,
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),
-      plan: team.plan,
+      plan: team.currentPlan, // Usar currentPlan em vez de plan
       credits: team.credits
     };
 
@@ -125,9 +127,10 @@ export async function PATCH(req: Request) {
       data: {
         ...otherData,
         credits: credits || undefined,
-        plan: plan || undefined,
+        // Remover plan JSON, pois agora usamos currentPlanId
       },
       include: {
+        currentPlan: true, // Incluir plano atual
         admin: {
           select: {
             id: true,
@@ -167,7 +170,7 @@ export async function PATCH(req: Request) {
       admin: updatedTeam.admin.email,
       members: updatedTeam.members.map(member => member.email),
       pending: updatedTeam.joinRequests.map(request => request.user.email),
-      plan: updatedTeam.plan,
+      plan: updatedTeam.currentPlan, // Usar currentPlan em vez de plan
       credits: updatedTeam.credits
     };
 

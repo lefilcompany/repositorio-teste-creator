@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { incrementTeamBrandCounter } from '@/lib/team-counters';
+import { canTeamCreateBrand } from '@/lib/subscription-utils';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -95,20 +96,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
     }
 
-    // Verificar limite de marcas do plano
-    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
-      const teamPlan = user.team.plan as any;
-      if (teamPlan.limits) {
-        const currentBrandsCount = await prisma.brand.count({
-          where: { teamId: teamId }
-        });
+    // Verificar limite de marcas usando o novo sistema
+    const currentBrandsCount = await prisma.brand.count({
+      where: { teamId: teamId }
+    });
 
-        if (currentBrandsCount >= teamPlan.limits.brands) {
-          return NextResponse.json({ 
-            error: `Limite de marcas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.brands} marca(s).` 
-          }, { status: 400 });
-        }
-      }
+    const canCreate = await canTeamCreateBrand(teamId, currentBrandsCount);
+    if (!canCreate.canCreate) {
+      return NextResponse.json({ 
+        error: canCreate.reason || 'Limite de marcas atingido'
+      }, { status: 400 });
     }
     
     // Criar a marca

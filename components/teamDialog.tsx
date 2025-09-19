@@ -64,18 +64,6 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
     }
     setIsCreating(true);
     try {
-      const freePlan = {
-        name: 'Free',
-        limits: {
-          members: 5,
-          brands: 1,
-          themes: 3,
-          personas: 2,
-          calendars: 5,
-          contentSuggestions: 20,
-          contentReviews: 20,
-        },
-      };
       const res = await fetch('/api/teams/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,11 +71,10 @@ export default function TeamDialog({ isOpen, onClose, user, isFromLogin = false 
           userId: user.id,
           name: teamName,
           code: teamCode,
-          plan: freePlan,
           credits: {
-            contentSuggestions: freePlan.limits.contentSuggestions,
-            contentReviews: freePlan.limits.contentReviews,
-            contentPlans: freePlan.limits.calendars, // calendars = 5
+            contentSuggestions: 20,
+            contentReviews: 20,
+            contentPlans: 5,
           },
         }),
       });

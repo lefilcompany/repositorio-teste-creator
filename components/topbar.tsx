@@ -26,6 +26,7 @@ import { Search, Settings, User, LogOut, Info, FileText, Shield, Loader2, Users,
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import Notifications from '@/components/notifications';
+import TrialStatus from '@/components/trial-status';
 import { cn } from '@/lib/utils'; // **ALTERAÇÃO:** Importei o cn para usar nas classes condicionais.
 
 interface SearchResult {
@@ -417,6 +418,8 @@ export default function TopBar({ toggleMobileMenu }: TopBarProps) {
         </Button>
 
         <Notifications />
+
+        <TrialStatus />
 
         <Dialog>
           <DropdownMenu>

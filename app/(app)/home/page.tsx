@@ -77,9 +77,9 @@ export default function HomePage() {
 
   const creditos = teamRealtime ? {
     restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
-    total: (typeof teamRealtime.plan === 'object' && teamRealtime.plan !== null ?
-      ((teamRealtime.plan.limits?.contentSuggestions || 20) + (teamRealtime.plan.limits?.contentReviews || 20) + (teamRealtime.plan.limits?.calendars || 5))
-      : 45)
+    total: teamRealtime.plan ?
+      ((teamRealtime.plan.customContentSuggestions || 20) + (teamRealtime.plan.contentReviews || 20) + (teamRealtime.plan.contentPlans || 5))
+      : 45
   } : { restantes: 0, total: 0 };
 
   const creditosUsadosPercentual = (creditos.total > 0)

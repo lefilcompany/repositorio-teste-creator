@@ -31,27 +31,7 @@ export async function POST(req: Request) {
       status: user.status,
     }, rememberMe === true);
 
-    // Iniciar sessão de uso - Fechar sessões abertas anteriores
-    await prisma.usageSession.updateMany({
-      where: {
-        userId: user.id,
-        active: true
-      },
-      data: {
-        active: false,
-        logoutTime: new Date()
-      }
-    });
-
-    // Criar nova sessão de uso
-    await prisma.usageSession.create({
-      data: {
-        userId: user.id,
-        loginTime: new Date(),
-        active: true,
-        date: new Date()
-      }
-    });
+    console.log(`✅ Login completo realizado: ${user.email}`);
 
     const { password: _pw, ...safeUser } = user;
     

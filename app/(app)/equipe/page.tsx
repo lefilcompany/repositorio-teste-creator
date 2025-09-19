@@ -97,7 +97,7 @@ export default function EquipePage() {
       return;
     }
 
-    if (action === 'approve' && typeof team.plan === 'object' && membersDetails.length >= team.plan.limits.members) {
+    if (action === 'approve' && team.plan && membersDetails.length >= team.plan.maxMembers) {
       toast.error('Limite de membros do plano atingido.');
       return;
     }
@@ -292,7 +292,7 @@ export default function EquipePage() {
                     <div className="flex items-center gap-2 text-lg font-bold p-2 rounded-lg bg-gradient-to-r from-secondary/10 to-accent/10 border border-secondary/20">
                       <Users className="h-4 w-4 text-secondary" />
                       <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
-                        {membersDetails.length} / {typeof team.plan === 'object' ? team.plan.limits.members : 5}
+                        {membersDetails.length} / {team.plan?.maxMembers || 5}
                       </span>
                     </div>
                   </div>

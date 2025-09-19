@@ -6,52 +6,52 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
-  Home,
-  Sparkles,
-  CheckCircle,
-  Tag,
-  Palette,
-  Users,
-  Calendar,
-  Rocket,
-  History,
-  Shield,
-  X
+  Home,
+  Sparkles,
+  CheckCircle,
+  Tag,
+  Palette,
+  Users,
+  Calendar,
+  Rocket,
+  History,
+  Shield,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // --- DATA DEFINITIONS ---
 const navLinks = [
-  { id: 'nav-home', href: '/', icon: Home, label: 'Home' },
-  { id: 'nav-marcas', href: '/marcas', icon: Tag, label: 'Marcas' },
-  { id: 'nav-temas', href: '/temas', icon: Palette, label: 'Temas Estratégicos' },
-  { id: 'nav-personas', href: '/personas', icon: Users, label: 'Personas' },
-  { id: 'nav-historico', href: '/historico', icon: History, label: 'Histórico' },
+  { id: 'nav-home', href: '/', icon: Home, label: 'Home' },
+  { id: 'nav-marcas', href: '/marcas', icon: Tag, label: 'Marcas' },
+  { id: 'nav-temas', href: '/temas', icon: Palette, label: 'Temas Estratégicos' },
+  { id: 'nav-personas', href: '/personas', icon: Users, label: 'Personas' },
+  { id: 'nav-historico', href: '/historico', icon: History, label: 'Histórico' },
 ];
 
 const contentAction = {
-  id: 'nav-criar',
-  href: '/content',
-  icon: Sparkles,
-  label: 'Criar Conteúdo',
+  id: 'nav-criar',
+  href: '/content',
+  icon: Sparkles,
+  label: 'Criar Conteúdo',
 }
 
 const reviewAction = {
-  id: 'nav-revisar',
-  href: '/revisar',
-  icon: CheckCircle,
-  label: 'Revisar Conteúdo',
+  id: 'nav-revisar',
+  href: '/revisar',
+  icon: CheckCircle,
+  label: 'Revisar Conteúdo',
 }
 
 const planAction = {
-  id: 'nav-planejar',
-  href: '/planejamento',
-  icon: Calendar,
-  label: 'Planejar Conteúdo',
+  id: 'nav-planejar',
+  href: '/planejamento',
+  icon: Calendar,
+  label: 'Planejar Conteúdo',
 }
 
 const navFooter = [
-  { id: 'nav-equipe', href: '/equipe', icon: Rocket, label: 'Equipe' },
+  { id: 'nav-equipe', href: '/equipe', icon: Rocket, label: 'Equipe' },
 ];
 
 // NavItem Unificado
@@ -208,7 +208,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
 
   const teamName = team?.name || '';
   const isAdmin = user && team ? user.email === team.admin : false;
-  const planName = typeof team?.plan === 'object' ? team.plan.name : team?.plan || '';
+  const planName = team?.plan?.name || 'FREE';
 
   const sidebarContent = (isMobile = false) => (
     <>

@@ -14,44 +14,23 @@ export async function POST(req: Request) {
         const payload = await verifyJWT(token);
         
         if (payload?.userId) {
-          // Finalizar sessões ativas do usuário
-          const activeSessions = await prisma.usageSession.findMany({
-            where: {
-              userId: payload.userId,
-              active: true,
-              logoutTime: null
-            }
-          });
-
-          if (activeSessions.length > 0) {
-            const logoutTime = new Date();
-            
-            // Atualizar todas as sessões ativas
-            for (const session of activeSessions) {
-              const currentSegmentDuration = Math.floor((logoutTime.getTime() - session.loginTime.getTime()) / 1000);
-              
-              await prisma.usageSession.update({
-                where: { id: session.id },
-                data: {
-                  logoutTime,
-                  duration: currentSegmentDuration,
-                  active: false,
-                  sessionType: 'logout'
-                }
-              });
-            }
-          }
+          console.log(`✅ Logout realizado para usuário: ${payload.userId}`);
         }
       } catch (error) {
-        console.error('Erro ao finalizar sessões de uso no logout:', error);
-        // Continua com logout mesmo se houver erro no tracking
+        console.error('Erro ao processar logout:', error);
       }
     }
     
-    return NextResponse.json({ 
+    // Criar resposta de logout
+    const response = NextResponse.json({ 
       message: 'Logout realizado com sucesso',
       success: true 
     });
+
+    // Limpar cookie de autenticação
+    response.cookies.delete('authToken');
+
+    return response;
   } catch (error) {
     console.error('Erro no logout:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

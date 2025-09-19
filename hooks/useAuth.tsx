@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               admin: userData.role === 'ADMIN' ? userData.email : 'N/A',
               members: userData.team.members?.map((member: any) => member.email) || [],
               pending: [],
-              plan: userData.team.plan || 'FREE',
+              plan: userData.team.plan || null, // Plan object ou null
               credits: userData.team.credits || {}
             };
             setTeam(teamData);
@@ -143,6 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('authToken', jwtToken);
       localStorage.setItem('authUser', JSON.stringify(userToAuth));
 
+      // Sincronizar com cookie para o middleware
+      document.cookie = `authToken=${jwtToken}; path=/; max-age=${rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60}; samesite=lax`;
+
       // Carregar dados completos do usuário incluindo equipe
       try {
         const fullUserData = await api.get(`/api/users/${userToAuth.id}`);
@@ -180,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               admin: '',
               members: [],
               pending: [],
-              plan: 'FREE',
+              plan: null, // Será carregado depois
               credits: {
                 contentSuggestions: 20,
                 contentReviews: 20,
@@ -230,7 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               admin: fullUserData.role === 'ADMIN' ? fullUserData.email : 'N/A',
               members: fullUserData.team.members?.map((member: any) => member.email) || [],
               pending: [],
-              plan: fullUserData.team.plan || 'FREE',
+              plan: fullUserData.team.plan || null, // Plan object ou null
               credits: fullUserData.team.credits || {
                 contentSuggestions: 20,
                 contentReviews: 20,
@@ -277,6 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginRememberMe(false);
       localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
+      
+      // Limpar cookie também
+      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       // Limpar caches relacionados
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('user_') || key.startsWith('team_')) {
@@ -316,7 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             admin: userData.role === 'ADMIN' ? userData.email : 'N/A',
             members: userData.team.members?.map((member: any) => member.email) || [],
             pending: [],
-            plan: userData.team.plan || 'FREE',
+            plan: userData.team.plan || null, // Plan object ou null
             credits: userData.team.credits || {
               contentSuggestions: 20,
               contentReviews: 20,

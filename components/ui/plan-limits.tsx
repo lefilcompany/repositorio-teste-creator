@@ -15,15 +15,24 @@ interface PlanLimitsProps {
 }
 
 export function PlanLimits({ team, currentCounts, entityType }: PlanLimitsProps) {
-  if (typeof team.plan !== 'object' || !team.plan.limits) {
+  if (!team.plan) {
     return null;
   }
 
-  const { limits } = team.plan;
+  const plan = team.plan;
   
   const getEntityInfo = (type: keyof typeof currentCounts) => {
     const current = currentCounts[type];
-    const limit = limits[type];
+    let limit: number;
+    
+    // Mapear os campos para os novos
+    switch(type) {
+      case 'brands': limit = plan.maxBrands; break;
+      case 'themes': limit = plan.maxStrategicThemes; break;
+      case 'personas': limit = plan.maxPersonas; break;
+      default: limit = 0;
+    }
+    
     const percentage = (current / limit) * 100;
     
     return {

@@ -18,7 +18,7 @@ export async function GET(
           id: true,
           name: true,
           displayCode: true,
-          plan: true,
+          currentPlan: true, // Usar currentPlan em vez de plan
           credits: true,
           _count: {
             select: {
@@ -40,7 +40,7 @@ export async function GET(
         admin: '', 
         members: [], 
         pending: [], 
-        plan: team.plan,
+        plan: team.currentPlan, // Usar currentPlan em vez de plan
         credits: team.credits,
         totalBrands: team._count.brands,
         totalContents: team._count.actions,
@@ -56,7 +56,7 @@ export async function GET(
           id: true,
           name: true,
           displayCode: true,
-          plan: true,
+          currentPlan: true, // Usar currentPlan em vez de plan
           credits: true,
           admin: { select: { email: true } },
           _count: {
@@ -87,7 +87,7 @@ export async function GET(
       admin: teamData.admin.email,
       members: members.map(member => member.email),
       pending: pendingRequests.map(request => request.user.email),
-      plan: teamData.plan,
+      plan: teamData.currentPlan, // Usar currentPlan em vez de plan
       credits: teamData.credits,
       totalBrands: teamData._count.brands,
       totalContents: teamData._count.actions,

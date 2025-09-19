@@ -2,10 +2,20 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole, UserStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { createTeamSubscription } from '@/lib/subscription-utils';
 
 export async function POST(req: Request) {
-  const { userId, name, code, plan, credits } = await req.json();
+  const { userId, name, code, credits } = await req.json();
   try {
+    // Buscar plano FREE como padrão para novos teams
+    const freePlan = await prisma.plan.findFirst({
+      where: { name: 'FREE' }
+    });
+
+    if (!freePlan) {
+      return NextResponse.json({ error: 'Free plan not found' }, { status: 500 });
+    }
+
     // Criptografar o código da equipe
     const hashedCode = await bcrypt.hash(code, 12);
     
@@ -28,7 +38,7 @@ export async function POST(req: Request) {
         code: hashedCode, // Código criptografado para verificação
         displayCode: code, // Código original para exibição
         adminId: userId,
-        plan: plan ?? {},
+        currentPlanId: freePlan.id, // Definir plano FREE por padrão
         credits: credits ?? {},
         members: {
           connect: { id: userId },
@@ -39,6 +49,10 @@ export async function POST(req: Request) {
       where: { id: userId },
       data: { teamId: team.id, role: UserRole.ADMIN, status: UserStatus.ACTIVE },
     });
+
+    // Criar assinatura FREE com trial de 14 dias
+    await createTeamSubscription(team.id, 'FREE');
+
     return NextResponse.json(team);
   } catch (error) {
     return NextResponse.json({ error: 'Team creation failed' }, { status: 500 });

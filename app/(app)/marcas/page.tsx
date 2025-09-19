@@ -80,13 +80,12 @@ export default function MarcasPage() {
 
   const handleOpenDialog = useCallback((brand: Brand | null = null) => {
     // Verificar limite antes de abrir o diálogo para nova marca
-    if (!brand && team && typeof team.plan === 'object') {
-      const planLimits = team.plan.limits;
+    if (!brand && team && team.plan) {
       const currentBrandsCount = brands.length;
-      const maxBrands = planLimits?.brands || 1;
+      const maxBrands = team.plan.maxBrands || 1;
       
       if (currentBrandsCount >= maxBrands) {
-        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxBrands} marca${maxBrands > 1 ? 's' : ''}.`);
+        toast.error(`Limite atingido! Seu plano ${team.plan.displayName} permite apenas ${maxBrands} marca${maxBrands > 1 ? 's' : ''}.`);
         return;
       }
     }
@@ -212,8 +211,8 @@ export default function MarcasPage() {
   }, [selectedBrand, user]);
 
   // Verificar se o limite foi atingido
-  const isAtBrandLimit = team && typeof team.plan === 'object' 
-    ? brands.length >= (team.plan.limits?.brands || 1)
+  const isAtBrandLimit = team && team.plan 
+    ? brands.length >= (team.plan.maxBrands || 1)
     : false;
 
   return (
