@@ -11,7 +11,7 @@ async function main() {
       name: 'FREE',
       displayName: 'Plano Free',
       price: 0,
-      trialDays: 14,
+      trialDays: 7, // 7 dias gratuitos conforme especificação
       maxMembers: 5,
       maxBrands: 1,
       maxStrategicThemes: 3,
@@ -51,6 +51,21 @@ async function main() {
       contentPlans: 10,
       contentReviews: 25,
       isActive: true
+    },
+    {
+      name: 'ENTERPRISE',
+      displayName: 'Plano Enterprise',
+      price: 499.90,
+      trialDays: 0,
+      maxMembers: 999999, // Ilimitado
+      maxBrands: 999999, // Ilimitado
+      maxStrategicThemes: 999999, // Ilimitado
+      maxPersonas: 999999, // Ilimitado
+      quickContentCreations: 50,
+      customContentSuggestions: 200,
+      contentPlans: 100,
+      contentReviews: 200,
+      isActive: true
     }
   ]
 
@@ -88,7 +103,7 @@ async function main() {
     for (const team of teamsWithoutSubscription) {
       // Calcular data de fim do trial
       const trialEndDate = new Date(team.createdAt)
-      trialEndDate.setDate(trialEndDate.getDate() + 14)
+      trialEndDate.setDate(trialEndDate.getDate() + 7) // Atualizar para 7 dias
 
       // Verificar se ainda está no período de trial
       const isTrialActive = new Date() <= trialEndDate

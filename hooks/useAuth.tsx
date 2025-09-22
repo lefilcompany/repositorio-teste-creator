@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               admin: userData.role === 'ADMIN' ? userData.email : 'N/A',
               members: userData.team.members?.map((member: any) => member.email) || [],
               pending: [],
-              plan: userData.team.plan || null, // Plan object ou null
+              plan: userData.team.currentPlan || null, // Usar currentPlan da API
               credits: userData.team.credits || {}
             };
             setTeam(teamData);
@@ -163,9 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             pending: [],
             plan: fullUserData.team.plan || 'FREE',
             credits: fullUserData.team.credits || {
+              quickContentCreations: 20,
               contentSuggestions: 20,
               contentReviews: 20,
-              contentPlans: 1
+              contentPlans: 5
             }
           };
           console.log('Dados da equipe no login:', teamData);
@@ -185,9 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               pending: [],
               plan: null, // Será carregado depois
               credits: {
+                quickContentCreations: 20,
                 contentSuggestions: 20,
                 contentReviews: 20,
-                contentPlans: 1
+                contentPlans: 5
               }
             });
           }
@@ -235,9 +237,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               pending: [],
               plan: fullUserData.team.plan || null, // Plan object ou null
               credits: fullUserData.team.credits || {
+                quickContentCreations: 20,
                 contentSuggestions: 20,
                 contentReviews: 20,
-                contentPlans: 1
+                contentPlans: 5
               }
             };
             console.log('Dados da equipe no completeLogin:', teamData);

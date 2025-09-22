@@ -25,6 +25,7 @@ export interface Team {
   pending: string[];
   plan: Plan | null; // Novo: objeto Plan completo ou null
   credits?: {
+    quickContentCreations: number;
     contentSuggestions: number;
     contentReviews: number;
     contentPlans: number;

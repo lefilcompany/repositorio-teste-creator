@@ -93,10 +93,10 @@ export default function TemasPage() {
     // Verificar limite antes de abrir o diálogo para novo tema
     if (!theme && team && team.plan) {
       const currentThemesCount = themes.length;
-      const maxThemes = team.plan.maxStrategicThemes || 3;
+      const maxThemes = team.plan?.maxStrategicThemes || 3;
 
       if (currentThemesCount >= maxThemes) {
-        toast.error(`Limite atingido! Seu plano ${team.plan.displayName} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
+        toast.error(`Limite atingido! Seu plano ${team.plan?.displayName || 'atual'} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
         return;
       }
     }
@@ -227,7 +227,7 @@ export default function TemasPage() {
 
   // Verificar se o limite foi atingido
   const isAtThemeLimit = team && team.plan
-    ? themes.length >= (team.plan.maxStrategicThemes || 3)
+    ? themes.length >= (team.plan?.maxStrategicThemes || 3)
     : false;
 
   return (

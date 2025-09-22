@@ -57,14 +57,14 @@ export async function middleware(request: NextRequest) {
         if (subscriptionResponse.ok) {
           const subscriptionData = await subscriptionResponse.json();
           
-          // Se a assinatura expirou e é trial, redirecionar para página de planos
+          // Se a assinatura expirou e é trial, redirecionar para planos
           if (subscriptionData.isTrial && subscriptionData.isExpired) {
             return NextResponse.redirect(new URL('/planos?expired=true', request.url));
           }
           
           // Se não pode acessar (outros motivos), também redirecionar
           if (!subscriptionData.canAccess) {
-            return NextResponse.redirect(new URL('/planos?blocked=true', request.url));
+            return NextResponse.redirect(new URL('/planos?expired=true', request.url));
           }
         } else {
           // Em caso de erro na verificação de subscription, permitir acesso

@@ -44,19 +44,7 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
     const team = await prisma.team.findUnique({
       where: { id: teamId },
       include: {
-        currentPlan: true,
-        subscriptions: {
-          include: {
-            plan: true
-          },
-          where: {
-            isActive: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 1
-        }
+        currentPlan: true
       }
     });
 
@@ -92,8 +80,26 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
       currentPlan = freePlan;
     }
 
-    // Verificar se há assinatura ativa (para detectar trial)
-    const activeSubscription = team.subscriptions.length > 0 ? team.subscriptions[0] : null;
+    // Verificar se há assinatura ativa (incluindo trials expirados para modal)
+    const activeSubscriptions = await prisma.subscription.findMany({
+      where: { 
+        teamId: teamId,
+        OR: [
+          { isActive: true },
+          { status: 'TRIAL' },
+          { status: 'EXPIRED' } // Incluir trials expirados para modal
+        ]
+      },
+      include: {
+        plan: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 1
+    });
+    
+    const activeSubscription = activeSubscriptions.length > 0 ? activeSubscriptions[0] : null;
     
     let isActive = true; // Sempre ativo pois sempre tem um plano
     let isTrial = false;
@@ -103,7 +109,7 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
     
     if (activeSubscription) {
       const now = new Date();
-      isTrial = activeSubscription.status === 'TRIAL';
+      isTrial = activeSubscription.status === 'TRIAL' || activeSubscription.status === 'EXPIRED';
       
       if (isTrial && activeSubscription.trialEndDate) {
         const isTrialExpired = now > activeSubscription.trialEndDate;
@@ -113,7 +119,7 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
           isExpired = true;
           canAccess = false; // Bloquear acesso às funcionalidades premium
           
-          // Downgrade para FREE
+          // Downgrade para FREE (mas manter trial visível para modal)
           const freePlan = await prisma.plan.findFirst({
             where: { name: 'FREE' }
           });
@@ -129,20 +135,21 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
             currentPlan = freePlan;
           }
           
-          // Atualizar subscription para EXPIRED
-          await prisma.subscription.updateMany({
-            where: {
-              teamId: teamId,
-              status: 'TRIAL',
-              isActive: true
-            },
-            data: {
-              status: 'EXPIRED',
-              isActive: false
-            }
-          });
+          // Marcar como EXPIRED se ainda não estiver
+          if (activeSubscription.status === 'TRIAL') {
+            await prisma.subscription.updateMany({
+              where: {
+                teamId: teamId,
+                status: 'TRIAL'
+              },
+              data: {
+                status: 'EXPIRED'
+                // Manter isActive: true para detecção do modal
+              }
+            });
+          }
           
-          isTrial = false; // Não é mais trial ativo
+          // isTrial permanece true para o modal detectar
         } else {
           // Trial ainda ativo - calcular dias restantes
           const diffTime = activeSubscription.trialEndDate.getTime() - now.getTime();

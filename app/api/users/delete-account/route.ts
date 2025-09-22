@@ -115,7 +115,12 @@ export async function POST(req: Request) {
             where: { teamId }
           });
           
-          // 7. Por último, deletar o team
+          // 7. Deletar subscriptions da equipe
+          await tx.subscription.deleteMany({
+            where: { teamId }
+          });
+          
+          // 8. Por último, deletar o team
           await tx.team.delete({
             where: { id: teamId }
           });

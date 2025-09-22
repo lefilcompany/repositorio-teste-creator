@@ -215,8 +215,6 @@ model Plan {
   updatedAt                DateTime       @updatedAt
   teamsUsingPlan           Team[]         @relation("TeamCurrentPlan")
   subscriptions            Subscription[]
-
-  @@map("plans")
 }
 
 model Subscription {
@@ -235,7 +233,6 @@ model Subscription {
   team         Team               @relation(fields: [teamId], references: [id])
 
   @@unique([teamId, planId])
-  @@map("subscriptions")
 }
 
 enum SubscriptionStatus {

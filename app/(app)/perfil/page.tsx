@@ -50,9 +50,9 @@ export default function PerfilPage() {
     if (!team) return;
     setTeamInfo({
       teamName: team.name,
-      plan: typeof team.plan === 'string' ? team.plan : team.plan.name,
+      plan: team.plan ? (typeof team.plan === 'string' ? team.plan : team.plan.name) : 'Não definido',
       actionsRemaining: {
-        total: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
+        total: (team.credits?.quickContentCreations || 0) + (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
         createContent: team.credits?.contentSuggestions || 0,
         reviewContent: team.credits?.contentReviews || 0,
         planContent: team.credits?.contentPlans || 0,

@@ -76,10 +76,10 @@ export default function HomePage() {
   }, [user]);
 
   const creditos = teamRealtime ? {
-    restantes: (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
+    restantes: (teamRealtime.credits?.quickContentCreations || 0) + (teamRealtime.credits?.contentSuggestions || 0) + (teamRealtime.credits?.contentReviews || 0) + (teamRealtime.credits?.contentPlans || 0),
     total: teamRealtime.plan ?
-      ((teamRealtime.plan.customContentSuggestions || 20) + (teamRealtime.plan.contentReviews || 20) + (teamRealtime.plan.contentPlans || 5))
-      : 45
+      ((teamRealtime.plan.quickContentCreations || 0) + (teamRealtime.plan.customContentSuggestions || 0) + (teamRealtime.plan.contentReviews || 0) + (teamRealtime.plan.contentPlans || 0))
+      : 35 
   } : { restantes: 0, total: 0 };
 
   const creditosUsadosPercentual = (creditos.total > 0)

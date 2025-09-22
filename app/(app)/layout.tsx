@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/sidebar';
 import TopBar from '@/components/topbar';
 import Tutorial from '@/components/tutorial';
+import TrialExpiredModal from '@/components/trial-expired-modal';
 import { Toaster } from "@/components/ui/sonner"
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,7 @@ export default function AppLayout({
         <Toaster richColors />
       </div>
       <Tutorial />
+      <TrialExpiredModal />
     </div>
   );
 }

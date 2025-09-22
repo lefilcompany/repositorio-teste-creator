@@ -6,7 +6,7 @@ import fs from 'fs';
 import { prisma } from '@/lib/prisma';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+import * as pdfjsLib from 'pdfjs-dist';
 import getColors from 'get-image-colors';
 
 export const config = {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         }
       }
       // Limita a 5 cores únicas
-      moodboardColors = [...new Set(moodboardColors)].slice(0, 5);
+      moodboardColors = Array.from(new Set(moodboardColors)).slice(0, 5);
     } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const buffer = fs.readFileSync(file.filepath);
       const docxData = await mammoth.extractRawText({ buffer });
