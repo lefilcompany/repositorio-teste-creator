@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BrandSummary } from '@/types/brand';
+import { LoaderCircle } from 'lucide-react';
 
 interface BrandListProps {
   brands: BrandSummary[] | undefined;
@@ -44,13 +45,7 @@ export default function BrandList({ brands, selectedBrand, onSelectBrand, isLoad
       <h2 className="text-2xl font-semibold text-foreground mb-4 px-2 flex-shrink-0">Todas as marcas</h2>
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         {isLoading ? (
-          <ul className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <li key={i}>
-                <BrandSkeleton />
-              </li>
-            ))}
-          </ul>
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary mx-auto mt-10" />
         ) : sortedBrands.length > 0 ? (
           <ul className="space-y-3">
             {sortedBrands.map((brand) => (

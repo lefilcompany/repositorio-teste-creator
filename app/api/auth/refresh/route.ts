@@ -78,7 +78,6 @@ export async function POST(req: NextRequest) {
         name: user.team.name,
         displayCode: user.team.displayCode,
         plan: user.team.currentPlan, // Usar currentPlan em vez de plan
-        credits: user.team.credits,
         members: user.team.members
       } : null
     };

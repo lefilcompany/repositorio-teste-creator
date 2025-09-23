@@ -39,7 +39,6 @@ export async function POST(req: Request) {
         displayCode: code, // Código original para exibição
         adminId: userId,
         currentPlanId: freePlan.id, // Definir plano FREE por padrão
-        credits: credits ?? {},
         members: {
           connect: { id: userId },
         },

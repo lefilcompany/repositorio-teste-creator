@@ -44,13 +44,15 @@ export function ColorPicker({ colors, onColorsChange, maxColors = 10 }: ColorPic
     const [currentRgb, setCurrentRgb] = useState({ r: 255, g: 255, b: 255 });
     const [colorName, setColorName] = useState('');
     const [activeTab, setActiveTab] = useState('hex');
-    const [hexInput, setHexInput] = useState('#ffffff');
+    const [hexInput, setHexInput] = useState('ffffff');
 
     // Sincronizar hex e rgb quando um deles muda
     const handleHexChange = useCallback((hex: string) => {
-        setCurrentColor(hex);
-        setHexInput(hex);
-        setCurrentRgb(hexToRgb(hex));
+        // Remove o '#' se presente
+        const cleanHex = hex.replace(/^#/, '');
+        setCurrentColor('#' + cleanHex);
+        setHexInput(cleanHex);
+        setCurrentRgb(hexToRgb('#' + cleanHex));
     }, []);
 
     const handleRgbChange = useCallback((rgb: { r: number; g: number; b: number }) => {
@@ -61,13 +63,12 @@ export function ColorPicker({ colors, onColorsChange, maxColors = 10 }: ColorPic
     }, []);
 
     const handleManualHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
+        // Permite apenas caracteres hexadecimais e limita a 6 dígitos
+        let value = e.target.value.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6);
         setHexInput(value);
-
-        // Validar e atualizar apenas se for um hex válido
-        if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-            setCurrentColor(value);
-            setCurrentRgb(hexToRgb(value));
+        if (value.length === 6) {
+            setCurrentColor('#' + value);
+            setCurrentRgb(hexToRgb('#' + value));
         }
     };
 
@@ -130,13 +131,18 @@ export function ColorPicker({ colors, onColorsChange, maxColors = 10 }: ColorPic
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="hex-input" className="text-sm">Valor HEX</Label>
-                                        <Input
-                                            id="hex-input"
-                                            value={hexInput}
-                                            onChange={handleManualHexChange}
-                                            placeholder="#ffffff"
-                                            className="text-center font-mono"
-                                        />
+                                        <div className="flex items-center">
+                                            <span className="pl-2 pr-1 select-none text-muted-foreground font-mono text-lg">#</span>
+                                            <Input
+                                                id="hex-input"
+                                                value={hexInput}
+                                                onChange={handleManualHexChange}
+                                                placeholder="ffffff"
+                                                maxLength={6}
+                                                className="text-center font-mono"
+                                                style={{ paddingLeft: 0 }}
+                                            />
+                                        </div>
                                     </div>
                                 </TabsContent>
 

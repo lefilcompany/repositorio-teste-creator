@@ -69,6 +69,7 @@ export default function Creator() {
   });
 
   const [team, setTeam] = useState<Team | null>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [brands, setBrands] = useState<LightBrand[]>([]);
   const [themes, setThemes] = useState<LightTheme[]>([]);
   const [personas, setPersonas] = useState<LightPersona[]>([]);
@@ -159,6 +160,13 @@ export default function Creator() {
         setBrands(data.brands);
         setThemes(data.themes);
         setPersonas(data.personas);
+
+        // Fetch team data with subscription-based credits
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const teamData = await teamResponse.json();
+          setTeamData(teamData);
+        }
       } catch (error: any) {
         console.error("Erro ao carregar dados:", error);
 
@@ -270,16 +278,12 @@ export default function Creator() {
   const updateTeamCredits = async () => {
     if (!team || !user?.teamId) return;
     try {
-      const currentCredits = team.credits?.contentSuggestions || 0;
-      const updatedCredits = {
-        ...team.credits,
-        contentSuggestions: Math.max(0, currentCredits - 1),
-      };
-      await fetch("/api/teams", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-      });
+      // Refresh team data with updated credits after action
+      const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+      if (teamResponse.ok) {
+        const updatedTeamData = await teamResponse.json();
+        setTeamData(updatedTeamData);
+      }
     } catch (error) {
       console.error("Failed to update credits:", error);
     }
@@ -287,8 +291,12 @@ export default function Creator() {
 
   const handleGenerateContent = async () => {
     if (!team) return toast.error("Equipe não encontrada.");
-    if ((team.credits?.contentSuggestions || 0) <= 0)
+    
+    // Check credits from teamData instead of team.credits
+    const availableCredits = teamData?.credits?.contentSuggestions || 0;
+    if (availableCredits <= 0)
       return toast.error("Seus créditos para criação de conteúdo acabaram.");
+      
     if (!isFormValid())
       return toast.error(
         "Por favor, preencha todos os campos obrigatórios (*)."
@@ -418,7 +426,7 @@ export default function Creator() {
                           </div>
                           <div className="text-left gap-4 flex justify-center items-center">
                             <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                              {team.credits?.contentSuggestions || 0}
+                              {teamData?.credits?.contentSuggestions || 0}
                             </span>
                             <p className="text-md text-muted-foreground font-medium leading-tight">
                               Criações Restantes

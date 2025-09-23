@@ -44,10 +44,10 @@ export async function GET(req: Request) {
     // 🚀 Executa todas as buscas no banco de dados em paralelo com retry!
     const [team, brands, themes, personas] = await retryDatabaseOperation(
       () => Promise.all([
-        // Busca dados da equipe (para os créditos)
+        // Busca dados da equipe
         prisma.team.findUnique({
           where: { id: teamId },
-          select: { id: true, credits: true },
+          select: { id: true },
         }),
         // Busca apenas o essencial das marcas
         prisma.brand.findMany({

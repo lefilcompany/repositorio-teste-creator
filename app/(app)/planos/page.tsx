@@ -41,6 +41,7 @@ interface SubscriptionStatus {
 export default function PlanosPage() {
   const { user, logout } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamData, setTeamData] = useState<any>(null); // Dados da API com créditos calculados
   const [isLoading, setIsLoading] = useState(true);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
@@ -65,6 +66,16 @@ export default function PlanosPage() {
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           setTeams(teamsData);
+          
+          // Se há um team do usuário, buscar dados completos da subscription
+          const userTeam = teamsData.find(t => t.id === user.teamId);
+          if (userTeam) {
+            const teamDataRes = await fetch(`/api/teams/${userTeam.id}?summary=true`);
+            if (teamDataRes.ok) {
+              const teamDataResponse = await teamDataRes.json();
+              setTeamData(teamDataResponse);
+            }
+          }
         }
 
         // Carregar planos disponíveis
@@ -331,35 +342,37 @@ export default function PlanosPage() {
     );
   }
 
-  const { plan, credits } = team;
+  const { plan } = team;
+  // Usar dados da API em vez de team.credits
+  const credits = teamData?.credits || {};
 
-  // Cálculo dos créditos - correção: os créditos no banco representam os disponíveis, não os usados
+  // Cálculo dos créditos - usar dados da API de subscription
   const creditData = [
     {
       name: 'Criações Rápidas',
       current: credits?.quickContentCreations || 0,
-      limit: plan?.quickContentCreations || 5, // Valor padrão do FREE plan
+      limit: teamData?.plan?.quickContentCreations || plan?.quickContentCreations || 5, // Usar dados do plano da API
       icon: <Zap className="h-4 w-4" />,
       color: 'text-orange-600'
     },
     {
       name: 'Sugestões de Conteúdo',
       current: credits?.contentSuggestions || 0,
-      limit: plan?.customContentSuggestions || 15, // Valor padrão do FREE plan
+      limit: teamData?.plan?.customContentSuggestions || plan?.customContentSuggestions || 15, // Usar dados do plano da API
       icon: <Zap className="h-4 w-4" />,
       color: 'text-blue-600'
     },
     {
       name: 'Revisões de Conteúdo',
       current: credits?.contentReviews || 0,
-      limit: plan?.contentReviews || 10, // Valor padrão do FREE plan
+      limit: teamData?.plan?.contentReviews || plan?.contentReviews || 10, // Usar dados do plano da API
       icon: <CheckCircle className="h-4 w-4" />,
       color: 'text-green-600'
     },
     {
       name: 'Calendários',
       current: credits?.contentPlans || 0,
-      limit: plan?.contentPlans || 5, // Valor padrão do FREE plan
+      limit: teamData?.plan?.contentPlans || plan?.contentPlans || 5, // Usar dados do plano da API
       icon: <Calendar className="h-4 w-4" />,
       color: 'text-purple-600'
     }
@@ -523,7 +536,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Marcas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {plan?.maxBrands || 1}
+                      até {teamData?.plan?.maxBrands || plan?.maxBrands || 1}
                     </p>
                   </div>
                 </div>
@@ -535,7 +548,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Temas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {plan?.maxStrategicThemes || 3}
+                      até {teamData?.plan?.maxStrategicThemes || plan?.maxStrategicThemes || 3}
                     </p>
                   </div>
                 </div>
@@ -547,7 +560,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Personas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {plan?.maxPersonas || 2}
+                      até {teamData?.plan?.maxPersonas || plan?.maxPersonas || 2}
                     </p>
                   </div>
                 </div>
@@ -559,7 +572,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Membros</p>
                     <p className="text-xs text-muted-foreground">
-                      até {plan?.maxMembers || 5}
+                      até {teamData?.plan?.maxMembers || plan?.maxMembers || 5}
                     </p>
                   </div>
                 </div>

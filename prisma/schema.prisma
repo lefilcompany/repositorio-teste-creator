@@ -15,7 +15,6 @@ model Team {
   displayCode       String
   adminId           String
   plan              Json?
-  credits           Json
   totalContents     Int              @default(0)
   totalBrands       Int              @default(0)
   createdAt         DateTime         @default(now())

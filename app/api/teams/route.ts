@@ -102,8 +102,7 @@ export async function GET(req: Request) {
       admin: team.admin.email,
       members: team.members.map(member => member.email),
       pending: team.joinRequests.map(request => request.user.email),
-      plan: team.currentPlan, // Usar currentPlan em vez de plan
-      credits: team.credits
+      plan: team.currentPlan // Usar currentPlan em vez de plan
     };
 
     return NextResponse.json([transformedTeam]);
@@ -170,8 +169,7 @@ export async function PATCH(req: Request) {
       admin: updatedTeam.admin.email,
       members: updatedTeam.members.map(member => member.email),
       pending: updatedTeam.joinRequests.map(request => request.user.email),
-      plan: updatedTeam.currentPlan, // Usar currentPlan em vez de plan
-      credits: updatedTeam.credits
+      plan: updatedTeam.currentPlan // Usar currentPlan em vez de plan
     };
 
     return NextResponse.json(transformedTeam);

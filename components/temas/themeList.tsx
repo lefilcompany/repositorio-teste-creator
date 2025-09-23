@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { StrategicThemeSummary } from '@/types/theme';
 import type { BrandSummary } from '@/types/brand';
+import { LoaderCircle, LoaderIcon, LoaderPinwheel, LoaderPinwheelIcon } from 'lucide-react';
 
 interface ThemeListProps {
   themes: StrategicThemeSummary[];
@@ -46,13 +47,7 @@ export default function ThemeList({ themes, brands, selectedTheme, onSelectTheme
       <h2 className="text-2xl font-semibold text-foreground mb-4 px-2 flex-shrink-0">Todos os temas</h2>
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         {isLoading ? (
-          <ul className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i}>
-                <ThemeSkeleton />
-              </li>
-            ))}
-          </ul>
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary mx-auto mt-10" />
         ) : sortedThemes.length > 0 ? (
           <ul className="space-y-3">
             {sortedThemes.map((theme) => (

@@ -48,6 +48,7 @@ export default function Plan() {
   });
 
   const [team, setTeam] = useState<Team | null>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [brands, setBrands] = useState<LightBrand[]>([]);
   const [themes, setThemes] = useState<LightTheme[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -70,12 +71,20 @@ export default function Plan() {
       }
       setIsLoadingData(true);
       try {
+        // Fetch form data
         const res = await fetch(`/api/plan-form-data?teamId=${user.teamId}&userId=${user.id}`);
         if (!res.ok) throw new Error('Failed to load form data');
         const data = await res.json();
         setTeam(data.team);
         setBrands(data.brands);
         setThemes(data.themes);
+
+        // Fetch team data with subscription-based credits
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const teamData = await teamResponse.json();
+          setTeamData(teamData);
+        }
       } catch (error) {
         toast.error('Erro ao carregar dados do formulário');
       } finally {
@@ -172,7 +181,11 @@ export default function Plan() {
 
   const handleGeneratePlan = async () => {
     if (!team) return toast.error('Dados da equipe não encontrados');
-    if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes');
+    
+    // Check credits from teamData instead of team.credits
+    const availableCredits = teamData?.credits?.contentPlans || 0;
+    if (availableCredits <= 0) return toast.error('Créditos insuficientes');
+    
     if (!formData.brand || formData.theme.length === 0 || !formData.objective || !formData.platform) {
       return toast.error('Por favor, preencha todos os campos obrigatórios (*)');
     }
@@ -197,14 +210,14 @@ export default function Plan() {
       const data = await response.json();
       setPlannedContent(data.plan);
       toast.success('Planejamento gerado com sucesso!');
-      if (team) {
-        const updatedCredits = { ...team.credits, contentPlans: Math.max(0, (team.credits.contentPlans || 0) - 1) };
-        const updateRes = await fetch('/api/teams', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-        });
-        if (updateRes.ok) setTeam(await updateRes.json());
+      
+      // Refresh team data with updated credits after action
+      if (team && user?.teamId) {
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const updatedTeamData = await teamResponse.json();
+          setTeamData(updatedTeamData);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -245,7 +258,7 @@ export default function Plan() {
                         </div>
                         <div className="text-left gap-4 flex justify-center items-center">
                           <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits?.contentPlans || 0}
+                            {teamData?.credits?.contentPlans || 0}
                           </span>
                           <p className="text-md text-muted-foreground font-medium leading-tight">
                             Planejamentos Restantes

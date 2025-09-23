@@ -14,12 +14,13 @@ export async function GET(
     if (isSummary) {
       const team = await prisma.team.findUnique({
         where: { id: params.id },
-        select: {
-          id: true,
-          name: true,
-          displayCode: true,
-          currentPlan: true, // Usar currentPlan em vez de plan
-          credits: true,
+        include: {
+          subscriptions: {
+            where: { isActive: true },
+            include: { plan: true },
+            take: 1
+          },
+          currentPlan: true,
           _count: {
             select: {
               brands: true,
@@ -33,6 +34,43 @@ export async function GET(
         return NextResponse.json({ error: 'Team not found' }, { status: 404 });
       }
 
+      // Buscar plano através da subscription ativa
+      const activeSubscription = team.subscriptions[0];
+      const planLimits = activeSubscription?.plan || team.currentPlan;
+
+      // Calcular créditos usados baseado nas actions
+      const usedCredits = await prisma.action.groupBy({
+        by: ['type'],
+        where: {
+          teamId: team.id,
+          approved: true
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      // Mapear types para créditos
+      const creditUsage = {
+        quickContentCreations: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
+        contentSuggestions: 0, // Implementar quando houver type específico
+        contentReviews: usedCredits.find(u => u.type === 'REVISAR_CONTEUDO')?._count.id || 0,
+        contentPlans: usedCredits.find(u => u.type === 'PLANEJAR_CONTEUDO')?._count.id || 0
+      };
+
+      // Calcular créditos restantes
+      const remainingCredits = planLimits ? {
+        quickContentCreations: Math.max(0, planLimits.quickContentCreations - creditUsage.quickContentCreations),
+        contentSuggestions: Math.max(0, planLimits.customContentSuggestions - creditUsage.contentSuggestions),
+        contentReviews: Math.max(0, planLimits.contentReviews - creditUsage.contentReviews),
+        contentPlans: Math.max(0, planLimits.contentPlans - creditUsage.contentPlans)
+      } : {
+        quickContentCreations: 5,
+        contentSuggestions: 15,
+        contentReviews: 10,
+        contentPlans: 5
+      };
+
       const transformedTeam = {
         id: team.id,
         name: team.name,
@@ -40,8 +78,13 @@ export async function GET(
         admin: '', 
         members: [], 
         pending: [], 
-        plan: team.currentPlan, // Usar currentPlan em vez de plan
-        credits: team.credits,
+        plan: planLimits ? {
+          quickContentCreations: planLimits.quickContentCreations,
+          customContentSuggestions: planLimits.customContentSuggestions,
+          contentReviews: planLimits.contentReviews,
+          contentPlans: planLimits.contentPlans
+        } : null,
+        credits: remainingCredits,
         totalBrands: team._count.brands,
         totalContents: team._count.actions,
       };
@@ -52,12 +95,13 @@ export async function GET(
     const [teamData, members, pendingRequests] = await Promise.all([
       prisma.team.findUnique({
         where: { id: params.id },
-        select: {
-          id: true,
-          name: true,
-          displayCode: true,
-          currentPlan: true, // Usar currentPlan em vez de plan
-          credits: true,
+        include: {
+          subscriptions: {
+            where: { isActive: true },
+            include: { plan: true },
+            take: 1
+          },
+          currentPlan: true,
           admin: { select: { email: true } },
           _count: {
             select: { brands: true, actions: true },
@@ -80,6 +124,43 @@ export async function GET(
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
+    // Buscar plano através da subscription ativa
+    const activeSubscription = teamData.subscriptions[0];
+    const planLimits = activeSubscription?.plan || teamData.currentPlan;
+
+    // Calcular créditos usados baseado nas actions
+    const usedCredits = await prisma.action.groupBy({
+      by: ['type'],
+      where: {
+        teamId: teamData.id,
+        approved: true
+      },
+      _count: {
+        id: true
+      }
+    });
+
+    // Mapear types para créditos
+    const creditUsage = {
+      quickContentCreations: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
+      contentSuggestions: 0, // Implementar quando houver type específico
+      contentReviews: usedCredits.find(u => u.type === 'REVISAR_CONTEUDO')?._count.id || 0,
+      contentPlans: usedCredits.find(u => u.type === 'PLANEJAR_CONTEUDO')?._count.id || 0
+    };
+
+    // Calcular créditos restantes
+    const remainingCredits = planLimits ? {
+      quickContentCreations: Math.max(0, planLimits.quickContentCreations - creditUsage.quickContentCreations),
+      contentSuggestions: Math.max(0, planLimits.customContentSuggestions - creditUsage.contentSuggestions),
+      contentReviews: Math.max(0, planLimits.contentReviews - creditUsage.contentReviews),
+      contentPlans: Math.max(0, planLimits.contentPlans - creditUsage.contentPlans)
+    } : {
+      quickContentCreations: 5,
+      contentSuggestions: 15,
+      contentReviews: 10,
+      contentPlans: 5
+    };
+
     const transformedTeam = {
       id: teamData.id,
       name: teamData.name,
@@ -87,8 +168,13 @@ export async function GET(
       admin: teamData.admin.email,
       members: members.map(member => member.email),
       pending: pendingRequests.map(request => request.user.email),
-      plan: teamData.currentPlan, // Usar currentPlan em vez de plan
-      credits: teamData.credits,
+      plan: planLimits ? {
+        quickContentCreations: planLimits.quickContentCreations,
+        customContentSuggestions: planLimits.customContentSuggestions,
+        contentReviews: planLimits.contentReviews,
+        contentPlans: planLimits.contentPlans
+      } : null,
+      credits: remainingCredits,
       totalBrands: teamData._count.brands,
       totalContents: teamData._count.actions,
     };

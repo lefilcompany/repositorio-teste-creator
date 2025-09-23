@@ -266,7 +266,7 @@ export default function TrialExpiredModal() {
                     <CardHeader className="text-center pb-4">
                         <CardTitle className="text-lg font-bold text-gray-900">{plan.displayName}</CardTitle>
                         <div className="text-2xl font-bold text-blue-600">
-                            {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2).replace('.', ',')}`}
+                            {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                             {plan.price > 0 && <span className="text-sm font-normal text-gray-500">/mês</span>}
                         </div>
                     </CardHeader>

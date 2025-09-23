@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PersonaSummary } from '@/types/persona';
 import type { BrandSummary } from '@/types/brand';
+import { LoaderCircle } from 'lucide-react';
 
 interface PersonaListProps {
   personas: PersonaSummary[];
@@ -48,13 +49,7 @@ export default function PersonaList({ personas, brands, selectedPersona, onSelec
       <h2 className="text-2xl font-semibold text-foreground mb-4 px-2 flex-shrink-0">Todas as personas</h2>
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         {isLoading ? (
-          <ul className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i}>
-                <PersonaSkeleton />
-              </li>
-            ))}
-          </ul>
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary mx-auto mt-10" />
         ) : sortedPersonas.length > 0 ? (
           <ul className="space-y-3">
             {sortedPersonas.map((persona) => (
