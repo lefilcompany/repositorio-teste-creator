@@ -152,8 +152,11 @@ export default function PlanosPage() {
       return;
     }
 
+    // Para planos pagos, verificar se tem stripePriceId configurado
     if (plan.price > 0 && !plan.stripePriceId) {
-      toast.error('Plano indisponível para cobrança no momento.');
+      toast.error('Este plano ainda não está disponível para compra. Entre em contato com o suporte.', {
+        description: 'Configurações de pagamento pendentes.'
+      });
       return;
     }
 
@@ -172,10 +175,22 @@ export default function PlanosPage() {
       const data: any = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        toast.error(data?.error || 'Não foi possível iniciar a assinatura.');
+        // Tratar diferentes tipos de erro
+        if (response.status === 409) {
+          toast.error('Este plano ainda não está configurado para pagamento.', {
+            description: 'Entre em contato com o suporte para mais informações.'
+          });
+        } else if (response.status === 500 && data?.error?.includes('Stripe')) {
+          toast.error('Sistema de pagamento temporariamente indisponível.', {
+            description: 'Tente novamente em alguns minutos ou entre em contato com o suporte.'
+          });
+        } else {
+          toast.error(data?.error || 'Não foi possível iniciar a assinatura.');
+        }
         return;
       }
 
+      // Para planos pagos, redirecionar para o Stripe
       if (plan.price > 0) {
         if (data && typeof data === 'object' && 'url' in data) {
           window.location.href = data.url as string;
@@ -185,10 +200,12 @@ export default function PlanosPage() {
         return;
       }
 
+      // Para plano gratuito
       toast.success('Plano gratuito ativado com sucesso!');
       setShowPlansSelection(false);
       await loadData();
     } catch (error) {
+      console.error('Erro ao iniciar assinatura:', error);
       toast.error('Erro ao iniciar assinatura. Tente novamente.');
     } finally {
       setLoadingPlanId(null);
@@ -346,7 +363,12 @@ export default function PlanosPage() {
                   className="w-full"
                   variant={plan.name === 'PRO' ? 'default' : 'outline'}
                   onClick={() => handleSubscribe(plan)}
-                  disabled={subscriptionStatus?.plan?.id === plan.id || loadingPlanId === plan.id}
+                  disabled={
+                    subscriptionStatus?.plan?.id === plan.id || 
+                    loadingPlanId === plan.id ||
+                    (plan.price > 0 && !plan.stripePriceId) ||
+                    plan.name === 'ENTERPRISE' // Enterprise desabilitado temporariamente
+                  }
                 >
                   {subscriptionStatus?.plan?.id === plan.id ? (
                     'Plano Atual'
@@ -354,10 +376,22 @@ export default function PlanosPage() {
                     'Processando...'
                   ) : plan.name === 'FREE' ? (
                     'Continuar Grátis'
+                  ) : plan.name === 'ENTERPRISE' ? (
+                    'Em Breve'
+                  ) : plan.price > 0 && !plan.stripePriceId ? (
+                    'Em Breve'
                   ) : (
                     'Assinar Agora'
                   )}
                 </Button>
+                {(plan.price > 0 && !plan.stripePriceId) || plan.name === 'ENTERPRISE' ? (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    {plan.name === 'ENTERPRISE' 
+                      ? 'Plano Enterprise terá lógica de contratação diferente'
+                      : 'Configurações de pagamento em andamento'
+                    }
+                  </p>
+                ) : null}
               </CardContent>
             </Card>
           ))}

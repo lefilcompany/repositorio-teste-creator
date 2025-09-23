@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!plan.stripePriceId) {
-      return NextResponse.json({ error: 'Plano não está configurado para cobrança via Stripe' }, { status: 409 });
+      return NextResponse.json({ 
+        error: 'Este plano ainda não está disponível para compra', 
+        details: 'Configurações de pagamento pendentes. Entre em contato com o suporte.',
+        code: 'PLAN_NOT_CONFIGURED'
+      }, { status: 409 });
     }
 
     let stripe;
@@ -73,7 +77,11 @@ export async function POST(request: NextRequest) {
       stripe = getStripeClient();
     } catch (stripeError) {
       console.error('Stripe configuration error:', stripeError);
-      return NextResponse.json({ error: 'Configuração da Stripe ausente' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Sistema de pagamento temporariamente indisponível', 
+        details: 'Configurações do Stripe ausentes ou inválidas. Tente novamente em alguns minutos.',
+        code: 'STRIPE_CONFIG_ERROR'
+      }, { status: 500 });
     }
 
     const baseUrl = getBaseUrl();
