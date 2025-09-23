@@ -241,7 +241,7 @@ const ai = new GoogleGenAI({
 
 async function generateImage(
   prompt: string,
-  referenceImage?: string,
+  referenceImages?: string[], // agora é array
   actionId?: string
 ): Promise<any> {
   try {
@@ -265,17 +265,19 @@ async function generateImage(
     `;
 
     const contents: any[] = [];
-    if (referenceImage) {
-      try {
-        const [meta, data] = referenceImage.split(",");
-        const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
-        contents.push({
-          inlineData: {
-            data,
-            mimeType: mimeMatch ? mimeMatch[1] : "image/png",
-          },
-        });
-      } catch (refError) {}
+    if (referenceImages && Array.isArray(referenceImages)) {
+      for (const refImg of referenceImages.slice(0, 10)) { // máximo 10
+        try {
+          const [meta, data] = refImg.split(",");
+          const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
+          contents.push({
+            inlineData: {
+              data,
+              mimeType: mimeMatch ? mimeMatch[1] : "image/png",
+            },
+          });
+        } catch (refError) {}
+      }
     }
     contents.push({ text: fullPrompt });
 
@@ -377,7 +379,7 @@ async function generateImageWithFallbacks(formData: any, actionId: string) {
     try {
       const response = await generateImage(
         currentPrompt,
-        formData.referenceImage,
+        formData.referenceImages, // agora espera array
         actionId
       );
 
