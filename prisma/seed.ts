@@ -6,6 +6,12 @@ async function main() {
   console.log('🌱 Iniciando seed dos planos...')
 
   // Criar planos se não existirem
+  const {
+    STRIPE_PRICE_BASIC,
+    STRIPE_PRICE_PRO,
+    STRIPE_PRICE_ENTERPRISE,
+  } = process.env
+
   const plans = [
     {
       name: 'FREE',
@@ -20,7 +26,8 @@ async function main() {
       customContentSuggestions: 15,
       contentPlans: 5,
       contentReviews: 10,
-      isActive: true
+      isActive: true,
+      stripePriceId: null
     },
     {
       name: 'BASIC',
@@ -35,7 +42,8 @@ async function main() {
       customContentSuggestions: 20,
       contentPlans: 7,
       contentReviews: 15,
-      isActive: true
+      isActive: true,
+      stripePriceId: STRIPE_PRICE_BASIC || null
     },
     {
       name: 'PRO',
@@ -50,7 +58,8 @@ async function main() {
       customContentSuggestions: 30,
       contentPlans: 10,
       contentReviews: 25,
-      isActive: true
+      isActive: true,
+      stripePriceId: STRIPE_PRICE_PRO || null
     },
     {
       name: 'ENTERPRISE',
@@ -65,7 +74,8 @@ async function main() {
       customContentSuggestions: 200,
       contentPlans: 100,
       contentReviews: 200,
-      isActive: true
+      isActive: true,
+      stripePriceId: STRIPE_PRICE_ENTERPRISE || null
     }
   ]
 

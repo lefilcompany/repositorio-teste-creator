@@ -76,7 +76,8 @@ export async function POST(request: Request) {
         customContentSuggestions: validatedData.customContentSuggestions,
         contentPlans: validatedData.contentPlans,
         contentReviews: validatedData.contentReviews,
-        isActive: validatedData.isActive
+        isActive: validatedData.isActive,
+        stripePriceId: validatedData.stripePriceId ?? null
       }
     });
 

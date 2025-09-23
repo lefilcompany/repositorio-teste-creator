@@ -55,15 +55,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar nova assinatura
-    const success = await createTeamSubscription(user.teamId, planName);
+    const subscription = await createTeamSubscription(user.teamId, planName);
 
-    if (!success) {
+    if (!subscription) {
       return NextResponse.json({ error: 'Erro ao criar assinatura' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Assinatura criada com sucesso',
-      planName: plan.displayName
+      planName: plan.displayName,
+      subscriptionId: subscription.id
     });
 
   } catch (error) {
