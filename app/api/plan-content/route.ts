@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ActionType } from '@prisma/client';
+import { canTeamPerformAction } from '@/lib/subscription-utils';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -132,6 +133,24 @@ export async function POST(req: NextRequest) {
 
     if (!brand || themes.length === 0 || !platform || quantity < 1 || !objective || !teamId || !brandId || !userId) {
       return NextResponse.json({ error: 'Todos os campos obrigatórios devem ser preenchidos.' }, { status: 400 });
+    }
+
+    // Verificar se o time pode criar planejamentos de conteúdo
+    const currentUsage = await prisma.action.count({
+      where: { 
+        teamId: teamId,
+        type: ActionType.PLANEJAR_CONTEUDO,
+        createdAt: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) // Primeiro dia do mês atual
+        }
+      }
+    });
+
+    const canPerform = await canTeamPerformAction(teamId, 'contentPlans', currentUsage);
+    if (!canPerform.canPerform) {
+      return NextResponse.json({ 
+        error: canPerform.reason || 'Limite de planejamentos de conteúdo atingido'
+      }, { status: 400 });
     }
 
     const selectedThemes = await prisma.strategicTheme.findMany({

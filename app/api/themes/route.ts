@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { canTeamCreateTheme } from '@/lib/subscription-utils';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -50,20 +51,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found or not part of the team' }, { status: 403 });
     }
 
-    // Verificar limite de temas do plano
-    if (typeof user.team.plan === 'object' && user.team.plan && !Array.isArray(user.team.plan)) {
-      const teamPlan = user.team.plan as any;
-      if (teamPlan.limits) {
-        const currentThemesCount = await prisma.strategicTheme.count({
-          where: { teamId: teamId }
-        });
+    // Verificar limite de temas usando o novo sistema
+    const currentThemesCount = await prisma.strategicTheme.count({
+      where: { teamId: teamId }
+    });
 
-        if (currentThemesCount >= teamPlan.limits.themes) {
-          return NextResponse.json({ 
-            error: `Limite de temas do plano ${teamPlan.name} atingido. Você pode criar até ${teamPlan.limits.themes} tema(s) estratégico(s).` 
-          }, { status: 400 });
-        }
-      }
+    const canCreate = await canTeamCreateTheme(teamId, currentThemesCount);
+    if (!canCreate.canCreate) {
+      return NextResponse.json({ 
+        error: canCreate.reason || 'Limite de temas estratégicos atingido'
+      }, { status: 400 });
     }
 
     // Garantir que colorPalette seja uma string JSON válida

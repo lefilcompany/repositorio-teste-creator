@@ -7,40 +7,129 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Team } from '@/types/team';
 import { toast } from 'sonner';
-import { ArrowLeft, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X } from 'lucide-react';
+import { ArrowLeft, Zap, CheckCircle, Calendar, Tag, Users, Palette, UserCheck, Building2, Target, Crown, X, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+interface Plan {
+  id: string;
+  name: string;
+  displayName: string;
+  price: number;
+  trialDays: number;
+  maxMembers: number;
+  maxBrands: number;
+  maxStrategicThemes: number;
+  maxPersonas: number;
+  quickContentCreations: number;
+  customContentSuggestions: number;
+  contentPlans: number;
+  contentReviews: number;
+  isActive: boolean;
+}
+
+interface SubscriptionStatus {
+  canAccess: boolean;
+  isExpired: boolean;
+  isTrial: boolean;
+  daysRemaining?: number;
+  plan?: Plan;
+}
 
 export default function PlanosPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamData, setTeamData] = useState<any>(null); // Dados da API com créditos calculados
   const [isLoading, setIsLoading] = useState(true);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [showPlansSelection, setShowPlansSelection] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isExpired = searchParams.get('expired') === 'true';
+  const selectedPlan = searchParams.get('selected');
   const team = teams.find(t => t.id === user?.teamId) || null;
 
   // Carrega dados da equipe via API
   useEffect(() => {
-    const loadTeams = async () => {
+    const loadData = async () => {
       if (!user?.id) {
         setIsLoading(false);
         return;
       }
-      
+
       try {
+        // Carregar teams
         const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
         if (teamsRes.ok) {
           const teamsData: Team[] = await teamsRes.json();
           setTeams(teamsData);
-        } else {
-          toast.error('Erro ao carregar informações do plano');
+          
+          // Se há um team do usuário, buscar dados completos da subscription
+          const userTeam = teamsData.find(t => t.id === user.teamId);
+          if (userTeam) {
+            const teamDataRes = await fetch(`/api/teams/${userTeam.id}?summary=true`);
+            if (teamDataRes.ok) {
+              const teamDataResponse = await teamDataRes.json();
+              setTeamData(teamDataResponse);
+            }
+          }
         }
+
+        // Carregar planos disponíveis
+        const plansResponse = await fetch('/api/plans');
+        if (plansResponse.ok) {
+          const plansData = await plansResponse.json();
+          // Ordenar planos: FREE, BASIC, PRO, ENTERPRISE
+          const planOrder = ['FREE', 'BASIC', 'PRO', 'ENTERPRISE'];
+          const sortedPlans = plansData.sort((a: Plan, b: Plan) => {
+            const aIndex = planOrder.indexOf(a.name);
+            const bIndex = planOrder.indexOf(b.name);
+            return aIndex - bIndex;
+          });
+          setPlans(sortedPlans);
+        }
+
+        // Carregar status da assinatura atual
+        const statusResponse = await fetch('/api/teams/subscription-status', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        });
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          setSubscriptionStatus(statusData);
+        }
+
+        // Se expirou, mostrar seleção de planos automaticamente
+        if (isExpired) {
+          setShowPlansSelection(true);
+        }
+
       } catch (error) {
-        toast.error('Erro de conexão ao carregar informações do plano');
+        toast.error('Erro de conexão ao carregar informações');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadTeams();
-  }, [user]);
+    loadData();
+  }, [user, isExpired]);
+
+  const handleSubscribe = async (planName: string) => {
+    if (!user || !team) {
+      router.push('/login');
+      return;
+    }
+
+    // Por enquanto, apenas mostrar toast informativo
+    // A integração com API de pagamento será implementada posteriormente
+    toast.info(`Plano ${planName} selecionado. Sistema de pagamento será implementado em breve.`, {
+      description: "Em breve você poderá assinar planos diretamente pelo sistema."
+    });
+  };
 
   if (isLoading) {
     return (
@@ -50,13 +139,197 @@ export default function PlanosPage() {
     );
   }
 
-  if (!team || typeof team.plan !== 'object' || !team.plan.limits) {
+  // Se a assinatura expirou ou não tem acesso, mostrar seleção de planos
+  if (subscriptionStatus?.isExpired || showPlansSelection || !subscriptionStatus?.canAccess) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-4">Escolha seu Plano</h1>
+          <p className="text-gray-600 mb-6">
+            Selecione o plano que melhor atende às necessidades da sua equipe
+          </p>
+
+          {isExpired && (
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <AlertDescription className="text-orange-800">
+                <div className="flex items-center justify-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  Seu período de teste expirou. Escolha um plano para continuar usando o Creator.
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {subscriptionStatus?.isTrial && !subscriptionStatus?.isExpired && (
+            <Alert className="mb-6 border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                Você está no período de teste gratuito.
+                {subscriptionStatus.daysRemaining !== undefined && (
+                  <> Restam {subscriptionStatus.daysRemaining} dias.</>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map((plan) => (
+            <Card
+              key={plan.id}
+              className={`relative ${plan.name === 'PRO' ? 'border-blue-500 shadow-lg scale-105' : ''
+                } ${plan.name === 'ENTERPRISE' ? 'border-indigo-500 shadow-lg' : ''
+                } ${subscriptionStatus?.plan?.id === plan.id ? 'border-green-500 bg-green-50' : ''
+                } ${selectedPlan === plan.name ? 'border-orange-500 bg-orange-50 shadow-xl ring-2 ring-orange-200' : ''
+                }`}
+            >
+              {plan.name === 'PRO' && (
+                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500">
+                  Mais Popular
+                </Badge>
+              )}
+
+              {plan.name === 'ENTERPRISE' && (
+                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-indigo-500">
+                  Premium
+                </Badge>
+              )}
+
+              {subscriptionStatus?.plan?.id === plan.id && (
+                <Badge className="absolute -top-2 right-4 bg-green-500">
+                  Plano Atual
+                </Badge>
+              )}
+
+              {selectedPlan === plan.name && (
+                <Badge className="absolute -top-2 left-4 bg-orange-500">
+                  Selecionado
+                </Badge>
+              )}
+
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">{plan.displayName}</CardTitle>
+                <div className="text-3xl font-bold">
+                  {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
+                </div>
+                {plan.price > 0 && <div className="text-sm text-gray-500">mensal</div>}
+                {plan.trialDays > 0 && (
+                  <Badge variant="outline" className="mx-auto">
+                    {plan.trialDays} dias grátis
+                  </Badge>
+                )}
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.maxMembers >= 999999 ? 'Membros ilimitados' : `${plan.maxMembers} Membros`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.maxBrands >= 999999 ? 'Marcas ilimitadas' : `${plan.maxBrands} ${plan.maxBrands === 1 ? 'Marca' : 'Marcas'}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.maxStrategicThemes >= 999999 ? 'Temas ilimitados' : `${plan.maxStrategicThemes} Temas Estratégicos`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.maxPersonas >= 999999 ? 'Personas ilimitadas' : `${plan.maxPersonas} Personas`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.name === 'ENTERPRISE' ? `${plan.quickContentCreations}+ Criações Rápidas` : `${plan.quickContentCreations} Criações Rápidas`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.name === 'ENTERPRISE' ? `${plan.customContentSuggestions}+ Conteúdos Personalizados` : `${plan.customContentSuggestions} Conteúdos Personalizados`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.name === 'ENTERPRISE' ? `${plan.contentPlans}+ Planejamentos` : `${plan.contentPlans} Planejamentos`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      {plan.name === 'ENTERPRISE' ? `${plan.contentReviews}+ Revisões` : `${plan.contentReviews} Revisões`}
+                    </span>
+                  </div>
+                  {plan.name === 'ENTERPRISE' && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="font-medium text-indigo-600">Integrações avançadas</span>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full"
+                  variant={plan.name === 'PRO' ? 'default' : 'outline'}
+                  onClick={() => handleSubscribe(plan.name)}
+                  disabled={subscriptionStatus?.plan?.id === plan.id}
+                >
+                  {subscriptionStatus?.plan?.id === plan.id ? (
+                    'Plano Atual'
+                  ) : plan.name === 'FREE' ? (
+                    'Continuar Grátis'
+                  ) : (
+                    'Assinar Agora'
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="text-center mt-8">
+          <p className="text-sm text-gray-500">
+            Todos os planos incluem suporte técnico e atualizações gratuitas.
+          </p>
+          {!isExpired && (
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => setShowPlansSelection(false)}
+            >
+              Voltar ao Painel
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!team || !team.plan) {
     return (
       <div className="min-h-full flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-lg">Erro ao carregar informações do plano</p>
           <p className="text-sm text-muted-foreground">
-            {!team ? 'Team não encontrado' : 'Dados do plano inválidos'}
+            {!team ? 'Team não encontrado' : 'Plano não encontrado'}
           </p>
           <Link href="/home">
             <Button variant="outline">
@@ -69,29 +342,37 @@ export default function PlanosPage() {
     );
   }
 
-  const { plan, credits } = team;
-  const planLimits = plan.limits;
+  const { plan } = team;
+  // Usar dados da API em vez de team.credits
+  const credits = teamData?.credits || {};
 
-  // Cálculo dos créditos - correção: os créditos no banco representam os disponíveis, não os usados
+  // Cálculo dos créditos - usar dados da API de subscription
   const creditData = [
+    {
+      name: 'Criações Rápidas',
+      current: credits?.quickContentCreations || 0,
+      limit: teamData?.plan?.quickContentCreations || plan?.quickContentCreations || 5, // Usar dados do plano da API
+      icon: <Zap className="h-4 w-4" />,
+      color: 'text-orange-600'
+    },
     {
       name: 'Sugestões de Conteúdo',
       current: credits?.contentSuggestions || 0,
-      limit: planLimits?.contentSuggestions || 20,
+      limit: teamData?.plan?.customContentSuggestions || plan?.customContentSuggestions || 15, // Usar dados do plano da API
       icon: <Zap className="h-4 w-4" />,
       color: 'text-blue-600'
     },
     {
       name: 'Revisões de Conteúdo',
       current: credits?.contentReviews || 0,
-      limit: planLimits?.contentReviews || 20,
+      limit: teamData?.plan?.contentReviews || plan?.contentReviews || 10, // Usar dados do plano da API
       icon: <CheckCircle className="h-4 w-4" />,
       color: 'text-green-600'
     },
     {
       name: 'Calendários',
       current: credits?.contentPlans || 0,
-      limit: planLimits?.calendars || 5,
+      limit: teamData?.plan?.contentPlans || plan?.contentPlans || 5, // Usar dados do plano da API
       icon: <Calendar className="h-4 w-4" />,
       color: 'text-purple-600'
     }
@@ -102,6 +383,43 @@ export default function PlanosPage() {
 
   return (
     <div className="min-h-full flex flex-col gap-4">
+      {/* Alertas de assinatura */}
+      {subscriptionStatus?.isTrial && !subscriptionStatus?.isExpired && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <AlertTriangle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            Você está no período de teste gratuito.
+            {subscriptionStatus.daysRemaining !== undefined && (
+              <> Restam {subscriptionStatus.daysRemaining} dias.</>
+            )}
+            {' '}
+            <Button
+              variant="link"
+              className="p-0 h-auto text-blue-800 underline"
+              onClick={() => setShowPlansSelection(true)}
+            >
+              Ver planos disponíveis
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {subscriptionStatus?.isTrial && subscriptionStatus?.isExpired && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            Seu período de teste expirou.
+            <Button
+              variant="link"
+              className="p-0 h-auto text-orange-800 underline ml-1"
+              onClick={() => setShowPlansSelection(true)}
+            >
+              Escolha um plano para continuar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header seguindo o padrão do sistema */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5 flex-shrink-0">
         <CardHeader className="pb-4">
@@ -218,7 +536,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Marcas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {planLimits?.brands || 1}
+                      até {teamData?.plan?.maxBrands || plan?.maxBrands || 1}
                     </p>
                   </div>
                 </div>
@@ -230,7 +548,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Temas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {planLimits?.themes || 3}
+                      até {teamData?.plan?.maxStrategicThemes || plan?.maxStrategicThemes || 3}
                     </p>
                   </div>
                 </div>
@@ -242,7 +560,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Personas</p>
                     <p className="text-xs text-muted-foreground">
-                      até {planLimits?.personas || 2}
+                      até {teamData?.plan?.maxPersonas || plan?.maxPersonas || 2}
                     </p>
                   </div>
                 </div>
@@ -254,7 +572,7 @@ export default function PlanosPage() {
                   <div>
                     <p className="font-medium text-sm">Membros</p>
                     <p className="text-xs text-muted-foreground">
-                      até {planLimits?.members || 5}
+                      até {teamData?.plan?.maxMembers || plan?.maxMembers || 5}
                     </p>
                   </div>
                 </div>
@@ -289,6 +607,14 @@ export default function PlanosPage() {
                   Gerenciar Personas
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                className="w-full justify-start hover:bg-secondary"
+                onClick={() => setShowPlansSelection(true)}
+              >
+                <Crown className="h-4 w-4 mr-2" />
+                Gerenciar Planos
+              </Button>
             </CardContent>
           </Card>
 

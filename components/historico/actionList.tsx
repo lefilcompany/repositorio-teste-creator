@@ -5,7 +5,7 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye } from 'lucide-react';
+import { Eye, LoaderCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { ActionSummary } from '@/types/action';
 import { ACTION_STYLE_MAP, ACTION_TYPE_DISPLAY } from '@/types/action';
@@ -95,13 +95,7 @@ export default function ActionList({
       <div className="overflow-y-auto pr-2 flex-1 min-h-0">
         {/* ... (código da lista de ações permanece o mesmo) ... */}
         {isLoading ? (
-          <ul className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <li key={i}>
-                <ActionSkeleton />
-              </li>
-            ))}
-          </ul>
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary mx-auto mt-10" />
         ) : actions.length > 0 ? (
           <ul className="space-y-3">
             {actions.map((action) => {

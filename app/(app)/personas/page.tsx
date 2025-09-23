@@ -91,13 +91,12 @@ export default function PersonasPage() {
 
   const handleOpenDialog = useCallback((persona: Persona | null = null) => {
     // Verificar limite antes de abrir o diálogo para nova persona
-    if (!persona && team && typeof team.plan === 'object') {
-      const planLimits = team.plan.limits;
+    if (!persona && team && team.plan) {
       const currentPersonasCount = personas.length;
-      const maxPersonas = planLimits?.personas || 2;
+      const maxPersonas = team.plan?.maxPersonas || 2;
 
       if (currentPersonasCount >= maxPersonas) {
-        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxPersonas} persona${maxPersonas > 1 ? 's' : ''}.`);
+        toast.error(`Limite atingido! Seu plano ${team.plan?.displayName || 'atual'} permite apenas ${maxPersonas} persona${maxPersonas > 1 ? 's' : ''}.`);
         return;
       }
     }
@@ -224,8 +223,8 @@ export default function PersonasPage() {
   }, [user?.teamId]);
 
   // Verificar se o limite foi atingido
-  const isAtPersonaLimit = team && typeof team.plan === 'object'
-    ? personas.length >= (team.plan.limits?.personas || 2)
+  const isAtPersonaLimit = team && team.plan
+    ? personas.length >= (team.plan?.maxPersonas || 2)
     : false;
 
   return (

@@ -93,7 +93,6 @@ export async function POST(req: NextRequest) {
     const analysisContent = data.choices[0].message.content;
 
     // Salvar no banco de dados com aprovação automática
-    console.log('Salvando ação de revisão no banco de dados...'); // Debug log
     let action;
     try {
       action = await prisma.action.create({
@@ -108,7 +107,6 @@ export async function POST(req: NextRequest) {
           status: 'Aprovado' // Definir status como aprovado
         },
       });
-      console.log('Ação de revisão salva com sucesso:', action.id); // Debug log
     } catch (dbError) {
       console.error('Erro ao salvar ação de revisão no banco:', dbError);
       // Continuar mesmo se falhar o salvamento, pois o feedback já foi gerado

@@ -91,13 +91,12 @@ export default function TemasPage() {
 
   const handleOpenDialog = useCallback((theme: StrategicTheme | null = null) => {
     // Verificar limite antes de abrir o diálogo para novo tema
-    if (!theme && team && typeof team.plan === 'object') {
-      const planLimits = team.plan.limits;
+    if (!theme && team && team.plan) {
       const currentThemesCount = themes.length;
-      const maxThemes = planLimits?.themes || 3;
+      const maxThemes = team.plan?.maxStrategicThemes || 3;
 
       if (currentThemesCount >= maxThemes) {
-        toast.error(`Limite atingido! Seu plano ${team.plan.name} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
+        toast.error(`Limite atingido! Seu plano ${team.plan?.displayName || 'atual'} permite apenas ${maxThemes} tema${maxThemes > 1 ? 's' : ''}.`);
         return;
       }
     }
@@ -227,8 +226,8 @@ export default function TemasPage() {
   }, [user?.teamId]);
 
   // Verificar se o limite foi atingido
-  const isAtThemeLimit = team && typeof team.plan === 'object'
-    ? themes.length >= (team.plan.limits?.themes || 3)
+  const isAtThemeLimit = team && team.plan
+    ? themes.length >= (team.plan?.maxStrategicThemes || 3)
     : false;
 
   return (

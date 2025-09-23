@@ -72,3 +72,29 @@
 .tutorial-highlight {
   @apply ring-4 ring-primary rounded-xl relative z-50 pointer-events-none;
 }
+
+/* --- ESTILIZAÇÃO DA BARRA DE SCROLL --- */
+/* Para navegadores WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px; /* Largura da barra de rolagem vertical */
+  height: 12px; /* Altura da barra de rolagem horizontal */
+}
+
+/* Fundo da barra de rolagem (a "pista") */
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 10px;
+}
+
+/* A parte que se move ("polegar") */
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--secondary) / 0.4);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Efeito ao passar o mouse sobre o polegar */
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--secondary) / 0.6);
+}

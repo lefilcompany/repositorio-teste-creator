@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/jwt';
+import { updateTeamUsage } from '@/lib/simple-usage-utils';
 
 export async function POST(req: Request) {
   try {
@@ -16,41 +17,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    // Verificar se existe uma sessão ativa para o usuário
-    const activeSession = await prisma.usageSession.findFirst({
-      where: {
-        userId: payload.userId,
-        active: true,
-        logoutTime: null
-      }
+    // Buscar usuário e team
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, teamId: true }
     });
 
-    // Se já existe uma sessão ativa, retornar ela
-    if (activeSession) {
-      return NextResponse.json({ 
-        sessionId: activeSession.id,
-        message: 'Sessão ativa encontrada'
-      });
+    if (!user || !user.teamId) {
+      return NextResponse.json({ error: 'Usuário não encontrado ou sem equipe' }, { status: 404 });
     }
 
-    // Criar nova sessão
-    const session = await prisma.usageSession.create({
-      data: {
-        userId: payload.userId,
-        loginTime: new Date(),
-        active: true,
-        date: new Date(),
-        sessionType: 'normal'
-      }
-    });
+    // Atualizar contadores simples do team
+    await updateTeamUsage(user.teamId);
 
-    return NextResponse.json({
-      sessionId: session.id,
-      message: 'Sessão de uso iniciada'
+    return NextResponse.json({ 
+      message: 'Uso registrado com sucesso',
+      sessionId: `simplified-${Date.now()}`, // ID dummy para compatibilidade
+      simplified: true 
     });
 
   } catch (error) {
-    console.error('Erro ao iniciar sessão de uso:', error);
+    console.error('Erro ao registrar uso:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

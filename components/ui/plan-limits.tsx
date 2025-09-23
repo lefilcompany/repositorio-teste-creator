@@ -6,6 +6,7 @@ import { Team } from '@/types/team';
 
 interface PlanLimitsProps {
   team: Team;
+  teamData?: any; // Dados da API com créditos calculados
   currentCounts: {
     brands: number;
     themes: number;
@@ -14,16 +15,25 @@ interface PlanLimitsProps {
   entityType?: 'brands' | 'themes' | 'personas';
 }
 
-export function PlanLimits({ team, currentCounts, entityType }: PlanLimitsProps) {
-  if (typeof team.plan !== 'object' || !team.plan.limits) {
+export function PlanLimits({ team, teamData, currentCounts, entityType }: PlanLimitsProps) {
+  if (!team.plan) {
     return null;
   }
 
-  const { limits } = team.plan;
+  const plan = team.plan;
   
   const getEntityInfo = (type: keyof typeof currentCounts) => {
     const current = currentCounts[type];
-    const limit = limits[type];
+    let limit: number;
+    
+    // Mapear os campos para os novos
+    switch(type) {
+      case 'brands': limit = plan.maxBrands; break;
+      case 'themes': limit = plan.maxStrategicThemes; break;
+      case 'personas': limit = plan.maxPersonas; break;
+      default: limit = 0;
+    }
+    
     const percentage = (current / limit) * 100;
     
     return {
@@ -110,15 +120,15 @@ export function PlanLimits({ team, currentCounts, entityType }: PlanLimitsProps)
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-xs text-muted-foreground">Créditos Conteúdo</p>
-              <p className="text-sm font-semibold">{team.credits?.contentSuggestions || 0}</p>
+              <p className="text-sm font-semibold">{teamData?.credits?.contentSuggestions || 0}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Créditos Revisão</p>
-              <p className="text-sm font-semibold">{team.credits?.contentReviews || 0}</p>
+              <p className="text-sm font-semibold">{teamData?.credits?.contentReviews || 0}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Calendários</p>
-              <p className="text-sm font-semibold">{team.credits?.contentPlans || 0}</p>
+              <p className="text-sm font-semibold">{teamData?.credits?.contentPlans || 0}</p>
             </div>
           </div>
         </div>

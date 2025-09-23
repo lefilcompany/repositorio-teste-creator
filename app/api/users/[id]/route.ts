@@ -29,8 +29,7 @@ export async function GET(
             name: true,
             displayCode: true,
             adminId: true,
-            plan: true,
-            credits: true,
+            currentPlan: true, // Usar currentPlan em vez de plan
             // Otimização: buscar apenas contagem de membros ao invés de todos os dados
             _count: {
               select: {

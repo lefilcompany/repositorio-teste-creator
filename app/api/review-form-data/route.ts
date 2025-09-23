@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const [team, brands, themes] = await Promise.all([
       prisma.team.findUnique({
         where: { id: teamId },
-        select: { id: true, credits: true },
+        select: { id: true },
       }),
       prisma.brand.findMany({
         where: { teamId },

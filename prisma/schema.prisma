@@ -9,23 +9,33 @@ datasource db {
 }
 
 model Team {
-  id            String           @id @default(cuid())
-  name          String
-  code          String           @unique
-  displayCode   String
-  adminId       String
-  plan          Json
-  credits       Json
-  totalContents Int              @default(0)
-  totalBrands   Int              @default(0)
-  actions       Action[]
-  brands        Brand[]
-  joinRequests  JoinRequest[]
-  notifications Notification[]
-  personas      Persona[]
-  themes        StrategicTheme[]
-  admin         User             @relation("TeamAdmin", fields: [adminId], references: [id])
-  members       User[]           @relation("TeamMembers")
+  id                String           @id @default(cuid())
+  name              String
+  code              String           @unique
+  displayCode       String
+  adminId           String
+  plan              Json?
+  totalContents     Int              @default(0)
+  totalBrands       Int              @default(0)
+  createdAt         DateTime         @default(now())
+  isTrialActive     Boolean          @default(true)
+  trialEndsAt       DateTime?
+  updatedAt         DateTime         @default(now()) @updatedAt
+  currentPlanId     String?
+  dailyUsageCount   Int              @default(0)
+  monthlyUsageCount Int              @default(0)
+  lastActivityDate  DateTime?
+  currentMonthYear  String?
+  actions           Action[]
+  brands            Brand[]
+  joinRequests      JoinRequest[]
+  notifications     Notification[]
+  personas          Persona[]
+  themes            StrategicTheme[]
+  admin             User             @relation("TeamAdmin", fields: [adminId], references: [id])
+  currentPlan       Plan?            @relation("TeamCurrentPlan", fields: [currentPlanId], references: [id])
+  members           User[]           @relation("TeamMembers")
+  subscriptions     Subscription[]
 }
 
 model User {
@@ -42,6 +52,8 @@ model User {
   resetToken        String?
   resetTokenExpiry  DateTime?
   tutorialCompleted Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
   actions           Action[]
   brands            Brand[]
   joinRequests      JoinRequest[]
@@ -49,7 +61,6 @@ model User {
   personas          Persona[]
   themes            StrategicTheme[]
   adminTeams        Team[]           @relation("TeamAdmin")
-  usageSessions     UsageSession[]
   team              Team?            @relation("TeamMembers", fields: [teamId], references: [id])
 }
 
@@ -166,6 +177,7 @@ model Notification {
   teamId    String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
   team      Team     @relation(fields: [teamId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
@@ -178,24 +190,56 @@ model JoinRequest {
   userId    String
   status    RequestStatus @default(PENDING)
   createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
   team      Team          @relation(fields: [teamId], references: [id])
   user      User          @relation(fields: [userId], references: [id])
 }
 
-model UsageSession {
-  id          String    @id @default(cuid())
-  userId      String
-  loginTime   DateTime  @default(now())
-  logoutTime  DateTime?
-  duration    Int?
-  date        DateTime  @default(now())
-  active      Boolean   @default(true)
-  sessionType String    @default("normal")
-  user        User      @relation(fields: [userId], references: [id])
+model Plan {
+  id                       String         @id @default(cuid())
+  name                     String         @unique
+  displayName              String
+  price                    Float
+  trialDays                Int            @default(0)
+  maxMembers               Int
+  maxBrands                Int
+  maxStrategicThemes       Int
+  maxPersonas              Int
+  quickContentCreations    Int
+  customContentSuggestions Int
+  contentPlans             Int
+  contentReviews           Int
+  isActive                 Boolean        @default(true)
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  teamsUsingPlan           Team[]         @relation("TeamCurrentPlan")
+  subscriptions            Subscription[]
+}
 
-  @@index([userId], map: "idx_UsageSession_userId")
-  @@index([date], map: "idx_UsageSession_date")
-  @@index([active], map: "idx_UsageSession_active")
+model Subscription {
+  id           String             @id @default(cuid())
+  teamId       String
+  planId       String
+  status       SubscriptionStatus @default(TRIAL)
+  startDate    DateTime           @default(now())
+  endDate      DateTime?
+  trialEndDate DateTime?
+  isActive     Boolean            @default(true)
+  canceledAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  plan         Plan               @relation(fields: [planId], references: [id])
+  team         Team               @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, planId])
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAYMENT_PENDING
 }
 
 enum UserRole {

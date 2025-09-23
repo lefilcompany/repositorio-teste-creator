@@ -21,19 +21,30 @@ interface AdditionalInfoCardProps {
 export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps) {
   const { user, team } = useAuth();
   const [totalActions, setTotalActions] = useState(0);
+  const [teamData, setTeamData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTeamActions = async () => {
+    const fetchTeamData = async () => {
       if (!user?.teamId) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const response = await fetch(`/api/actions?teamId=${user.teamId}`);
-        if (response.ok) {
-          const actions = await response.json();
+        // Fetch team data with subscription-based credits
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const data = await teamResponse.json();
+          setTeamData(data);
+        } else {
+          toast.error('Erro ao carregar dados da equipe');
+        }
+
+        // Fetch actions count
+        const actionsResponse = await fetch(`/api/actions?teamId=${user.teamId}`);
+        if (actionsResponse.ok) {
+          const actions = await actionsResponse.json();
           setTotalActions(actions.length);
         } else {
           toast.error('Erro ao carregar histórico de ações da equipe');
@@ -45,16 +56,16 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
       }
     };
 
-    fetchTeamActions();
+    fetchTeamData();
   }, [user?.teamId]);
 
-  // Calcular progresso baseado nos créditos da equipe
-  const creditosDisponiveis = team ? {
-    total: typeof team.plan === 'object' 
-      ? ((team.plan.limits?.contentSuggestions || 20) + (team.plan.limits?.contentReviews || 20) + (team.plan.limits?.calendars || 5))
-      : 45,
-    restantes: (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0)
-  } : { total: 45, restantes: 0 };
+  // Calcular progresso baseado nos créditos calculados da API
+  const creditosDisponiveis = teamData ? {
+    total: teamData.plan 
+      ? ((teamData.plan.quickContentCreations || 5) + (teamData.plan.customContentSuggestions || 15) + (teamData.plan.contentReviews || 10) + (teamData.plan.contentPlans || 5))
+      : 35, // Total do FREE plan
+    restantes: (teamData.credits?.quickContentCreations || 0) + (teamData.credits?.contentSuggestions || 0) + (teamData.credits?.contentReviews || 0) + (teamData.credits?.contentPlans || 0)
+  } : { total: 35, restantes: 0 };
 
   const creditosUsados = creditosDisponiveis.total - creditosDisponiveis.restantes;
   const progressoPercentual = creditosDisponiveis.total > 0 ? (creditosUsados / creditosDisponiveis.total) * 100 : 0;
@@ -121,7 +132,7 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
           </div>
         )}
 
-        {team && (
+        {teamData && (
           <div className="space-y-3 border-t border-muted/20 pt-6">
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <div className="p-1.5 bg-green-500/15 rounded-lg">
@@ -130,14 +141,23 @@ export default function AdditionalInfoCard({ userData }: AdditionalInfoCardProps
               Ações Restantes
             </h3>
             <div className="pl-8 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold text-foreground">{creditosDisponiveis.restantes}</span>
-                <span className="text-sm text-muted-foreground">de {creditosDisponiveis.total} disponíveis</span>
-              </div>
-              <Progress value={progressoPercentual} className="h-3" />
-              <p className="text-xs text-muted-foreground">
-                {creditosUsados} ações utilizadas
-              </p>
+              {isLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <span className="text-muted-foreground">Carregando...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-foreground">{creditosDisponiveis.restantes}</span>
+                    <span className="text-sm text-muted-foreground">de {creditosDisponiveis.total} disponíveis</span>
+                  </div>
+                  <Progress value={progressoPercentual} className="h-3" />
+                  <p className="text-xs text-muted-foreground">
+                    {creditosUsados} ações utilizadas
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}
