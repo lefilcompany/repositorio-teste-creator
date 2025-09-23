@@ -13,6 +13,7 @@ export interface Plan {
   contentPlans: number;
   contentReviews: number;
   isActive: boolean;
+  stripePriceId?: string | null;
 }
 
 export interface Team {

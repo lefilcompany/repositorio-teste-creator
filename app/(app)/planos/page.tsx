@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ interface Plan {
   contentPlans: number;
   contentReviews: number;
   isActive: boolean;
+  stripePriceId?: string | null;
 }
 
 interface SubscriptionStatus {
@@ -46,89 +47,152 @@ export default function PlanosPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [showPlansSelection, setShowPlansSelection] = useState(false);
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const isExpired = searchParams.get('expired') === 'true';
   const selectedPlan = searchParams.get('selected');
   const team = teams.find(t => t.id === user?.teamId) || null;
 
-  // Carrega dados da equipe via API
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        return;
+  const loadData = useCallback(async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
+      if (teamsRes.ok) {
+        const teamsData: Team[] = await teamsRes.json();
+        setTeams(teamsData);
+
+        const userTeam = teamsData.find(t => t.id === user.teamId);
+        if (userTeam) {
+          const teamDataRes = await fetch(`/api/teams/${userTeam.id}?summary=true`);
+          if (teamDataRes.ok) {
+            const teamDataResponse = await teamDataRes.json();
+            setTeamData(teamDataResponse);
+          }
+        }
       }
 
-      try {
-        // Carregar teams
-        const teamsRes = await fetch(`/api/teams?userId=${user.id}`);
-        if (teamsRes.ok) {
-          const teamsData: Team[] = await teamsRes.json();
-          setTeams(teamsData);
-          
-          // Se há um team do usuário, buscar dados completos da subscription
-          const userTeam = teamsData.find(t => t.id === user.teamId);
-          if (userTeam) {
-            const teamDataRes = await fetch(`/api/teams/${userTeam.id}?summary=true`);
-            if (teamDataRes.ok) {
-              const teamDataResponse = await teamDataRes.json();
-              setTeamData(teamDataResponse);
-            }
-          }
-        }
-
-        // Carregar planos disponíveis
-        const plansResponse = await fetch('/api/plans');
-        if (plansResponse.ok) {
-          const plansData = await plansResponse.json();
-          // Ordenar planos: FREE, BASIC, PRO, ENTERPRISE
-          const planOrder = ['FREE', 'BASIC', 'PRO', 'ENTERPRISE'];
-          const sortedPlans = plansData.sort((a: Plan, b: Plan) => {
-            const aIndex = planOrder.indexOf(a.name);
-            const bIndex = planOrder.indexOf(b.name);
-            return aIndex - bIndex;
-          });
-          setPlans(sortedPlans);
-        }
-
-        // Carregar status da assinatura atual
-        const statusResponse = await fetch('/api/teams/subscription-status', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
+      const plansResponse = await fetch('/api/plans');
+      if (plansResponse.ok) {
+        const plansData = await plansResponse.json();
+        const planOrder = ['FREE', 'BASIC', 'PRO', 'ENTERPRISE'];
+        const sortedPlans = plansData.sort((a: Plan, b: Plan) => {
+          const aIndex = planOrder.indexOf(a.name);
+          const bIndex = planOrder.indexOf(b.name);
+          return aIndex - bIndex;
         });
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          setSubscriptionStatus(statusData);
-        }
-
-        // Se expirou, mostrar seleção de planos automaticamente
-        if (isExpired) {
-          setShowPlansSelection(true);
-        }
-
-      } catch (error) {
-        toast.error('Erro de conexão ao carregar informações');
-      } finally {
-        setIsLoading(false);
+        setPlans(sortedPlans);
       }
-    };
 
-    loadData();
+      const statusResponse = await fetch('/api/teams/subscription-status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        setSubscriptionStatus(statusData);
+      }
+
+      if (isExpired) {
+        setShowPlansSelection(true);
+      }
+
+    } catch (error) {
+      toast.error('Erro de conexão ao carregar informações');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user, isExpired]);
 
-  const handleSubscribe = async (planName: string) => {
+  // Carrega dados da equipe via API
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const successParam = searchParams.get('success');
+    const canceledParam = searchParams.get('canceled');
+
+    if (successParam !== 'true' && canceledParam !== 'true') {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    let shouldReplace = false;
+
+    if (successParam === 'true') {
+      toast.success('Pagamento confirmado! Plano atualizado com sucesso.');
+      params.delete('success');
+      shouldReplace = true;
+      loadData();
+    }
+
+    if (canceledParam === 'true') {
+      toast.info('Checkout cancelado. Nenhuma cobrança foi realizada.');
+      params.delete('canceled');
+      shouldReplace = true;
+    }
+
+    if (shouldReplace) {
+      const query = params.toString();
+      router.replace(query ? `/planos?${query}` : '/planos');
+    }
+  }, [searchParams, router, loadData]);
+
+  const handleSubscribe = async (plan: Plan) => {
     if (!user || !team) {
       router.push('/login');
       return;
     }
 
-    // Por enquanto, apenas mostrar toast informativo
-    // A integração com API de pagamento será implementada posteriormente
-    toast.info(`Plano ${planName} selecionado. Sistema de pagamento será implementado em breve.`, {
-      description: "Em breve você poderá assinar planos diretamente pelo sistema."
-    });
+    if (plan.price > 0 && !plan.stripePriceId) {
+      toast.error('Plano indisponível para cobrança no momento.');
+      return;
+    }
+
+    try {
+      setLoadingPlanId(plan.id);
+
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ planId: plan.id })
+      });
+
+      const data: any = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast.error(data?.error || 'Não foi possível iniciar a assinatura.');
+        return;
+      }
+
+      if (plan.price > 0) {
+        if (data && typeof data === 'object' && 'url' in data) {
+          window.location.href = data.url as string;
+        } else {
+          toast.error('Não foi possível redirecionar para o checkout da Stripe.');
+        }
+        return;
+      }
+
+      toast.success('Plano gratuito ativado com sucesso!');
+      setShowPlansSelection(false);
+      await loadData();
+    } catch (error) {
+      toast.error('Erro ao iniciar assinatura. Tente novamente.');
+    } finally {
+      setLoadingPlanId(null);
+    }
   };
 
   if (isLoading) {
@@ -281,11 +345,13 @@ export default function PlanosPage() {
                 <Button
                   className="w-full"
                   variant={plan.name === 'PRO' ? 'default' : 'outline'}
-                  onClick={() => handleSubscribe(plan.name)}
-                  disabled={subscriptionStatus?.plan?.id === plan.id}
+                  onClick={() => handleSubscribe(plan)}
+                  disabled={subscriptionStatus?.plan?.id === plan.id || loadingPlanId === plan.id}
                 >
                   {subscriptionStatus?.plan?.id === plan.id ? (
                     'Plano Atual'
+                  ) : loadingPlanId === plan.id ? (
+                    'Processando...'
                   ) : plan.name === 'FREE' ? (
                     'Continuar Grátis'
                   ) : (

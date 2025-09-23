@@ -1,5 +1,5 @@
 // lib/subscription-utils.ts
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Subscription as PrismaSubscription, SubscriptionStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -24,6 +24,7 @@ export interface PlanInfo extends PlanLimits {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  stripePriceId?: string | null;
 }
 
 export interface SubscriptionStatus {
@@ -418,44 +419,85 @@ export async function updateExpiredSubscriptions(): Promise<void> {
 /**
  * Cria uma nova assinatura para um time
  */
-export async function createTeamSubscription(teamId: string, planName: string): Promise<boolean> {
+interface CreateSubscriptionOptions {
+  status?: SubscriptionStatus;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripePriceId?: string | null;
+  currentPeriodEnd?: Date | null;
+  trialEndDate?: Date | null;
+}
+
+export async function createTeamSubscription(
+  teamId: string,
+  planName: string,
+  options: CreateSubscriptionOptions = {}
+): Promise<PrismaSubscription | null> {
   try {
     const plan = await prisma.plan.findUnique({
       where: { name: planName }
     });
-    
+
     if (!plan) {
       throw new Error(`Plano ${planName} não encontrado`);
     }
-    
+
     // Desativar assinaturas antigas
     await prisma.subscription.updateMany({
       where: { teamId },
       data: { isActive: false }
     });
-    
-    // Criar nova assinatura
-    const endDate = planName === 'FREE' ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
-    const trialEndDate = plan.trialDays > 0 ? new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000) : undefined;
-    
-    await prisma.subscription.create({
+
+    const status: SubscriptionStatus = options.status || (plan.trialDays > 0 ? 'TRIAL' : 'ACTIVE');
+    const isActive = status !== 'CANCELED' && status !== 'EXPIRED' && status !== 'PAYMENT_PENDING';
+
+    let endDate: Date | undefined;
+    if (options.currentPeriodEnd !== undefined) {
+      endDate = options.currentPeriodEnd ?? undefined;
+    } else if (planName !== 'FREE') {
+      endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias padrão
+    }
+
+    let trialEndDate: Date | undefined;
+    if (options.trialEndDate !== undefined) {
+      trialEndDate = options.trialEndDate ?? undefined;
+    } else if (plan.trialDays > 0) {
+      trialEndDate = new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000);
+    }
+
+    const subscription = await prisma.subscription.create({
       data: {
         teamId,
         planId: plan.id,
-        status: plan.trialDays > 0 ? 'TRIAL' : 'ACTIVE',
+        status,
         endDate,
         trialEndDate,
-        isActive: true
+        isActive,
+        stripeSubscriptionId: options.stripeSubscriptionId || undefined,
+        stripeCustomerId: options.stripeCustomerId || undefined,
+        stripeCheckoutSessionId: options.stripeCheckoutSessionId || undefined,
+        stripePriceId: options.stripePriceId || plan.stripePriceId || undefined
       }
     });
-    
-    // PRINCIPAL: Atualizar currentPlanId do team usando função dedicada
-    await updateTeamPlan(teamId, plan.id);
-    
-    return true;
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        isTrialActive: status === 'TRIAL',
+        trialEndsAt: trialEndDate ?? null
+      }
+    });
+
+    if (isActive) {
+      // PRINCIPAL: Atualizar currentPlanId do team usando função dedicada
+      await updateTeamPlan(teamId, plan.id);
+    }
+
+    return subscription;
   } catch (error) {
     console.error('Erro ao criar assinatura:', error);
-    return false;
+    return null;
   }
 }
 

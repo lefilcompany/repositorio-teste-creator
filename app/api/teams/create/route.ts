@@ -50,7 +50,11 @@ export async function POST(req: Request) {
     });
 
     // Criar assinatura FREE com trial de 14 dias
-    await createTeamSubscription(team.id, 'FREE');
+    const subscription = await createTeamSubscription(team.id, 'FREE');
+
+    if (!subscription) {
+      return NextResponse.json({ error: 'Falha ao configurar assinatura inicial' }, { status: 500 });
+    }
 
     return NextResponse.json(team);
   } catch (error) {

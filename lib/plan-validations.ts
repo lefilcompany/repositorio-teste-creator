@@ -2,6 +2,11 @@
 import { z } from 'zod';
 
 // Schema de validação para criação de plano
+const stripePriceIdSchema = z.string()
+  .trim()
+  .min(1, 'Stripe Price ID é obrigatório')
+  .max(255, 'Stripe Price ID deve ter no máximo 255 caracteres');
+
 export const createPlanSchema = z.object({
   name: z.string()
     .min(1, 'Nome é obrigatório')
@@ -61,8 +66,16 @@ export const createPlanSchema = z.object({
     .int('Número de revisões deve ser um número inteiro')
     .min(0, 'Revisões deve ser maior ou igual a zero')
     .max(1000, 'Revisões não pode exceder 1000'),
-  
-  isActive: z.boolean().default(true)
+
+  isActive: z.boolean().default(true),
+
+  stripePriceId: z
+    .union([
+      stripePriceIdSchema,
+      z.literal('').transform(() => undefined),
+      z.null()
+    ])
+    .optional()
 });
 
 // Schema para atualização de plano (todos os campos opcionais)
@@ -80,10 +93,18 @@ export class PlanValidations {
     if (planData.name === 'FREE' && planData.price > 0) {
       errors.push('Plano gratuito não pode ter preço maior que zero');
     }
-    
+
     // Planos pagos devem ter preço
     if (planData.name !== 'FREE' && planData.price <= 0) {
       errors.push('Planos pagos devem ter preço maior que zero');
+    }
+
+    if (planData.price > 0 && !planData.stripePriceId) {
+      errors.push('Planos pagos devem possuir um Stripe Price ID configurado');
+    }
+
+    if (planData.price === 0 && planData.stripePriceId) {
+      errors.push('Planos gratuitos não devem possuir Stripe Price ID');
     }
     
     // Trial só faz sentido para planos gratuitos
