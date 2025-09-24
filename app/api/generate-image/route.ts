@@ -328,136 +328,149 @@ async function generateImage(
 
 /**
  * Fallback para DALL-E quando Gemini falha
+ * COMENTADO: Desabilitado temporariamente para forçar uso apenas do Gemini
  */
-async function generateImageWithDALLE(
-  prompt: string,
-  actionId?: string
-): Promise<any> {
-  try {
-    // Simplificar o prompt para DALL-E
-    const simplePrompt =
-      prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
+// async function generateImageWithDALLE(
+//   prompt: string,
+//   actionId?: string
+// ): Promise<any> {
+//   try {
+//     // Simplificar o prompt para DALL-E
+//     const simplePrompt =
+//       prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
 
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: `${simplePrompt}. Professional Instagram post design with high quality and modern aesthetic.`,
-      n: 1,
-      size: "1024x1024",
-      response_format: "b64_json",
-    });
+//     const response = await openai.images.generate({
+//       model: "dall-e-3",
+//       prompt: `${simplePrompt}. Professional Instagram post design with high quality and modern aesthetic.`,
+//       n: 1,
+//       size: "1024x1024",
+//       response_format: "b64_json",
+//     });
 
-    if (response.data && response.data[0] && response.data[0].b64_json) {
-      const imageData = response.data[0].b64_json;
-      const mimeType = "image/png";
-      const dataUrl = createImageDataUrl(imageData, mimeType);
+//     if (response.data && response.data[0] && response.data[0].b64_json) {
+//       const imageData = response.data[0].b64_json;
+//       const mimeType = "image/png";
+//       const dataUrl = createImageDataUrl(imageData, mimeType);
 
-      return {
-        imageUrl: dataUrl,
-        base64Data: imageData,
-        mimeType: mimeType,
-      };
-    } else {
-      throw new Error("No image data returned from DALL-E");
-    }
-  } catch (error) {
-    throw error;
-  }
-}
+//       return {
+//         imageUrl: dataUrl,
+//         base64Data: imageData,
+//         mimeType: mimeType,
+//       };
+//     } else {
+//       throw new Error("No image data returned from DALL-E");
+//     }
+//   } catch (error) {
+//     throw error;
+//   }
+// }
 
 /**
- * Tenta gerar a imagem com diferentes estratégias de prompt, usando Gemini e fallback para DALL-E.
+ * Tenta gerar a imagem com Gemini usando 4 tentativas antes de falhar.
  */
 async function generateImageWithFallbacks(formData: any, actionId: string) {
-  const prompts = [
-    buildDetailedImagePrompt(formData),
-    // buildConservativePrompt(formData),
-    // buildFallbackPrompt()
-  ];
+  const basePrompt = buildDetailedImagePrompt(formData);
+  const maxRetries = 4;
 
-  for (let i = 0; i < prompts.length; i++) {
-    const currentPrompt = prompts[i];
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`Tentativa ${attempt}/${maxRetries} de geração com Gemini...`);
+      
       const response = await generateImage(
-        currentPrompt,
-        formData.referenceImages, // agora espera array
+        basePrompt,
+        formData.referenceImages,
         actionId
       );
 
       if (response.imageUrl) {
+        console.log(`✅ Sucesso na tentativa ${attempt}/${maxRetries}`);
         return {
           success: true,
           imageUrl: response.imageUrl,
           base64Data: response.base64Data,
           mimeType: response.mimeType,
-          promptUsed: currentPrompt,
-          attemptNumber: i + 1,
+          promptUsed: basePrompt,
+          attemptNumber: attempt,
           model: "gemini-2.5-flash-preview-image-generation",
           quality: "high",
           size: "1080x1080",
           output_format: "png",
         };
       }
-    } catch (error) {
-      // Se é erro 500 do Gemini, tenta o DALL-E imediatamente
-      if (error.status === 500 || error.message?.includes("INTERNAL")) {
-        break;
-      }
-
+    } catch (error: any) {
+      console.log(`❌ Falha na tentativa ${attempt}/${maxRetries}:`, error.message);
+      
+      // Erros que devem parar as tentativas imediatamente
       if (
         error.message?.includes("content policy") ||
         error.message?.includes("safety")
       ) {
-        continue;
+        return {
+          success: false,
+          error: "O conteúdo solicitado viola as políticas de segurança. Por favor, tente uma descrição diferente.",
+          shouldConsumeCredit: false
+        };
       }
+      
       if (
         error.message?.includes("quota") ||
         error.message?.includes("limit")
       ) {
-        throw new Error(
-          "Limite de requisições excedido. Tente novamente em alguns minutos."
-        );
+        return {
+          success: false,
+          error: "Limite de requisições do serviço excedido. Tente novamente em alguns minutos.",
+          shouldConsumeCredit: false
+        };
       }
+      
       if (
         error.message?.includes("authentication") ||
         error.message?.includes("unauthorized")
       ) {
-        throw new Error("Chave da API inválida ou não autorizada para Gemini.");
-      }
-      if (
-        error.message?.includes("not found") ||
-        error.message?.includes("model")
-      ) {
-        throw new Error(
-          "Modelo Gemini não encontrado. Verifique se sua conta tem acesso."
-        );
+        return {
+          success: false,
+          error: "Erro de autenticação com o serviço de geração. Entre em contato com o suporte.",
+          shouldConsumeCredit: false
+        };
       }
 
-      if (i === prompts.length - 1) {
+      // Se não é a última tentativa, aguarda um pouco antes da próxima
+      if (attempt < maxRetries) {
+        const delay = attempt * 2000; // 2s, 4s, 6s
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
       }
     }
   }
 
-  // Fallback para DALL-E
-  try {
-    const response = await generateImageWithDALLE(prompts[0], actionId);
-    return {
-      success: true,
-      imageUrl: response.imageUrl,
-      base64Data: response.base64Data,
-      mimeType: response.mimeType,
-      promptUsed: prompts[0],
-      attemptNumber: 1,
-      model: "dall-e-3",
-      quality: "high",
-      size: "1024x1024",
-      output_format: "png",
-    };
-  } catch (dalleError) {}
+  // Todas as tentativas falharam
+  console.log(`❌ Todas as ${maxRetries} tentativas falharam`);
+  
+  // DALL-E desabilitado temporariamente - comentado
+  // try {
+  //   console.log("🔄 Tentando fallback com DALL-E...");
+  //   const response = await generateImageWithDALLE(basePrompt, actionId);
+  //   return {
+  //     success: true,
+  //     imageUrl: response.imageUrl,
+  //     base64Data: response.base64Data,
+  //     mimeType: response.mimeType,
+  //     promptUsed: basePrompt,
+  //     attemptNumber: 1,
+  //     model: "dall-e-3",
+  //     quality: "high",
+  //     size: "1024x1024",
+  //     output_format: "png",
+  //   };
+  // } catch (dalleError) {
+  //   console.log("❌ DALL-E também falhou:", dalleError);
+  // }
 
   return {
     success: false,
-    error:
-      "Todos os serviços de geração de imagem falharam. Tente novamente em alguns minutos.",
+    error: `Não foi possível gerar a imagem após ${maxRetries} tentativas. O serviço pode estar temporariamente indisponível. Tente novamente em alguns minutos.`,
+    shouldConsumeCredit: false
   };
 }
 
@@ -689,14 +702,32 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // --- 2. GERAÇÃO DA IMAGEM COM GEMINI E FALLBACKS (usando actionId) ---
+    // --- 2. GERAÇÃO DA IMAGEM COM GEMINI (4 tentativas) ---
     const imageResult = await generateImageWithFallbacks(
       actionDetails,
       action.id
     );
 
     if (!imageResult.success) {
-      // Atualiza a ação com erro
+      // Se não deve consumir crédito, exclui a ação criada
+      if (imageResult.shouldConsumeCredit === false) {
+        console.log("🔄 Excluindo ação devido a falha que não deve consumir crédito...");
+        await prisma.action.delete({
+          where: { id: action.id },
+        });
+
+        return NextResponse.json(
+          {
+            error: imageResult.error || "Falha na geração da imagem",
+            shouldShowToast: true,
+            toastType: "error",
+            toastMessage: imageResult.error || "Não foi possível gerar a imagem. Tente novamente."
+          },
+          { status: 400 }
+        );
+      }
+
+      // Se deve consumir crédito, atualiza a ação com erro (mantém histórico)
       await prisma.action.update({
         where: { id: action.id },
         data: {
@@ -709,9 +740,10 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          error:
-            imageResult.error ||
-            "Não foi possível gerar a imagem com Gemini. Tente uma descrição diferente.",
+          error: imageResult.error || "Não foi possível gerar a imagem. Tente uma descrição diferente.",
+          shouldShowToast: true,
+          toastType: "error",
+          toastMessage: "Falha na geração após múltiplas tentativas"
         },
         { status: 400 }
       );
@@ -772,20 +804,30 @@ export async function POST(req: NextRequest) {
         statusCode = 500;
     }
 
-    // Se há um actionId disponível (ação foi criada), marca como rejeitada
-    const formData = await req.json().catch(() => ({}));
-    if (formData.actionId) {
-      try {
-        await prisma.action.update({
-          where: { id: formData.actionId },
-          data: {
-            status: "Rejeitada",
-            result: {
-              error: errorMessage,
+    // Se há um actionId disponível (ação foi criada), decide se exclui ou marca como rejeitada
+    try {
+      const formDataForError = await req.json().catch(() => ({}));
+      if (formDataForError.actionId) {
+        // Para erros críticos de sistema, exclui a ação (não consome crédito)
+        if (statusCode >= 500 || error.message?.includes("servidor") || error.message?.includes("configurada")) {
+          await prisma.action.delete({
+            where: { id: formDataForError.actionId },
+          });
+        } else {
+          // Para outros erros, marca como rejeitada (consome crédito)
+          await prisma.action.update({
+            where: { id: formDataForError.actionId },
+            data: {
+              status: "Rejeitada",
+              result: {
+                error: errorMessage,
+              },
             },
-          },
-        });
-      } catch (updateError) {}
+          });
+        }
+      }
+    } catch (actionError) {
+      console.error("Erro ao atualizar ação:", actionError);
     }
 
     return NextResponse.json(
@@ -794,6 +836,9 @@ export async function POST(req: NextRequest) {
         model: "gemini-2.5-flash-image-preview",
         timestamp: new Date().toISOString(),
         shouldRedirectToHistory: statusCode === 500, // Só redireciona para histórico em erros críticos
+        shouldShowToast: true,
+        toastType: "error",
+        toastMessage: statusCode >= 500 ? "Erro interno do servidor. Tente novamente." : errorMessage
       },
       { status: statusCode }
     );

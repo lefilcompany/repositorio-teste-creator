@@ -52,8 +52,8 @@ export async function GET(
 
       // Mapear types para créditos
       const creditUsage = {
-        quickContentCreations: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
-        contentSuggestions: 0, // Implementar quando houver type específico
+        quickContentCreations: usedCredits.find(u => u.type === 'CONTEUDO_RAPIDO')?._count.id || 0,
+        contentSuggestions: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
         contentReviews: usedCredits.find(u => u.type === 'REVISAR_CONTEUDO')?._count.id || 0,
         contentPlans: usedCredits.find(u => u.type === 'PLANEJAR_CONTEUDO')?._count.id || 0
       };
@@ -142,8 +142,8 @@ export async function GET(
 
     // Mapear types para créditos
     const creditUsage = {
-      quickContentCreations: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
-      contentSuggestions: 0, // Implementar quando houver type específico
+      quickContentCreations: usedCredits.find(u => u.type === 'CONTEUDO_RAPIDO')?._count.id || 0,
+      contentSuggestions: usedCredits.find(u => u.type === 'CRIAR_CONTEUDO')?._count.id || 0,
       contentReviews: usedCredits.find(u => u.type === 'REVISAR_CONTEUDO')?._count.id || 0,
       contentPlans: usedCredits.find(u => u.type === 'PLANEJAR_CONTEUDO')?._count.id || 0
     };

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 export default function PerfilPage() {
   const { user, updateUser, isLoading } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
   const [teamInfo, setTeamInfo] = useState({
     teamName: 'Sem equipe',
@@ -36,6 +37,13 @@ export default function PerfilPage() {
           const currentTeam = teamsData.find(t => t.id === user.teamId);
           if (currentTeam) setTeam(currentTeam);
         }
+
+        // Fetch team data with subscription-based credits
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const teamDataResult = await teamResponse.json();
+          setTeamData(teamDataResult);
+        }
       } catch (error) {
         // Silently handle error for team data
       } finally {
@@ -47,18 +55,18 @@ export default function PerfilPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!team) return;
+    if (!team || !teamData) return;
     setTeamInfo({
       teamName: team.name,
-      plan: team.plan ? (typeof team.plan === 'string' ? team.plan : team.plan.name) : 'Não definido',
+      plan: team.plan?.displayName || team.plan?.name || 'Não definido',
       actionsRemaining: {
-        total: (team.credits?.quickContentCreations || 0) + (team.credits?.contentSuggestions || 0) + (team.credits?.contentReviews || 0) + (team.credits?.contentPlans || 0),
-        createContent: team.credits?.contentSuggestions || 0,
-        reviewContent: team.credits?.contentReviews || 0,
-        planContent: team.credits?.contentPlans || 0,
+        total: (teamData.credits?.quickContentCreations || 0) + (teamData.credits?.contentSuggestions || 0) + (teamData.credits?.contentReviews || 0) + (teamData.credits?.contentPlans || 0),
+        createContent: teamData.credits?.contentSuggestions || 0,
+        reviewContent: teamData.credits?.contentReviews || 0,
+        planContent: teamData.credits?.contentPlans || 0,
       },
     });
-  }, [team]);
+  }, [team, teamData]);
 
   if (isLoading || !user) {
     return (

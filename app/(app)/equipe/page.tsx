@@ -259,7 +259,7 @@ export default function EquipePage() {
                   {team.name}
                 </CardTitle>
                 <CardDescription className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent font-medium text-sm">
-                  Plano {team.plan ? (typeof team.plan === 'object' ? team.plan.displayName || team.plan.name : team.plan) : 'Não definido'}
+                  Plano {team.plan?.displayName || team.plan?.name || 'Não definido'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">

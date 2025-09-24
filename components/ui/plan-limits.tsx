@@ -61,7 +61,7 @@ export function PlanLimits({ team, teamData, currentCounts, entityType }: PlanLi
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">{entity?.icon}</span>
-              <span className="text-sm font-medium">Plano {team.plan.name}</span>
+              <span className="text-sm font-medium">Plano {team.plan?.name}</span>
             </div>
             <div className={`px-2 py-1 rounded-full text-xs font-medium ${
               info.isAtLimit 
@@ -85,7 +85,7 @@ export function PlanLimits({ team, teamData, currentCounts, entityType }: PlanLi
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Limites do Plano {team.plan.name}</CardTitle>
+        <CardTitle className="text-lg">Limites do Plano {team.plan?.name}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {entities.map(({ key, label, icon }) => {

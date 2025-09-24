@@ -124,8 +124,6 @@ export default function PlanosPage() {
       return;
     }
 
-    // Por enquanto, apenas mostrar toast informativo
-    // A integração com API de pagamento será implementada posteriormente
     toast.info(`Plano ${planName} selecionado. Sistema de pagamento será implementado em breve.`, {
       description: "Em breve você poderá assinar planos diretamente pelo sistema."
     });
@@ -349,14 +347,14 @@ export default function PlanosPage() {
   // Cálculo dos créditos - usar dados da API de subscription
   const creditData = [
     {
-      name: 'Criações Rápidas',
+      name: 'Conteúdo Rápido',
       current: credits?.quickContentCreations || 0,
       limit: teamData?.plan?.quickContentCreations || plan?.quickContentCreations || 5, // Usar dados do plano da API
       icon: <Zap className="h-4 w-4" />,
       color: 'text-orange-600'
     },
     {
-      name: 'Sugestões de Conteúdo',
+      name: 'Criações de Conteúdo',
       current: credits?.contentSuggestions || 0,
       limit: teamData?.plan?.customContentSuggestions || plan?.customContentSuggestions || 15, // Usar dados do plano da API
       icon: <Zap className="h-4 w-4" />,

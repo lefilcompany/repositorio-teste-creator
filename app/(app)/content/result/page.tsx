@@ -39,6 +39,7 @@ export default function ResultPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [content, setContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [versions, setVersions] = useState<ContentVersion[]>([]);
@@ -117,6 +118,13 @@ export default function ResultPage() {
             const currentTeam = teamsData.find(t => t.id === user.teamId);
             setTeam(currentTeam || null);
           }
+
+          // Fetch team data with subscription-based credits
+          const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+          if (teamResponse.ok) {
+            const teamDataResult = await teamResponse.json();
+            setTeamData(teamDataResult);
+          }
         }
       } catch (e: any) {
         console.error('[ResultPage] Erro ao carregar conteúdo:', e);
@@ -178,23 +186,17 @@ export default function ResultPage() {
     };
   }, [content, isApproving]);
 
-  const updateTeamCredits = useCallback(async (creditType: 'contentReviews' | 'contentSuggestions', amount = 1) => {
-    if (!user?.teamId || !team) return;
+  const updateTeamCredits = useCallback(async () => {
+    if (!team || !user?.teamId) return;
     try {
-      const updatedCredits = { ...team.credits };
-      if (creditType in updatedCredits) {
-        (updatedCredits as any)[creditType] -= amount;
+      // Refresh team data with updated credits after action
+      const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+      if (teamResponse.ok) {
+        const updatedTeamData = await teamResponse.json();
+        setTeamData(updatedTeamData);
       }
-      const updateRes = await fetch('/api/teams', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-      });
-      if (updateRes.ok) {
-        setTeam(await updateRes.json());
-      }
-    } catch (e) {
-      // Falha silenciosa na atualização de créditos
+    } catch (error) {
+      console.error("Failed to update credits:", error);
     }
   }, [user?.teamId, team]);
 
@@ -310,7 +312,8 @@ export default function ResultPage() {
   };
 
   const handleStartRevision = (type: 'image' | 'text') => {
-    if (team && team.credits.contentReviews <= 0) {
+    const availableReviews = teamData?.credits?.contentReviews || 0;
+    if (availableReviews <= 0) {
       return toast.error('Você não tem créditos de revisão suficientes.', {
         description: 'Entre em contato com seu administrador para obter mais créditos.'
       });
@@ -338,7 +341,7 @@ export default function ResultPage() {
   const handleRevisionComplete = async (updatedContent: GeneratedContent) => {
     try {
       // Atualiza os créditos do time
-      await updateTeamCredits('contentReviews');
+      await updateTeamCredits();
       
       const contentWithRevision = {
         ...updatedContent,
@@ -518,12 +521,12 @@ export default function ResultPage() {
               variant="secondary"
               size="sm"
               className="rounded-full text-xs md:text-sm px-2 md:px-4 h-8 md:h-10"
-              disabled={!content || content.revisions >= 2 || (team && team.credits.contentReviews <= 0) || isApproving}
+              disabled={!content || content.revisions >= 2 || (teamData?.credits?.contentReviews || 0) <= 0 || isApproving}
               title={
                 isApproving ? "Aguarde a aprovação finalizar"
                   : !content ? "Carregando..."
                     : content.revisions >= 2 ? "Limite de 2 revisões atingido"
-                      : team && team.credits.contentReviews <= 0 ? "Sem créditos de revisão"
+                      : (teamData?.credits?.contentReviews || 0) <= 0 ? "Sem créditos de revisão"
                         : "Fazer revisão do conteúdo"
               }
             >
@@ -625,7 +628,7 @@ export default function ResultPage() {
               <DialogTitle>O que você deseja revisar?</DialogTitle>
               <DialogDescription>
                 Você pode fazer até {content ? 2 - content.revisions : 0} revisões. Cada uma consome 1 crédito.
-                Restam {team?.credits.contentReviews || 0} créditos de revisão.
+                Restam {teamData?.credits?.contentReviews || 0} créditos de revisão.
                 <br />
                 <strong className="text-amber-600 dark:text-amber-400">
                   ⚠️ Importante: Os créditos são consumidos mesmo se você reverter as alterações.

@@ -107,6 +107,12 @@ export default function Creator() {
     }, 100);
   };
 
+  const handleRemoveFile = (indexToRemove: number) => {
+    setReferenceFiles((prev) => 
+      prev.filter((_, index) => index !== indexToRemove)
+    );
+  };
+
   // Função de retry para o frontend
   const retryFetch = async (
     url: string,
@@ -211,7 +217,16 @@ export default function Creator() {
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (field === "brand") {
-      setFormData((prev) => ({ ...prev, theme: "", persona: "" }));
+      // Só limpa tema e persona se a marca mudou realmente
+      const selectedBrand = brands.find((b) => b.name === value);
+      const currentTheme = themes.find((t) => t.title === formData.theme);
+      const currentPersona = personas.find((p) => p.name === formData.persona);
+      
+      setFormData((prev) => ({ 
+        ...prev, 
+        theme: (currentTheme && selectedBrand && currentTheme.brandId === selectedBrand.id) ? prev.theme : "",
+        persona: (currentPersona && selectedBrand && currentPersona.brandId === selectedBrand.id) ? prev.persona : ""
+      }));
     }
   };
 
@@ -249,13 +264,13 @@ export default function Creator() {
   const isFormValid = () => {
     const baseValid =
       formData.brand &&
-      formData.theme &&
       formData.objective &&
       formData.platform &&
       formData.description &&
       formData.audience &&
       formData.tone.length > 0 &&
       referenceFiles.length > 0;
+    
     if (isVideoMode) {
       return (
         baseValid &&
@@ -460,7 +475,7 @@ export default function Creator() {
                     htmlFor="brand"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Marca *
+                    Marca <span className="text-red-600">*</span>
                   </Label>
                   {isLoadingData ? (
                     <Skeleton className="h-11 w-full rounded-xl" />
@@ -493,7 +508,7 @@ export default function Creator() {
                     htmlFor="theme"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Tema Estratégico *
+                    Tema Estratégico
                   </Label>
                   {isLoadingData ? (
                     <Skeleton className="h-11 w-full rounded-xl" />
@@ -503,14 +518,23 @@ export default function Creator() {
                         handleSelectChange("theme", value)
                       }
                       value={formData.theme}
-                      disabled={!formData.brand || filteredThemes.length === 0}
+                      disabled={
+                        !formData.brand ||
+                        themes.filter(
+                          (t) =>
+                            t.brandId ===
+                            brands.find((b) => b.name === formData.brand)?.id
+                        ).length === 0
+                      }
                     >
                       <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50 disabled:opacity-50">
                         <SelectValue
                           placeholder={
                             !formData.brand
                               ? "Primeiro, escolha a marca"
-                              : "Adicionar tema"
+                              : filteredThemes.length === 0
+                              ? "Nenhum tema disponível"
+                              : "Selecione um tema (opcional)"
                           }
                         />
                       </SelectTrigger>
@@ -533,7 +557,7 @@ export default function Creator() {
                     htmlFor="persona"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Persona (Opcional)
+                    Persona
                   </Label>
                   {isLoadingData ? (
                     <Skeleton className="h-11 w-full rounded-xl" />
@@ -586,7 +610,7 @@ export default function Creator() {
                     htmlFor="platform"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Plataforma *
+                    Plataforma <span className="text-red-600">*</span>
                   </Label>
                   <Select
                     onValueChange={(value) =>
@@ -618,7 +642,7 @@ export default function Creator() {
                     htmlFor="audience"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Público-Alvo *
+                    Público-Alvo <span className="text-red-600">*</span>
                   </Label>
                   <Input
                     id="audience"
@@ -635,7 +659,7 @@ export default function Creator() {
                         htmlFor="transformation"
                         className="text-sm font-semibold"
                       >
-                        Tipo de Transformação *
+                        Tipo de Transformação <span className="text-red-600">*</span>
                       </Label>
                       <Select
                         value={transformationType}
@@ -662,7 +686,7 @@ export default function Creator() {
                           htmlFor="ratio"
                           className="text-sm font-semibold"
                         >
-                          Proporção *
+                          Proporção <span className="text-red-600">*</span>
                         </Label>
                         <Select value={ratio} onValueChange={setRatio}>
                           <SelectTrigger className="h-11 rounded-xl border-2">
@@ -684,7 +708,7 @@ export default function Creator() {
                             htmlFor="duration"
                             className="text-sm font-semibold"
                           >
-                            Duração (s) *
+                            Duração (s) <span className="text-red-600">*</span>
                           </Label>
                           <Select value={duration} onValueChange={setDuration}>
                             <SelectTrigger className="h-11 rounded-xl border-2">
@@ -707,15 +731,15 @@ export default function Creator() {
                     >
                       {isVideoMode
                         ? transformationType === "image_to_video"
-                          ? "Imagem de Referência *"
-                          : "Vídeo de Referência *"
-                        : "Imagem de Referência *"}
-                    </Label>
+                          ? "Imagem de Referência"
+                          : "Vídeo de Referência"
+                        : "Imagem de Referência"}
+                    </Label> <span className="text-red-600">*</span>
 
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 8 }}
                     >
-                      <input
+                      <Input
                         ref={pasteAreaRef}
                         id="referenceFiles"
                         type="file"
@@ -753,7 +777,19 @@ export default function Creator() {
                     {referenceFiles.length > 0 && (
                       <div className="text-sm text-green-600 flex flex-col gap-1 mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
                         {referenceFiles.map((file, idx) => (
-                          <div key={idx}>✓ {file.name}</div>
+                          <div key={idx} className="flex items-center justify-between">
+                            <span>✓ {file.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveFile(idx)}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0 rounded-full transition-all duration-200 relative z-20 ml-2"
+                              title="Remover arquivo"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -779,7 +815,7 @@ export default function Creator() {
                     htmlFor="objective"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Objetivo do Post *
+                    Objetivo do Post <span className="text-red-600">*</span>
                   </Label>
                   <Textarea
                     id="objective"
@@ -795,9 +831,9 @@ export default function Creator() {
                     className="text-sm font-semibold text-foreground"
                   >
                     {isVideoMode
-                      ? "Descrição Visual do Vídeo *"
-                      : "Descrição Visual da Imagem *"}
-                  </Label>
+                      ? "Descrição Visual do Vídeo"
+                      : "Descrição Visual da Imagem"}
+                  </Label> <span className="text-red-600">*</span>
                   <Textarea
                     id="description"
                     placeholder={
@@ -815,7 +851,7 @@ export default function Creator() {
                     htmlFor="tone"
                     className="text-sm font-semibold text-foreground"
                   >
-                    Tom de Voz * (máximo 4)
+                    Tom de Voz <span className="text-red-600">*</span> (máximo 4)
                   </Label>
                   <Select onValueChange={handleToneSelect} value="">
                     <SelectTrigger className="h-11 rounded-xl border-2 border-border/50 bg-background/50">

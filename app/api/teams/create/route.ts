@@ -6,6 +6,7 @@ import { createTeamSubscription } from '@/lib/subscription-utils';
 
 export async function POST(req: Request) {
   const { userId, name, code, credits } = await req.json();
+  
   try {
     // Buscar plano FREE como padrão para novos teams
     const freePlan = await prisma.plan.findFirst({
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     // Criptografar o código da equipe
     const hashedCode = await bcrypt.hash(code, 12);
     
-    // Verificar se já existe uma equipe com o mesmo nome (não podemos mais verificar por código hasheado)
+    // Verificar se já existe uma equipe com o mesmo nome
     const existingTeam = await prisma.team.findFirst({ 
       where: { 
         OR: [
@@ -44,17 +45,22 @@ export async function POST(req: Request) {
         },
       },
     });
+    
     await prisma.user.update({
       where: { id: userId },
       data: { teamId: team.id, role: UserRole.ADMIN, status: UserStatus.ACTIVE },
     });
 
-    // Criar assinatura FREE com trial de 14 dias
+    // Criar assinatura FREE com trial de 7 dias
     await createTeamSubscription(team.id, 'FREE');
 
     return NextResponse.json(team);
   } catch (error) {
-    return NextResponse.json({ error: 'Team creation failed' }, { status: 500 });
+    console.error('Erro detalhado na criação da equipe:', error);
+    return NextResponse.json({ 
+      error: 'Team creation failed', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 

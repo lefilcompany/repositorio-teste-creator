@@ -16,7 +16,7 @@ export interface PlanLimits {
 
 export interface PlanInfo extends PlanLimits {
   id: string;
-  name: string;
+  name:string;
   displayName: string;
   description?: string | null;
   price: number;
@@ -40,12 +40,16 @@ export interface SubscriptionStatus {
  * Verifica o status da assinatura de um time
  */
 export async function getTeamSubscriptionStatus(teamId: string): Promise<SubscriptionStatus> {
+  const { withRetry } = await import('./prisma-retry');
+  
   try {
-    const team = await prisma.team.findUnique({
-      where: { id: teamId },
-      include: {
-        currentPlan: true
-      }
+    const team = await withRetry(async () => {
+      return await prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          currentPlan: true
+        }
+      });
     });
 
     if (!team) {
@@ -63,8 +67,10 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
     
     // Se não tem currentPlan definido, usar FREE como padrão e atualizar
     if (!currentPlan) {
-      const freePlan = await prisma.plan.findFirst({
-        where: { name: 'FREE' }
+      const freePlan = await withRetry(async () => {
+        return await prisma.plan.findFirst({
+          where: { name: 'FREE' }
+        });
       });
       
       if (!freePlan) {
@@ -72,9 +78,11 @@ export async function getTeamSubscriptionStatus(teamId: string): Promise<Subscri
       }
 
       // Atualizar o team para ter o plano FREE
-      await prisma.team.update({
-        where: { id: teamId },
-        data: { currentPlanId: freePlan.id }
+      await withRetry(async () => {
+        return await prisma.team.update({
+          where: { id: teamId },
+          data: { currentPlanId: freePlan.id }
+        });
       });
 
       currentPlan = freePlan;
@@ -379,35 +387,41 @@ export async function canTeamCreateTheme(teamId: string, currentThemeCount: numb
  * Atualiza assinaturas expiradas
  */
 export async function updateExpiredSubscriptions(): Promise<void> {
+  const { withRetry } = await import('./prisma-retry');
+  
   try {
     const now = new Date();
     
     // Atualizar assinaturas em trial que expiraram
-    await prisma.subscription.updateMany({
-      where: {
-        status: 'TRIAL',
-        trialEndDate: {
-          lt: now
+    await withRetry(async () => {
+      return await prisma.subscription.updateMany({
+        where: {
+          status: 'TRIAL',
+          trialEndDate: {
+            lt: now
+          },
+          isActive: true
         },
-        isActive: true
-      },
-      data: {
-        status: 'EXPIRED',
-        isActive: false
-      }
+        data: {
+          status: 'EXPIRED',
+          isActive: false
+        }
+      });
     });
     
     // Atualizar teams com trial expirado
-    await prisma.team.updateMany({
-      where: {
-        trialEndsAt: {
-          lt: now
+    await withRetry(async () => {
+      return await prisma.team.updateMany({
+        where: {
+          trialEndsAt: {
+            lt: now
+          },
+          isTrialActive: true
         },
-        isTrialActive: true
-      },
-      data: {
-        isTrialActive: false
-      }
+        data: {
+          isTrialActive: false
+        }
+      });
     });
     
   } catch (error) {
@@ -420,24 +434,24 @@ export async function updateExpiredSubscriptions(): Promise<void> {
  */
 export async function createTeamSubscription(teamId: string, planName: string): Promise<boolean> {
   try {
+
     const plan = await prisma.plan.findUnique({
       where: { name: planName }
     });
     
     if (!plan) {
+
       throw new Error(`Plano ${planName} não encontrado`);
     }
+
     
-    // Desativar assinaturas antigas
-    await prisma.subscription.updateMany({
-      where: { teamId },
-      data: { isActive: false }
-    });
-    
-    // Criar nova assinatura
+    console.log('� Calculando datas da assinatura...');
+    // Calcular datas da assinatura
     const endDate = planName === 'FREE' ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
     const trialEndDate = plan.trialDays > 0 ? new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000) : undefined;
     
+
+    // Criar nova assinatura
     await prisma.subscription.create({
       data: {
         teamId,
@@ -448,14 +462,18 @@ export async function createTeamSubscription(teamId: string, planName: string): 
         isActive: true
       }
     });
+
     
-    // PRINCIPAL: Atualizar currentPlanId do team usando função dedicada
+
+        
+    // Atualizar currentPlanId do team
     await updateTeamPlan(teamId, plan.id);
+
     
     return true;
   } catch (error) {
     console.error('Erro ao criar assinatura:', error);
-    return false;
+    throw error;
   }
 }
 
