@@ -14,9 +14,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts",
-    "env:dev": "powershell -ExecutionPolicy Bypass -File scripts/use-dev-env.ps1",
-    "env:prod": "powershell -ExecutionPolicy Bypass -File scripts/use-prod-env.ps1"
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^5.0.0",
