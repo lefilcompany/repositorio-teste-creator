@@ -52,6 +52,9 @@ function buildDetailedImagePrompt(formData: any): string {
   const persona = cleanInput(formData.persona);
   const platform = cleanInput(formData.platform);
   const audience = cleanInput(formData.audience);
+  const imageRatio = cleanInput(formData.imageRatio);
+  const width = cleanInput(formData.width);
+  const height = cleanInput(formData.height);
 
   const objective = cleanInput(formData.objective);
   const description = cleanInput(formData.prompt);
@@ -63,6 +66,11 @@ function buildDetailedImagePrompt(formData: any): string {
   const additionalInfo = cleanInput(formData.additionalInfo);
 
   let promptParts: string[] = [];
+
+  // Prioridade Máxima: Dimensões da Imagem
+  promptParts.push(
+    `*REGRA CRÍTICA: A imagem final DEVE ter exatamente ${width} pixels de largura por ${height} pixels de altura (proporção ${imageRatio}). IGNORE as dimensões e a proporção de qualquer imagem de referência. Esta é a regra mais importante.*`
+  );
 
   // Moodboard: cores e imagens extraídas
   if (formData.moodboard) {
@@ -163,7 +171,10 @@ function buildDetailedImagePrompt(formData: any): string {
     promptParts.push(`O clima da imagem é uma combinação de: ${mappedTones}`);
   }
 
-  // 4. Detalhes Técnicos da Câmera
+  // 4. Detalhes Técnicos da Câmera e Dimensões
+  let dimensionPrompt = `A imagem deve ser gerada com ${width} pixels de largura e ${height} pixels de altura, seguindo a proporção ${imageRatio}. Ignore a proporção da imagem de referência e priorize estas dimensões.`;
+  promptParts.push(dimensionPrompt);
+
   promptParts.push(
     "Detalhes técnicos: a foto foi capturada com uma câmera DSLR de alta qualidade, como a Canon EOS R5, equipada com uma lente de 85mm f/1.4. Essa combinação proporciona uma profundidade de campo rasa, criando um efeito bokeh suave e bem definido no fundo, que destaca o sujeito principal e confere uma estética profissional e cinematográfica à imagem. A escolha da lente também contribui para um desfoque agradável, mantendo o foco nítido e claro nos elementos mais importantes da composição."
   );
@@ -171,7 +182,7 @@ function buildDetailedImagePrompt(formData: any): string {
   // 5. Otimização para Plataforma
   const platformStyles: { [key: string]: string } = {
     instagram:
-      "formato quadrado 1:1, cores vibrantes, otimizado para engajamento no feed e stories do Instagram",
+      "cores vibrantes, otimizado para engajamento no feed e stories do Instagram",
     facebook:
       "composição envolvente, focada na comunidade, otimizada para compartilhamento e interação social no Facebook",
     linkedin:
@@ -204,18 +215,18 @@ function buildDetailedImagePrompt(formData: any): string {
   promptParts.push(
     `Esta imagem é para um anúncio da marca "${brand}" sobre o tema "${theme}".
     Não inclua nada além do que foi pedido.
-    não adicione texto que não foi pedido.`
+    *não adicione texto que não foi pedido.*, *não adicione logo que não foi pedido.*`
   );
 
   // 8. Textos e fontes - Técnicas e Métricas
   promptParts.push(
-    `Textos na imagem: 
+    `Textos na imagem (apenas se solicitado, caso contrário, ignore esta seção): 
     - **Posicionamento**: Coloque o texto em áreas onde não interfira nos elementos principais da imagem. Idealmente, posicione-o nas **áreas vazias ou de maior contraste** para garantir legibilidade. Em imagens simétricas, tente alinhar o texto ao centro ou à esquerda/direita, dependendo da composição. Evite posicionar o texto no topo ou fundo da imagem, onde pode se perder.
     - **Margem e Distância**: Mantenha uma **margem mínima de 10% da largura da imagem** de cada lado do texto. A distância entre linhas (leading) deve ser de pelo menos **120% da altura da fonte** para garantir boa legibilidade e evitar sobreposição visual.
     - **Espaçamento entre as palavras**: Ajuste o **tracking** (espaçamento entre letras) conforme o peso da fonte. Para fontes mais finas, use um **tracking maior** (0,05 em termos de unidades tipográficas), e para fontes mais grossas, um **tracking menor** para evitar que o texto se torne difícil de ler.
   
   **Fontes**: 
-    - **Estilo da fonte**: Para títulos, use fontes **negritadas (bold)** ou **sem serifa** (sans-serif), pois elas são mais impactantes e visíveis. Para textos secundários ou explicativos, prefira fontes **serifadas** ou **light sans-serif**, que são mais elegantes e legíveis em blocos de texto.
+    - **Estilo da fonte**: Para títulos, use fontes **negritadas (bold)**  pois elas são mais impactantes e visíveis. Para textos secundários ou explicativos, prefira mais elegantes e legíveis em blocos de texto ( caso o usuario pedir uma fonte, use apenas a fonte que ele quer usar).
     - **Tamanho da fonte**: 
       - **Títulos**: Entre **36px a 60px**, dependendo do tamanho da imagem.
       - **Subtítulos**: Entre **24px a 36px**.
@@ -264,11 +275,11 @@ async function generateImage(
     }
 
     const fullPrompt = `${basePrompt}. 
-    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vibrantes.
+    Crie uma imagem profissional com alta qualidade visual, design moderno e cores vibrantes.
 
     Cores: aplique as cores da marca de maneira predominante, ajustando os elementos gráficos para manter a coesão visual.
 
-    Tipografia: se houver fontes específicas ou estilos tipográficos na identidade da marca, insira-as no design, adaptando para o tom visual da imagem (ex: fontes serifadas para formalidade, sans-serif para modernidade).
+    Tipografia: se houver fontes específicas ou estilos tipográficos na identidade da marca, insira-as no design, adaptando para o tom visual da imagem.
 
     Elementos gráficos: utilize ícones, padrões, texturas e formas que são parte da identidade visual da marca, como elementos repetitivos, bordas, ou estilos gráficos que caracterizam o cliente.
 

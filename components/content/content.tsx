@@ -623,11 +623,17 @@ export default function Creator() {
                       <SelectItem value="Facebook" className="rounded-lg">
                         Facebook
                       </SelectItem>
-                      <SelectItem value="LinkedIn" className="rounded-lg">
-                        LinkedIn
+                      <SelectItem value="TikTok" className="rounded-lg">
+                        TikTok
                       </SelectItem>
                       <SelectItem value="Twitter" className="rounded-lg">
                         Twitter (X)
+                      </SelectItem>
+                      <SelectItem value="LinkedIn" className="rounded-lg">
+                        LinkedIn
+                      </SelectItem>
+                      <SelectItem value="Comunidades" className="rounded-lg">
+                        Comunidades
                       </SelectItem>
                     </SelectContent>
                   </Select>
