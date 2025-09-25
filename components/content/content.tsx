@@ -341,7 +341,8 @@ export default function Creator() {
           requestData.duration = Number(duration);
         requestData.referenceFile = base64Files[0];
       } else {
-        requestData.referenceImage = base64Files[0];
+        // Envia todas as imagens de referência para o backend
+        requestData.referenceImages = base64Files;
       }
 
       const endpoint = isVideoMode

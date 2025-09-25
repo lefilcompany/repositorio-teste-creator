@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { prisma } from "@/lib/prisma";
-import { ActionType } from "@prisma/client";
+
+// Defina o enum ActionType se não estiver importando de outro lugar
+enum ActionType {
+  CRIAR_CONTEUDO = "CRIAR_CONTEUDO"
+}
+
 
 // Inicializa o cliente da OpenAI com suas configurações.
 const openai = new OpenAI({
@@ -241,7 +246,7 @@ const ai = new GoogleGenAI({
 
 async function generateImage(
   prompt: string,
-  referenceImages?: string[], // agora é array
+  referenceImages?: string[],
   actionId?: string
 ): Promise<any> {
   try {
@@ -252,8 +257,14 @@ async function generateImage(
         ? prompt.substring(0, maxPromptLength)
         : prompt;
 
+    // Adiciona orientação explícita para uso das imagens de referência
+    let referenceInstruction = '';
+    if (referenceImages && referenceImages.length > 0) {
+      referenceInstruction = `\n\nInspire-se nas imagens de referência enviadas pelo usuário para compor a cena, estilo, cores e atmosfera. NÃO copie literalmente, mas use como referência visual para texturas, padrões, elementos gráficos ou ambientação. As imagens devem influenciar fortemente a identidade visual da imagem gerada.`;
+    }
+
     const fullPrompt = `${basePrompt}. 
-    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vi  brantes.
+    Crie uma imagem profissional para Instagram com alta qualidade visual, design moderno e cores vibrantes.
 
     Cores: aplique as cores da marca de maneira predominante, ajustando os elementos gráficos para manter a coesão visual.
 
@@ -262,11 +273,12 @@ async function generateImage(
     Elementos gráficos: utilize ícones, padrões, texturas e formas que são parte da identidade visual da marca, como elementos repetitivos, bordas, ou estilos gráficos que caracterizam o cliente.
 
     Estilo visual: faça ajustes no estilo de composição (ex: simétrico, assimétrico, centralizado, etc.), baseando-se no comportamento e preferências visuais do público-alvo da marca.
+    ${referenceInstruction}
     `;
 
     const contents: any[] = [];
     if (referenceImages && Array.isArray(referenceImages)) {
-      for (const refImg of referenceImages.slice(0, 10)) { // máximo 10
+      for (const refImg of referenceImages) {
         try {
           const [meta, data] = refImg.split(",");
           const mimeMatch = meta.match(/data:(image\/[^;]+);base64/);
@@ -322,48 +334,10 @@ async function generateImage(
       throw new Error("No candidates returned from the model");
     }
   } catch (error) {
+    // Aqui pode-se adicionar logging do erro se necessário
     throw error;
   }
 }
-
-/**
- * Fallback para DALL-E quando Gemini falha
- * COMENTADO: Desabilitado temporariamente para forçar uso apenas do Gemini
- */
-// async function generateImageWithDALLE(
-//   prompt: string,
-//   actionId?: string
-// ): Promise<any> {
-//   try {
-//     // Simplificar o prompt para DALL-E
-//     const simplePrompt =
-//       prompt.length > 1000 ? prompt.substring(0, 1000) : prompt;
-
-//     const response = await openai.images.generate({
-//       model: "dall-e-3",
-//       prompt: `${simplePrompt}. Professional Instagram post design with high quality and modern aesthetic.`,
-//       n: 1,
-//       size: "1024x1024",
-//       response_format: "b64_json",
-//     });
-
-//     if (response.data && response.data[0] && response.data[0].b64_json) {
-//       const imageData = response.data[0].b64_json;
-//       const mimeType = "image/png";
-//       const dataUrl = createImageDataUrl(imageData, mimeType);
-
-//       return {
-//         imageUrl: dataUrl,
-//         base64Data: imageData,
-//         mimeType: mimeType,
-//       };
-//     } else {
-//       throw new Error("No image data returned from DALL-E");
-//     }
-//   } catch (error) {
-//     throw error;
-//   }
-// }
 
 /**
  * Tenta gerar a imagem com Gemini usando 4 tentativas antes de falhar.
@@ -623,8 +597,7 @@ Nossa conexão com ${audience} vai além das palavras. É uma conversa visual qu
 
   Deixe seu comentário e compartilhe suas impressões!
 ✨ Marque alguém que também precisa ver isso!
-
-#${platform}ready #conteudoautoral`;
+`;
 
     return {
       title: `${brandName}: Descobrindo ${themeName} 🚀`,
@@ -652,7 +625,7 @@ Nossa conexão com ${audience} vai além das palavras. É uma conversa visual qu
 /**
  * Handler da rota POST
  */
-export async function POST(req: NextRequest) {
+const POST = async (req: NextRequest) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
@@ -878,3 +851,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export { POST };
