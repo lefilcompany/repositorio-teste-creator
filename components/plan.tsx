@@ -64,21 +64,38 @@ export default function Plan() {
   // Efeitos e Handlers (mantidos como no original, pois a lógica estava correta)
   useEffect(() => {
     const loadData = async () => {
+      console.log('🔍 [Plan] loadData - user:', user);
+      console.log('🔍 [Plan] user?.teamId:', user?.teamId);
+      console.log('🔍 [Plan] user?.id:', user?.id);
+      
       if (!user?.teamId || !user.id) {
-        if (user) setIsLoadingData(false);
+        console.log('❌ [Plan] Dados do usuário incompletos, parando loadData');
+        if (user) {
+          console.log('✅ [Plan] User existe, setando isLoadingData(false)');
+          setIsLoadingData(false);
+        } else {
+          console.log('❌ [Plan] User não existe ainda');
+        }
         return;
       }
+      console.log('🚀 [Plan] Iniciando carregamento de dados...');
       setIsLoadingData(true);
       try {
+        console.log('📡 [Plan] Fazendo fetch para plan-form-data');
+        // Fetch form data
         const res = await fetch(`/api/plan-form-data?teamId=${user.teamId}&userId=${user.id}`);
+        console.log('📡 [Plan] Resposta da API plan-form-data:', res.status);
         if (!res.ok) throw new Error('Failed to load form data');
         const data = await res.json();
+        console.log('📋 [Plan] Dados recebidos:', data);
         setTeam(data.team);
         setBrands(data.brands);
         setThemes(data.themes);
       } catch (error) {
+        console.error('❌ [Plan] Erro no loadData:', error);
         toast.error('Erro ao carregar dados do formulário');
       } finally {
+        console.log('✅ [Plan] LoadData finalizado, setIsLoadingData(false)');
         setIsLoadingData(false);
       }
     };
@@ -172,7 +189,11 @@ export default function Plan() {
 
   const handleGeneratePlan = async () => {
     if (!team) return toast.error('Dados da equipe não encontrados');
-    if ((team.credits?.contentPlans || 0) <= 0) return toast.error('Créditos insuficientes');
+    
+    // Check credits from team.credits
+    const availableCredits = team?.credits?.contentPlans || 0;
+    if (availableCredits <= 0) return toast.error('Créditos insuficientes');
+    
     if (!formData.brand || formData.theme.length === 0 || !formData.objective || !formData.platform) {
       return toast.error('Por favor, preencha todos os campos obrigatórios (*)');
     }
@@ -197,14 +218,14 @@ export default function Plan() {
       const data = await response.json();
       setPlannedContent(data.plan);
       toast.success('Planejamento gerado com sucesso!');
-      if (team) {
-        const updatedCredits = { ...team.credits, contentPlans: Math.max(0, (team.credits.contentPlans || 0) - 1) };
-        const updateRes = await fetch('/api/teams', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-        });
-        if (updateRes.ok) setTeam(await updateRes.json());
+      
+      // Refresh team data with updated credits after action
+      if (team && user?.teamId) {
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const updatedTeam = await teamResponse.json();
+          setTeam(updatedTeam);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -245,7 +266,7 @@ export default function Plan() {
                         </div>
                         <div className="text-left gap-4 flex justify-center items-center">
                           <span className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                            {team.credits?.contentPlans || 0}
+                            {team?.credits?.contentPlans || 0}
                           </span>
                           <p className="text-md text-muted-foreground font-medium leading-tight">
                             Planejamentos Restantes

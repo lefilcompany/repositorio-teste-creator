@@ -124,14 +124,13 @@ export default function Revisar() {
       setRevisedText(data.feedback);
       toast.success('Revisão gerada e salva no histórico!');
 
-      if (team) {
-        const updatedCredits = { ...team.credits, contentReviews: (team.credits?.contentReviews || 0) - 1 };
-        const updateRes = await fetch('/api/teams', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: team.id, credits: updatedCredits }),
-        });
-        if (updateRes.ok) setTeam(await updateRes.json());
+      // Atualizar team data (os créditos já foram decrementados pela API)
+      if (team && user?.teamId) {
+        const teamResponse = await fetch(`/api/teams/${user.teamId}?summary=true`);
+        if (teamResponse.ok) {
+          const updatedTeam = await teamResponse.json();
+          setTeam(updatedTeam);
+        }
       }
     } catch (err: any) {
       setError(err.message);

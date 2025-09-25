@@ -24,6 +24,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Imagem, prompt, teamId, brandId e userId são obrigatórios.' }, { status: 400 });
     }
 
+    // Verificar créditos disponíveis
+    const team = await prisma.team.findUnique({
+      where: { id: teamId }
+    });
+
+    if (!team) {
+      return NextResponse.json(
+        { error: 'Equipe não encontrada.' },
+        { status: 404 }
+      );
+    }
+
+    const teamCredits = (team as any).credits;
+    const availableCredits = teamCredits?.contentReviews || 0;
+
+    if (availableCredits <= 0) {
+      return NextResponse.json(
+        { error: 'Créditos insuficientes para revisão de conteúdo.' },
+        { status: 403 }
+      );
+    }
+
     const imageBuffer = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageFile.type;
@@ -113,6 +135,18 @@ export async function POST(req: NextRequest) {
       console.error('Erro ao salvar ação de revisão no banco:', dbError);
       // Continuar mesmo se falhar o salvamento, pois o feedback já foi gerado
     }
+
+    // Decrementar créditos após sucesso
+    const updatedCredits = {
+      ...teamCredits,
+      contentReviews: Math.max(0, (teamCredits?.contentReviews || 0) - 1)
+    };
+
+    await prisma.$executeRaw`
+      UPDATE "Team" 
+      SET credits = ${JSON.stringify(updatedCredits)}::jsonb
+      WHERE id = ${teamId}
+    `;
 
     return NextResponse.json({ 
       feedback: analysisContent, 

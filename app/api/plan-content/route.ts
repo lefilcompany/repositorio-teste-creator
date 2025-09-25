@@ -134,6 +134,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Todos os campos obrigatórios devem ser preenchidos.' }, { status: 400 });
     }
 
+    // Verificar créditos disponíveis
+    const team = await prisma.team.findUnique({
+      where: { id: teamId }
+    });
+
+    if (!team) {
+      return NextResponse.json({ error: 'Equipe não encontrada.' }, { status: 404 });
+    }
+
+    const teamCredits = (team as any).credits;
+    const availableCredits = teamCredits?.contentPlans || 0;
+
+    if (availableCredits <= 0) {
+      return NextResponse.json({ error: 'Créditos insuficientes para gerar planejamento.' }, { status: 403 });
+    }
+
     const selectedThemes = await prisma.strategicTheme.findMany({
       where: { teamId, brandId, title: { in: themes } },
       select: { title: true, toneOfVoice: true, description: true },
@@ -317,6 +333,18 @@ Agora, gere o plano de conteúdo completo.
         status: 'Aprovado'
       },
     });
+
+    // Decrementar créditos após sucesso
+    const updatedCredits = {
+      ...teamCredits,
+      contentPlans: Math.max(0, (teamCredits?.contentPlans || 0) - 1)
+    };
+
+    await prisma.$executeRaw`
+      UPDATE "Team" 
+      SET credits = ${JSON.stringify(updatedCredits)}::jsonb
+      WHERE id = ${teamId}
+    `;
 
     return NextResponse.json({ plan: finalHtml, actionId: action.id });
 
