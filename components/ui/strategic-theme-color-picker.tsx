@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, X, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,6 +51,21 @@ export function StrategicThemeColorPicker({ colors, onColorsChange, maxColors = 
     const [currentColor, setCurrentColor] = useState('#ffffff');
     const [colorName, setColorName] = useState('');
     const [colorsList, setColorsList] = useState<ColorItem[]>(() => parseColorsString(colors));
+    const [hexInput, setHexInput] = useState('#ffffff');
+
+    const handleColorChange = useCallback((hex: string) => {
+        setCurrentColor(hex);
+        setHexInput(hex);
+    }, []);
+
+    const handleManualHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setHexInput(value);
+
+        if (/^#([0-9A-Fa-f]{3}){1,2}$/i.test(value)) {
+            handleColorChange(value);
+        }
+    };
 
     const addColor = () => {
         // Verificar se atingiu o limite
@@ -94,7 +108,17 @@ export function StrategicThemeColorPicker({ colors, onColorsChange, maxColors = 
                         {/* Seletor Visual - 4 colunas */}
                         <div className="lg:col-span-4 space-y-3">
                             <div className="w-full">
-                                <HexColorPicker color={currentColor} onChange={setCurrentColor} />
+                                <HexColorPicker color={currentColor} onChange={handleColorChange} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="hex-input" className="text-sm">Valor HEX</Label>
+                                <Input
+                                    id="hex-input"
+                                    value={hexInput}
+                                    onChange={handleManualHexChange}
+                                    placeholder="#ffffff"
+                                    className="text-center font-mono"
+                                />
                             </div>
                         </div>
 
@@ -110,15 +134,12 @@ export function StrategicThemeColorPicker({ colors, onColorsChange, maxColors = 
                                 />
                             </div>
 
-                            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                            <div className="space-y-2">
+                                <Label className="text-sm">Preview</Label>
                                 <div
-                                    className="w-16 h-16 rounded-lg border-2 border-gray-300 shadow-sm flex-shrink-0"
+                                    className="w-full h-16 rounded-md border"
                                     style={{ backgroundColor: currentColor }}
                                 />
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">{colorName || currentColor}</p>
-                                    <p className="text-sm text-muted-foreground truncate">{currentColor.toUpperCase()}</p>
-                                </div>
                             </div>
 
                             <Button
@@ -132,54 +153,38 @@ export function StrategicThemeColorPicker({ colors, onColorsChange, maxColors = 
                         </div>
 
                         {/* Lista de Cores - 4 colunas */}
-                        <div className="lg:col-span-4 space-y-3 mt-1">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-sm font-medium">
-                                    Cores Selecionadas
-                                </Label>
-                                <span className="text-xs text-muted-foreground">
-                                    {colorsList.length}/{maxColors}
-                                </span>
-                            </div>
-                            
-                            {colorsList.length > 0 ? (
-                                <div className="space-y-2 max-h-64 overflow-y-auto">
-                                    {colorsList.map((color) => (
-                                        <div
-                                            key={color.id}
-                                            className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50 group"
-                                        >
+                        <div className="lg:col-span-4 space-y-3">
+                            <Label className="text-sm">Cores na Paleta ({colorsList.length}/{maxColors})</Label>
+                            <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                                {colorsList.map(color => (
+                                    <div key={color.id} className="flex items-center justify-between p-2 rounded-md border bg-muted/30">
+                                        <div className="flex items-center gap-3">
                                             <div
-                                                className="w-10 h-10 rounded-md border shadow-sm"
+                                                className="h-8 w-8 rounded-md border"
                                                 style={{ backgroundColor: color.hex }}
                                             />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate">
-                                                    {color.name || color.hex}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {color.hex.toUpperCase()}
-                                                </p>
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-sm">{color.name || color.hex}</span>
+                                                {color.name && <span className="text-xs text-muted-foreground">{color.hex}</span>}
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="opacity-0 group-hover:opacity-100"
-                                                onClick={() => removeColor(color.id)}
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </Button>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-muted-foreground/25 rounded-lg bg-muted/10">
-                                    <Palette className="w-8 h-8 text-muted-foreground/50 mb-2" />
-                                    <p className="text-sm text-muted-foreground text-center">
-                                        Nenhuma cor adicionada
-                                    </p>
-                                </div>
-                            )}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => removeColor(color.id)}
+                                            className="h-8 w-8"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {colorsList.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center text-center p-4 border-2 border-dashed rounded-md h-full">
+                                        <Palette className="h-8 w-8 text-muted-foreground mb-2" />
+                                        <p className="text-sm text-muted-foreground">Nenhuma cor adicionada ainda.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </CardContent>
